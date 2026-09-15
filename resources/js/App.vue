@@ -283,6 +283,7 @@ button:hover {
     align-items: center;
     gap: 20px;
 }
+fewofhweiuf hwelif
 
 .image-placeholder {
     width: 100%;
@@ -308,8 +309,6 @@ button:hover {
 }
 
 * {
-    margin: 0;
-    padding: 0;
     box-sizing: border-box;
 }
 </style>
