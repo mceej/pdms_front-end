@@ -1,6 +1,6 @@
 <template>
-    <div class="login-page">
-        <div class="login-card">
+    <main class="login-page">
+        <section class="login-card" aria-labelledby="login-heading">
             <div class="left-panel">
                 <div class="logo-row">
                     <img src="/logo/dswdlogo2.png" alt="DSWD Logo" class="logo-img" />
@@ -9,117 +9,117 @@
                 </div>
 
                 <div class="welcome-text">
-                    <h1>Welcome</h1>
+                    <h1 id="login-heading">Welcome</h1>
                     <p>Please login to your account to continue</p>
                 </div>
 
-                <LoginForm />
+                <LoginForm @authenticated="emit('authenticated')" />
             </div>
 
-            <div class="right-panel">
-                <!-- swap this for your actual background photo -->
+            <div class="right-panel" aria-hidden="true">
                 <div class="image-placeholder"></div>
                 <div class="image-overlay"></div>
             </div>
-        </div>
-    </div>
+        </section>
+    </main>
 </template>
 
 <script setup>
-import LoginForm from '../components/LoginForm.vue';
+import LoginForm from './components/LoginForm.vue';
+
+const emit = defineEmits(['authenticated']);
 </script>
 
 <style scoped>
 .login-page {
-    min-height: 100vh;
     display: flex;
+    min-height: 100vh;
+    background: #fff;
     font-family: Arial, sans-serif;
-    background: white;
 }
 
 .login-card {
-    width: 100%;
-    min-height: 100vh;
-    background: white;
     display: flex;
     flex-wrap: wrap;
-    overflow: hidden;
-    padding: clamp(10px, 2vw, 20px);
+    gap: clamp(16px, 2vw, 24px);
+    width: 100%;
+    min-height: 100vh;
+    padding: clamp(16px, 2vw, 28px);
     box-sizing: border-box;
-    gap: clamp(10px, 2vw, 20px);
+    overflow: hidden;
 }
 
 .left-panel {
-    flex: 1 1 400px;
-    padding: clamp(24px, 5vw, 48px) clamp(24px, 8vw, 80px);
     display: flex;
+    flex: 1 1 400px;
     flex-direction: column;
     justify-content: center;
     min-width: 0;
+    padding: clamp(32px, 5vw, 56px) clamp(24px, 7vw, 80px);
 }
 
 .logo-row {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     gap: 20px;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
 .logo-img {
-    height: 90px;
-    width: auto;
-    object-fit: contain;
     display: block;
+    width: auto;
+    height: 90px;
+    object-fit: contain;
 }
 
 .logo-divider {
+    flex-shrink: 0;
     width: 2px;
     height: 90px;
-    background-color: #9ca3af;
-    flex-shrink: 0;
+    background: #9ca3af;
 }
 
 .welcome-text {
+    margin-bottom: 28px;
     text-align: center;
-    margin-bottom: 32px;
 }
 
 .welcome-text h1 {
-    font-size: 26px;
-    margin-bottom: 6px;
+    margin: 0 0 8px;
     color: #1a1a2e;
+    font-size: 26px;
 }
 
 .welcome-text p {
+    margin: 0;
     color: #6b7280;
     font-size: 14px;
 }
 
 .right-panel {
-    flex: 1 1 400px;
-    min-height: 300px;
     position: relative;
-    overflow: hidden;
-    border-radius: 16px;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
+    flex: 1 1 400px;
     align-items: center;
-    gap: 20px;
+    justify-content: center;
+    min-height: 300px;
+    overflow: hidden;
+    border-radius: 0px 16px 16px 0px;
 }
 
 .image-placeholder {
     width: 100%;
     height: 100%;
-    background: url('/logo/dswdlogo3.png') center/cover no-repeat;
+    min-height: 500px;
+    background: url('/logo/dswdlogo3.png') center / cover no-repeat;
 }
 
 .image-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(55, 48, 163, 0.15), rgba(30, 27, 90, 0.25));
     border-radius: 16px;
+    background: linear-gradient(135deg, rgb(55 48 163 / 15%), rgb(30 27 90 / 25%));
 }
 
 @media (max-width: 768px) {
@@ -127,13 +127,17 @@ import LoginForm from '../components/LoginForm.vue';
         flex-direction: column;
     }
 
-    .right-panel {
-        min-height: 200px;
-        order: -1;
+    .left-panel {
+        padding: 32px 24px;
     }
-}
 
-* {
-    box-sizing: border-box;
+    .right-panel {
+        order: -1;
+        min-height: 200px;
+    }
+
+    .image-placeholder {
+        min-height: 260px;
+    }
 }
 </style>

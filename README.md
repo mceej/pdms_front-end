@@ -1,6 +1,6 @@
 # DSWD Payout Dashboard
 
-A Laravel app with a Vue 3 front end. Right now it has one screen, the login page, and the login form is not connected to the backend yet.
+A Laravel app with a Vue 3 front end for tracking DSWD payouts. It has a login page and a payout dashboard. The login form only checks that the fields are filled in; it doesn't sign anyone in yet.
 
 ## Tech stack
 
@@ -9,12 +9,24 @@ A Laravel app with a Vue 3 front end. Right now it has one screen, the login pag
 | Backend framework | [Laravel](https://laravel.com/docs) | 13.x |
 | Language | PHP | 8.3 or newer |
 | Frontend | [Vue 3](https://vuejs.org) single-file components (`<script setup>`) | 3.5 |
+| UI components | [PrimeVue](https://primevue.org) (Aura theme) with PrimeIcons | 4.x |
+| Charts | [Chart.js](https://www.chartjs.org), through PrimeVue's `Chart` component | 4.x |
 | Build tool | [Vite](https://vite.dev) with `laravel-vite-plugin` and `@vitejs/plugin-vue` | 8.x |
 | Styling | Scoped CSS inside Vue components; [Tailwind CSS](https://tailwindcss.com) is installed (see note below) | 4.x |
 | Database | SQLite by default (`database/database.sqlite`); the MySQL driver is also available | |
 | Tests / formatting | PHPUnit, Laravel Pint | 12.x / 1.x |
 
-**How the pieces connect:** `routes/web.php` returns `resources/views/welcome.blade.php`. That Blade page loads the Vite bundle and contains an empty `<div id="app">`. `resources/js/app.js` mounts `App.vue` into that div. There is no Inertia or Vue Router yet.
+**How the pieces connect:**
+
+1. `routes/web.php` returns `resources/views/welcome.blade.php`. That Blade page loads the Vite bundle and contains an empty `<div id="app">`.
+2. `resources/FrontEnd/app.js` sets up PrimeVue and mounts `App.vue` into that div.
+3. `App.vue` shows `LoginPage.vue` first and switches to `Dashboard.vue` after a valid login. There is no Inertia or Vue Router yet.
+4. The dashboard gets its data from two JSON endpoints in `routes/web.php`:
+
+| Endpoint | Controller | What it does |
+|---|---|---|
+| `GET /api/payout-dashboard` | `PayoutDashboardController` | Returns payout totals and progress, filtered by program, disaster type, location, payout site and date |
+| `POST /api/served-lists` | `ServedListController` | Imports a served-list CSV file into `payout_records` |
 
 > **Tailwind note:** the `@tailwindcss/vite` package is installed but hasn't been added to the `plugins` list in `vite.config.js`. Tailwind classes won't be generated until it is added.
 
@@ -54,6 +66,12 @@ composer setup
 6. Builds the front end (`npm run build`)
 
 Run it once, on a fresh clone. It generates a new `APP_KEY` every time it runs. To update packages later, use `composer install` and `npm install` instead.
+
+To fill the dashboard with sample data (Region XI provinces, a test user and sample payout records), run:
+
+```sh
+php artisan db:seed
+```
 
 <details>
 <summary>Manual setup (same steps, one at a time)</summary>
@@ -114,10 +132,16 @@ npm run dev          # terminal 2
 app/                                PHP code (models, controllers, providers)
 routes/web.php                      Web routes
 resources/views/welcome.blade.php   HTML page that loads Vite and holds <div id="app">
-resources/js/app.js                 Vue entry point
-resources/js/App.vue                Root Vue component (renders the current page)
-resources/js/pages/                 Page components (LoginPage.vue)
-resources/js/components/            Reusable components (LoginForm.vue)
+app/Http/Controllers/               PayoutDashboardController, ServedListController
+app/Models/                         Geography, PayoutRecord, ServedList, User
+resources/FrontEnd/app.js           Vue entry point (sets up PrimeVue)
+resources/FrontEnd/theme.js         PrimeVue theme (DSWD colors)
+resources/FrontEnd/App.vue          Root Vue component (switches between login and dashboard)
+resources/FrontEnd/LoginPage.vue    Login page layout
+resources/FrontEnd/Dashboard.vue    Payout dashboard page
+resources/FrontEnd/components/      Reusable components (LoginForm.vue, ServerList.vue)
+resources/FrontEnd/styles/          Shared stylesheets
+resources/views/blank.blade.php     Empty placeholder page at /blank
 resources/css/app.css               Global stylesheet
 logo/                               DSWD logos, imported into the Vue components through Vite
 database/                           Migrations, seeders, and the SQLite file
