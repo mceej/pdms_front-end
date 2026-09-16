@@ -1,74 +1,5 @@
 ﻿﻿<template>
-    <div class="app-shell">
-        <div v-if="currentView === 'login'" class="login-page">
-            <div class="login-card">
-                <div class="left-panel">
-                    <div class="logo-row">
-                        <img src="/logo/dswdlogo2.png" alt="DSWD Logo" class="logo-img" />
-                        <div class="logo-divider"></div>
-                        <img src="/logo/dswdlogo.png" alt="Field Office Logo" class="logo-img" />
-                    </div>
-
-                    <div class="welcome-text">
-                        <h1>Welcome</h1>
-                        <p>Please login to your account to continue</p>
-                    </div>
-
-                    <form @submit.prevent="login">
-                        <div class="form-group">
-                            <label for="username">Username</label>
-                            <input
-                                id="username"
-                                type="text"
-                                v-model="email"
-                                placeholder="Username"
-                                :class="{ 'input-error': errors.email }"
-                            />
-                            <p v-if="errors.email" class="error-text">The username field is required.</p>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="password">Password</label>
-                            <input
-                                id="password"
-                                type="password"
-                                v-model="password"
-                                placeholder="Password"
-                                :class="{ 'input-error': errors.password }"
-                            />
-                            <p v-if="errors.password" class="error-text">The password field is required.</p>
-                        </div>
-
-                        <div class="form-options">
-                            <label class="checkbox-label">
-                                <input
-                                    type="checkbox"
-                                    v-model="rememberMe"
-                                    :class="{ 'checkbox-error': errors.rememberMe }"
-                                />
-                                I have read and agree to the
-                                <a href="#">Privacy Policy</a>
-                            </label>
-                            <p v-if="errors.rememberMe" class="error-text">You must agree to the Privacy Policy.</p>
-                        </div>
-
-                        <button type="submit">Login</button>
-
-                        <p class="help-text">
-                            Need help? Send a ticket at
-                            <a href="#">https://ticketport.dswdfo11.ph</a>
-                        </p>
-                    </form>
-                </div>
-
-                <div class="right-panel">
-                    <div class="image-placeholder"></div>
-                    <div class="image-overlay"></div>
-                </div>
-            </div>
-        </div>
-
-        <div v-else class="dashboard-page">
+    <div class="dashboard-page">
             <div class="dashboard-shell">
                 <nav class="dashboard-nav" aria-label="Main navigation">
                     <button
@@ -421,19 +352,13 @@
                         </DataTable>
                     </div>
                 </section>
-            </div>
-        </div>
+    </div>
     </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 
-const currentView = ref('login');
-const email = ref('');
-const password = ref('');
-const rememberMe = ref(false);
-const errors = reactive({ email: false, password: false, rememberMe: false });
 const dashboardView = ref('dashboard');
 const activeTab = ref('AICS');
 const disasterName = ref(''); // ECT-only, per flowchart (auto-suggest + input, captured at import)
@@ -817,13 +742,6 @@ const uploadServedList = async () => {
     }
 };
 
-const login = () => {
-    errors.email = !email.value;
-    errors.password = !password.value;
-    errors.rememberMe = !rememberMe.value;
-    if (!errors.email && !errors.password && !errors.rememberMe) currentView.value = 'dashboard';
-};
-
 onMounted(() => fetchDashboard().catch((error) => console.error(error)));
 onMounted(() => {
     clockTimer = window.setInterval(() => {
@@ -1200,9 +1118,15 @@ button:hover {
 }
 
 .tab {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     width: auto;
+    height: 36px;
     min-width: 82px;
-    padding: 5px 20px;
+    padding: 0 20px;
     border-radius: 999px;
     border: 1px solid #fff;
     background: transparent;
@@ -1239,9 +1163,7 @@ button:hover {
     border-color: #fff;
     background: transparent;
     color: #0b247f;
-    font-size: 18px;
     font-weight: 900;
-    padding: 6px 18px;
 }
 
 .dashboard-as-of {

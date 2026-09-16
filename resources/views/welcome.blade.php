@@ -7,7 +7,7 @@
 
     <title>Payout Dashboard</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/FrontEnd/app.js'])
 </head>
 
 <body>
