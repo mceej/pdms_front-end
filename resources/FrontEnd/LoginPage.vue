@@ -6,10 +6,11 @@
                     <img src="/logo/dswdlogo2.png" alt="DSWD Logo" class="logo-img" />
                     <div class="logo-divider"></div>
                     <img src="/logo/dswdlogo.png" alt="Field Office Logo" class="logo-img" />
+                    <h1 id="login-heading" class="logo-title">DOTS</h1>
                 </div>
 
                 <div class="welcome-text">
-                    <h1 id="login-heading">Welcome</h1>
+                    <h1 id="login-heading" class="login-welcome">Welcome</h1>
                     <p>Please login to your account to continue</p>
                 </div>
 
@@ -32,30 +33,28 @@ const emit = defineEmits(['authenticated']);
 
 <style scoped>
 .login-page {
-    display: flex;
     min-height: 100vh;
+    min-height: 100dvh;
     background: #fff;
     font-family: Arial, sans-serif;
 }
 
 .login-card {
-    display: flex;
-    flex-wrap: wrap;
-    gap: clamp(16px, 2vw, 24px);
-    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 24px;
     min-height: 100vh;
-    padding: clamp(16px, 2vw, 28px);
+    min-height: 100dvh;
+    padding: 24px;
     box-sizing: border-box;
-    overflow: hidden;
 }
 
 .left-panel {
     display: flex;
-    flex: 1 1 400px;
     flex-direction: column;
     justify-content: center;
     min-width: 0;
-    padding: clamp(32px, 5vw, 56px) clamp(24px, 7vw, 80px);
+    padding: 32px 16px;
 }
 
 .logo-row {
@@ -68,15 +67,17 @@ const emit = defineEmits(['authenticated']);
 
 .logo-img {
     display: block;
+    flex: 0 1 auto;
+    min-width: 0;
     width: auto;
-    height: 90px;
-    object-fit: contain;
+    height: auto;
+    max-height: 90px;
 }
 
 .logo-divider {
     flex-shrink: 0;
+    align-self: stretch;
     width: 2px;
-    height: 90px;
     background: #9ca3af;
 }
 
@@ -98,12 +99,11 @@ const emit = defineEmits(['authenticated']);
 }
 
 .right-panel {
-    position: relative;
-    display: flex;
-    flex: 1 1 400px;
-    align-items: center;
-    justify-content: center;
-    min-height: 300px;
+    position: sticky;
+    top: 24px;
+    align-self: start;
+    height: calc(100vh - 48px);
+    height: calc(100dvh - 48px);
     overflow: hidden;
     border-radius: 0px 16px 16px 0px;
 }
@@ -111,7 +111,6 @@ const emit = defineEmits(['authenticated']);
 .image-placeholder {
     width: 100%;
     height: 100%;
-    min-height: 500px;
     background: url('/logo/dswdlogo3.png') center / cover no-repeat;
 }
 
@@ -122,22 +121,35 @@ const emit = defineEmits(['authenticated']);
     background: linear-gradient(135deg, rgb(55 48 163 / 15%), rgb(30 27 90 / 25%));
 }
 
-@media (max-width: 768px) {
+@media (max-width: 600px) {
     .login-card {
-        flex-direction: column;
+        grid-template-columns: minmax(0, 1fr);
+        padding: 16px;
     }
 
     .left-panel {
-        padding: 32px 24px;
+        padding: 24px 8px;
     }
 
     .right-panel {
-        order: -1;
-        min-height: 200px;
+        display: none;
     }
-
-    .image-placeholder {
-        min-height: 260px;
-    }
+}
+.login-welcome {
+    text-align: center;
+    margin-bottom: 28px;
+    color: #1a1a2e;
+    font-size: 26px;
+}
+.logo-title {
+    text-align: center;
+    margin-bottom: 28px;
+    color: #3730a3;
+    font-size: 70px;
+    font-weight: bold;
+    padding: 30px 0px 0px 0px;
+    font-family: 'Arial Black';
+    letter-spacing: -1px;
+    
 }
 </style>
