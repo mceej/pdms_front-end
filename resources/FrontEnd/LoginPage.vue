@@ -6,7 +6,7 @@
                     <img src="/logo/dswdlogo2.png" alt="DSWD Logo" class="logo-img" />
                     <div class="logo-divider"></div>
                     <img src="/logo/dswdlogo.png" alt="Field Office Logo" class="logo-img" />
-                    <h1 id="login-heading" class="logo-title">DOTS</h1>
+                    <h1 id="login-heading" class="logo-title">DATS</h1>
                 </div>
 
                 <div class="welcome-text">
