@@ -1,6 +1,6 @@
 <template>
     <LoginPage v-if="currentPage === 'login'" @authenticated="currentPage = 'dashboard'" />
-    <Dashboard v-else />
+    <Dashboard v-else @logout="currentPage = 'login'" />
 </template>
 
 <script setup>

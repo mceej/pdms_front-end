@@ -51,6 +51,7 @@ class PayoutDashboardController extends Controller
                 'paid' => $paid,
                 'remaining' => max(0, $target - $paid),
                 'progress' => $target ? round(($paid / $target) * 100, 2) : 0,
+                'target_amount' => (float) $rows->sum('target_amount'),
                 'amount_disbursed' => (float) $rows->sum('disbursed_amount'),
             ];
         })->values();
@@ -62,7 +63,9 @@ class PayoutDashboardController extends Controller
                 'target' => $records->count(),
                 'paid' => $records->where('is_paid', true)->count(),
                 'remaining' => max(0, $records->count() - $records->where('is_paid', true)->count()),
+                'target_amount' => (float) $records->sum('target_amount'),
                 'amount_disbursed' => (float) $records->sum('disbursed_amount'),
+                'unpaid_amount' => (float) $records->where('is_paid', false)->sum('target_amount'),
                 'progress' => $records->count() ? round(($records->where('is_paid', true)->count() / $records->count()) * 100, 2) : 0,
             ],
             'rows' => $groups,
