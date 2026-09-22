@@ -36,7 +36,9 @@
             <p v-if="errors.privacyPolicy" class="error-text">You must agree to the Privacy Policy.</p>
         </div>
 
-        <button type="submit">Login</button>
+        <p v-if="signInError" class="error-text sign-in-error">{{ signInError }}</p>
+
+        <button type="submit" :disabled="isSigningIn">Login</button>
 
         <p class="help-text">
             Need help? Send a ticket at
@@ -47,21 +49,39 @@
 
 <script setup>
 import { reactive, ref } from 'vue';
+import { signIn } from '../auth/adminAuth.js';
 
 const emit = defineEmits(['authenticated']);
 const username = ref('');
 const password = ref('');
 const hasAgreedToPrivacyPolicy = ref(false);
 const errors = reactive({ username: false, password: false, privacyPolicy: false });
+const signInError = ref('');
+const isSigningIn = ref(false);
 
-const login = () => {
+const login = async () => {
     errors.username = !username.value;
     errors.password = !password.value;
     errors.privacyPolicy = !hasAgreedToPrivacyPolicy.value;
+    signInError.value = '';
 
-    if (!errors.username && !errors.password && !errors.privacyPolicy) {
-        emit('authenticated');
+    if (errors.username || errors.password || errors.privacyPolicy) {
+        return;
     }
+
+    isSigningIn.value = true;
+
+    const result = await signIn(username.value, password.value);
+
+    isSigningIn.value = false;
+
+    if (result.ok) {
+        emit('authenticated');
+        return;
+    }
+
+    signInError.value = result.message;
+    password.value = '';
 };
 </script>
 
@@ -134,6 +154,16 @@ button {
 
 button:hover {
     background: #2e2789;
+}
+
+button:disabled {
+    opacity: 0.7;
+    cursor: progress;
+}
+
+.sign-in-error {
+    margin: -8px 0 0;
+    text-align: center;
 }
 
 .help-text {

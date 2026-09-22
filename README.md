@@ -2,7 +2,21 @@
 
 A Vue 3 front end for tracking DSWD payouts, with a login page and a payout dashboard.
 
-There is **no backend yet**. PHP only serves the page that loads the Vue app, and the dashboard reads sample data bundled into the front end. The login form checks that the fields are filled in; it doesn't sign anyone in.
+PHP handles the admin login and serves the page that loads the Vue app. Everything the dashboard displays is still **sample data** bundled into the front end; there is no database yet.
+
+## Signing in
+
+There is one account, `admin`. Ask the team for the password — the repository only holds a hash of it.
+
+The login is handled by PHP, so it works only when the page is opened through the PHP server (http://localhost:8000). You stay signed in until you press **Log out** or close the browser.
+
+To change the password:
+
+```sh
+php -r 'echo password_hash("the new password", PASSWORD_DEFAULT), PHP_EOL;'
+```
+
+Put the result in `passwordHash` in `config.php`. You can also set `ADMIN_USERNAME` and `ADMIN_PASSWORD_HASH` as environment variables instead, which is what a deployed server should do.
 
 ## Tech stack
 
@@ -13,7 +27,7 @@ There is **no backend yet**. PHP only serves the page that loads the Vue app, an
 | Charts | [Chart.js](https://www.chartjs.org), through PrimeVue's `Chart` component | 4.x |
 | Styling | Scoped CSS in each component, plus [Tailwind CSS](https://tailwindcss.com) | 4.x |
 | Build tool | [Vite](https://vite.dev) | 8.x |
-| Server-side | Plain PHP (one entry page today; the API comes later) | 8.4 |
+| Server-side | Plain PHP (entry page and the login endpoints) | 8.4 |
 | Dev environment | Docker Compose | |
 
 **How the pieces connect:**
@@ -21,8 +35,9 @@ There is **no backend yet**. PHP only serves the page that loads the Vue app, an
 1. The `php` container serves `public/index.php` on port 8000. That page is just an empty `<div id="app">` plus the tags that load the Vue app.
 2. In development it loads the Vue code from the Vite dev server on port 5173, so saving a file updates the browser right away. Without the `VITE_DEV_SERVER` setting, it loads the built files from `public/build` instead.
 3. `resources/FrontEnd/app.js` registers the PrimeVue components and mounts `App.vue`.
-4. `App.vue` shows `LoginPage.vue`, then switches to `Dashboard.vue` after a valid login. There is no Vue Router yet.
-5. `Dashboard.vue` gets its numbers from `resources/FrontEnd/mock/`. See [Mock data](#mock-data).
+4. `App.vue` asks `/api/session.php` whether this browser is already signed in, then shows `LoginPage.vue` or `Dashboard.vue`. There is no Vue Router yet.
+5. Signing in posts to `/api/login.php`, which checks the password and starts a PHP session. `/api/logout.php` ends it.
+6. `Dashboard.vue` gets its numbers from `resources/FrontEnd/mock/`. See [Mock data](#mock-data).
 
 ## Requirements
 
@@ -102,13 +117,17 @@ Uploading a served-list CSV is switched off and shows a message, because importi
 ```
 docker-compose.yml                  PHP + Vite containers
 vite.config.js                      Build and dev-server settings
+config.php                          Settings and the admin account (not web-accessible)
+src/                                PHP classes (AdminAuthenticator, AdminSession)
 public/index.php                    The page that loads the Vue app
+public/api/                         Login, logout and session endpoints
 public/build/                       Built front end (created by npm run build)
 resources/FrontEnd/app.js           Vue entry point; registers PrimeVue
 resources/FrontEnd/theme.js         PrimeVue theme (DSWD colors)
 resources/FrontEnd/App.vue          Root component (login or dashboard)
 resources/FrontEnd/LoginPage.vue    Login page layout
 resources/FrontEnd/Dashboard.vue    Payout dashboard page
+resources/FrontEnd/auth/            Talks to the login endpoints
 resources/FrontEnd/components/      Shared components (LoginForm.vue)
 resources/FrontEnd/dashboard/       Dashboard parts (table, charts, overview)
 resources/FrontEnd/serverList/      Served-list page

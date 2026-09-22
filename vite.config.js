@@ -15,6 +15,13 @@ export default defineConfig({
         hmr: { host: 'localhost', port: 5173 },
         // Bind mounts in Docker do not always emit file events.
         watch: { usePolling: true, interval: 300 },
+        // So the PHP endpoints also work when the page is opened on port 5173.
+        proxy: {
+            '/api': {
+                target: process.env.API_PROXY_TARGET || 'http://localhost:8000',
+                changeOrigin: false,
+            },
+        },
     },
     build: {
         manifest: true,

@@ -15,6 +15,9 @@ services:
     image: node:22-alpine
     working_dir: /app
     command: sh -c "npm install && npm run dev"
+    environment:
+      # Where Vite forwards /api requests when the page is opened on port 5173.
+      API_PROXY_TARGET: http://php:8000
     ports:
       - "5173:5173"
     volumes:
