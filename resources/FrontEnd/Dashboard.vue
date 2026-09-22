@@ -163,6 +163,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
 import DashboardOverview from './dashboard/DashboardOverview.vue';
 import DashboardTable from './dashboard/DashboardTable.vue';
 import ComparisonCharts from './dashboard/ComparisonCharts.vue';
@@ -403,18 +404,16 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
-    const params = new URLSearchParams({ program: activeTab.value });
-    if (selectedDisasterType.value) params.set('disaster_type', selectedDisasterType.value);
-    if (selectedProvince.value?.id) params.set('province_id', selectedProvince.value.id);
-    if (selectedMunicipality.value?.id) params.set('municipality_id', selectedMunicipality.value.id);
-    if (selectedBarangay.value?.id) params.set('barangay_id', selectedBarangay.value.id);
-    if (payoutSiteFilter.value) params.set('payout_site', payoutSiteFilter.value);
-    if (dateFrom.value) params.set('from', dateFrom.value);
-    if (dateTo.value) params.set('to', dateTo.value);
+    const filters = { program: activeTab.value };
+    if (selectedDisasterType.value) filters.disaster_type = selectedDisasterType.value;
+    if (selectedProvince.value?.id) filters.province_id = selectedProvince.value.id;
+    if (selectedMunicipality.value?.id) filters.municipality_id = selectedMunicipality.value.id;
+    if (selectedBarangay.value?.id) filters.barangay_id = selectedBarangay.value.id;
+    if (payoutSiteFilter.value) filters.payout_site = payoutSiteFilter.value;
+    if (dateFrom.value) filters.from = dateFrom.value;
+    if (dateTo.value) filters.to = dateTo.value;
 
-    const response = await fetch(`/api/payout-dashboard?${params.toString()}`);
-    if (!response.ok) throw new Error('Unable to load payout dashboard data.');
-    const payload = await response.json();
+    const payload = await fetchPayoutDashboard(filters);
     apiRows.value = payload.rows || [];
     apiSummary.value = payload.summary || apiSummary.value;
     apiDisasterTypes.value = payload.disaster_types || [];
@@ -509,49 +508,8 @@ const selectServedListFile = (event) => {
 };
 
 const uploadServedList = async () => {
-    if (!servedListForm.file || !servedListForm.program) {
-        servedListError.value = true;
-        servedListMessage.value = 'Select a program and CSV file before uploading.';
-        return;
-    }
-
-    isUploading.value = true;
-    servedListMessage.value = '';
-    servedListError.value = false;
-
-    try {
-        const formData = new FormData();
-        formData.append('file', servedListForm.file);
-        formData.append('program', servedListForm.program);
-        formData.append('disaster_type', servedListForm.program === 'ECT' ? selectedDisasterType.value || 'Not specified' : 'AICS');
-
-        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const response = await fetch('/api/served-lists', {
-            method: 'POST',
-            body: formData,
-            headers: csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {},
-        });
-
-        const payload = await response.json();
-        if (!response.ok) {
-            throw new Error(payload.message || 'Unable to upload the served list.');
-        }
-
-        servedListRows.value.unshift({
-            file_name: payload.file_name,
-            imported_at: new Date(payload.imported_at).toLocaleDateString(),
-            imported_by: payload.imported_by ? `User #${payload.imported_by}` : 'Current user',
-        });
-
-        servedListMessage.value = 'Served list uploaded successfully.';
-        servedListForm.file = null;
-        await fetchDashboard();
-    } catch (error) {
-        servedListError.value = true;
-        servedListMessage.value = error.message || 'Unable to upload the served list.';
-    } finally {
-        isUploading.value = false;
-    }
+    servedListError.value = true;
+    servedListMessage.value = 'Uploading a served list needs the PHP backend, which is not built yet.';
 };
 
 onMounted(() => fetchDashboard().catch((error) => console.error(error)));

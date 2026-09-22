@@ -1,20 +1,63 @@
 <?php
 
-use Illuminate\Foundation\Application;
-use Illuminate\Http\Request;
+/**
+ * Entry page for the DSWD Payout Dashboard.
+ *
+ * In development it loads the Vue app from the Vite dev server (live reload).
+ * Otherwise it loads the built files listed in public/build/.vite/manifest.json.
+ */
 
-define('LARAVEL_START', microtime(true));
+const ENTRY = 'resources/FrontEnd/app.js';
 
-// Determine if the application is in maintenance mode...
-if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
-    require $maintenance;
+/**
+ * Build the <script>/<link> tags for the Vue app.
+ *
+ * @return string
+ */
+function assetTags(): string
+{
+    $devServer = rtrim((string) getenv('VITE_DEV_SERVER'), '/');
+
+    if ($devServer !== '') {
+        return sprintf('<script type="module" src="%s/@vite/client"></script>', $devServer)
+            . sprintf('<script type="module" src="%s/%s"></script>', $devServer, ENTRY);
+    }
+
+    $manifestPath = __DIR__ . '/build/.vite/manifest.json';
+
+    if (! is_file($manifestPath)) {
+        return '<p>Run "npm run build" (or start the Vite dev server) to build the front end.</p>';
+    }
+
+    $manifest = json_decode((string) file_get_contents($manifestPath), true);
+    $entry = $manifest[ENTRY] ?? null;
+
+    if ($entry === null) {
+        return '<p>The build manifest does not contain ' . ENTRY . '.</p>';
+    }
+
+    $tags = '';
+
+    foreach ($entry['css'] ?? [] as $file) {
+        $tags .= sprintf('<link rel="stylesheet" href="/build/%s">', $file);
+    }
+
+    return $tags . sprintf('<script type="module" src="/build/%s"></script>', $entry['file']);
 }
 
-// Register the Composer autoloader...
-require __DIR__.'/../vendor/autoload.php';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-// Bootstrap Laravel and handle the request...
-/** @var Application $app */
-$app = require_once __DIR__.'/../bootstrap/app.php';
+    <title>Payout Dashboard</title>
 
-$app->handleRequest(Request::capture());
+    <?= assetTags() ?>
+</head>
+
+<body>
+    <div id="app"></div>
+</body>
+</html>

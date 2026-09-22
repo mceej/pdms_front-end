@@ -1,159 +1,127 @@
 # DSWD Payout Dashboard
 
-A Laravel app with a Vue 3 front end for tracking DSWD payouts. It has a login page and a payout dashboard. The login form only checks that the fields are filled in; it doesn't sign anyone in yet.
+A Vue 3 front end for tracking DSWD payouts, with a login page and a payout dashboard.
+
+There is **no backend yet**. PHP only serves the page that loads the Vue app, and the dashboard reads sample data bundled into the front end. The login form checks that the fields are filled in; it doesn't sign anyone in.
 
 ## Tech stack
 
 | Layer | Technology | Version |
 |---|---|---|
-| Backend framework | [Laravel](https://laravel.com/docs) | 13.x |
-| Language | PHP | 8.3 or newer |
-| Frontend | [Vue 3](https://vuejs.org) single-file components (`<script setup>`) | 3.5 |
+| Front end | [Vue 3](https://vuejs.org) single-file components (`<script setup>`) | 3.5 |
 | UI components | [PrimeVue](https://primevue.org) (Aura theme) with PrimeIcons | 4.x |
 | Charts | [Chart.js](https://www.chartjs.org), through PrimeVue's `Chart` component | 4.x |
-| Build tool | [Vite](https://vite.dev) with `laravel-vite-plugin` and `@vitejs/plugin-vue` | 8.x |
-| Styling | Scoped CSS inside Vue components; [Tailwind CSS](https://tailwindcss.com) is installed (see note below) | 4.x |
-| Database | SQLite by default (`database/database.sqlite`); the MySQL driver is also available | |
-| Tests / formatting | PHPUnit, Laravel Pint | 12.x / 1.x |
+| Styling | Scoped CSS in each component, plus [Tailwind CSS](https://tailwindcss.com) | 4.x |
+| Build tool | [Vite](https://vite.dev) | 8.x |
+| Server-side | Plain PHP (one entry page today; the API comes later) | 8.4 |
+| Dev environment | Docker Compose | |
 
 **How the pieces connect:**
 
-1. `routes/web.php` returns `resources/views/welcome.blade.php`. That Blade page loads the Vite bundle and contains an empty `<div id="app">`.
-2. `resources/FrontEnd/app.js` sets up PrimeVue and mounts `App.vue` into that div.
-3. `App.vue` shows `LoginPage.vue` first and switches to `Dashboard.vue` after a valid login. There is no Inertia or Vue Router yet.
-4. The dashboard gets its data from two JSON endpoints in `routes/web.php`:
-
-| Endpoint | Controller | What it does |
-|---|---|---|
-| `GET /api/payout-dashboard` | `PayoutDashboardController` | Returns payout totals and progress, filtered by program, disaster type, location, payout site and date |
-| `POST /api/served-lists` | `ServedListController` | Imports a served-list CSV file into `payout_records` |
-
-> **Tailwind note:** the `@tailwindcss/vite` package is installed but hasn't been added to the `plugins` list in `vite.config.js`. Tailwind classes won't be generated until it is added.
+1. The `php` container serves `public/index.php` on port 8000. That page is just an empty `<div id="app">` plus the tags that load the Vue app.
+2. In development it loads the Vue code from the Vite dev server on port 5173, so saving a file updates the browser right away. Without the `VITE_DEV_SERVER` setting, it loads the built files from `public/build` instead.
+3. `resources/FrontEnd/app.js` registers the PrimeVue components and mounts `App.vue`.
+4. `App.vue` shows `LoginPage.vue`, then switches to `Dashboard.vue` after a valid login. There is no Vue Router yet.
+5. `Dashboard.vue` gets its numbers from `resources/FrontEnd/mock/`. See [Mock data](#mock-data).
 
 ## Requirements
 
-- **PHP 8.3+** with the standard Laravel extensions (`ctype`, `curl`, `dom`, `fileinfo`, `mbstring`, `openssl`, `pdo_sqlite`, `tokenizer`, `xml`)
-- **Composer 2**
-- **Node.js 20.19+ or 22.12+** (required by Vite 8), which includes npm
-- **Git**
+- **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** — this is the only requirement for the setup below.
 
-On macOS and Windows, [Laravel Herd](https://herd.laravel.com) installs PHP and Composer for you. Install Node from [nodejs.org](https://nodejs.org) or with Homebrew (`brew install node`).
-
-To check your versions:
-
-```sh
-php -v
-composer -V
-node -v
-npm -v
-```
-
-## First-time setup
-
-```sh
-git clone https://github.com/Jhnqst/dswd_repository.git
-cd dswd_repository
-composer setup
-```
-
-`composer setup` does the following, in order:
-
-1. Installs PHP packages (`composer install`)
-2. Copies `.env.example` to `.env` if `.env` doesn't exist yet
-3. Generates the app key (`php artisan key:generate`)
-4. Creates `database/database.sqlite` and runs the migrations
-5. Installs JavaScript packages (`npm install`)
-6. Builds the front end (`npm run build`)
-
-Run it once, on a fresh clone. It generates a new `APP_KEY` every time it runs. To update packages later, use `composer install` and `npm install` instead.
-
-To fill the dashboard with sample data (Region XI provinces, a test user and sample payout records), run:
-
-```sh
-php artisan db:seed
-```
-
-<details>
-<summary>Manual setup (same steps, one at a time)</summary>
-
-```sh
-composer install
-cp .env.example .env          # Windows: copy .env.example .env
-php artisan key:generate
-php artisan migrate           # answer "yes" when asked to create the SQLite database
-npm install
-npm run build
-```
-
-</details>
+To run it without Docker you need **PHP 8.3+** and **Node.js 20.19+ or 22.12+** on your machine.
 
 ## Running the project
 
 ```sh
-composer dev
+git clone https://github.com/Jhnqst/dswd_repository.git
+cd dswd_repository
+docker compose up
 ```
 
-Then open **http://127.0.0.1:8000** in your browser. Press `Ctrl+C` to stop everything.
+Then open **http://localhost:8000**.
 
-`composer dev` starts four processes in one terminal:
+The first start takes a few minutes because it installs the npm packages inside the container. Later starts are quick. Press `Ctrl+C` to stop, or run `docker compose down` from another terminal.
 
-| Process | Command | What it does |
-|---|---|---|
-| server | `php artisan serve` | Runs the Laravel app on port 8000 |
-| vite | `npm run dev` | Serves the Vue and CSS files on port 5173 and hot-reloads them when you save |
-| queue | `php artisan queue:listen` | Runs queued jobs |
-| logs | `php artisan pail` | Shows the Laravel log live |
+| Address | What it is |
+|---|---|
+| http://localhost:8000 | The app. Always use this one. |
+| http://localhost:5173 | Vite's file server. It only serves the front-end files to the page above. |
 
-Port 5173 only serves the front-end files. Always open the app through port 8000.
-
-**Using two terminals instead:**
+<details>
+<summary>Running without Docker</summary>
 
 ```sh
-php artisan serve    # terminal 1
-npm run dev          # terminal 2
+npm install
+
+# terminal 1: front-end files with live reload
+npm run dev
+
+# terminal 2: the page itself
+VITE_DEV_SERVER=http://localhost:5173 php -S localhost:8000 -t public
 ```
 
-**Using Herd instead of `php artisan serve`:** run `herd link dswd` in the project folder, set `APP_URL=http://dswd.test` in `.env`, then run `npm run dev` and open http://dswd.test.
+</details>
+
+<details>
+<summary>Running the built version (what gets deployed)</summary>
+
+```sh
+npm run build                  # or: docker compose run --rm vite npm run build
+php -S localhost:8000 -t public
+```
+
+Leave `VITE_DEV_SERVER` unset so the page loads the built files from `public/build`. In `docker-compose.yml`, remove or comment out the `VITE_DEV_SERVER` line under the `php` service.
+
+</details>
+
+## Mock data
+
+Until the PHP API exists, the dashboard reads sample data instead of calling a server:
+
+| File | What it holds |
+|---|---|
+| `resources/FrontEnd/mock/payoutData.json` | 26 Region XI locations and 45 payout records |
+| `resources/FrontEnd/mock/payoutDashboard.js` | Applies the filters, groups the rows by location, and works out the totals |
+
+`fetchPayoutDashboard(filters)` returns the same shape a real endpoint should return, so filters, drill-down and the charts all work. When the PHP API is ready, replace the call in `Dashboard.vue` with a real request and delete this folder.
+
+Uploading a served-list CSV is switched off and shows a message, because importing needs a backend.
 
 ## Useful commands
 
 | Command | What it does |
 |---|---|
-| `composer test` | Runs the PHPUnit tests |
-| `./vendor/bin/pint` | Formats PHP code to PSR-12 (set in `pint.json`) |
-| `npm run build` | Builds the front end into `public/build` (the app then works without `npm run dev`) |
-| `php artisan migrate` | Runs new database migrations |
-| `php artisan migrate:fresh` | Rebuilds the database from scratch (**deletes all data**) |
-| `php artisan route:list` | Lists all routes |
+| `docker compose up` | Starts the app (PHP on 8000, Vite on 5173) |
+| `docker compose down` | Stops it |
+| `docker compose logs -f vite` | Shows the front-end build output |
+| `npm run build` | Builds the front end into `public/build` |
+| `npm run dev` | Runs Vite on its own, without Docker |
 
 ## Project structure
 
 ```
-app/                                PHP code (models, controllers, providers)
-routes/web.php                      Web routes
-resources/views/welcome.blade.php   HTML page that loads Vite and holds <div id="app">
-app/Http/Controllers/               PayoutDashboardController, ServedListController
-app/Models/                         Geography, PayoutRecord, ServedList, User
-resources/FrontEnd/app.js           Vue entry point (sets up PrimeVue)
+docker-compose.yml                  PHP + Vite containers
+vite.config.js                      Build and dev-server settings
+public/index.php                    The page that loads the Vue app
+public/build/                       Built front end (created by npm run build)
+resources/FrontEnd/app.js           Vue entry point; registers PrimeVue
 resources/FrontEnd/theme.js         PrimeVue theme (DSWD colors)
-resources/FrontEnd/App.vue          Root Vue component (switches between login and dashboard)
+resources/FrontEnd/App.vue          Root component (login or dashboard)
 resources/FrontEnd/LoginPage.vue    Login page layout
 resources/FrontEnd/Dashboard.vue    Payout dashboard page
-resources/FrontEnd/components/      Reusable components (LoginForm.vue, ServerList.vue)
-resources/FrontEnd/styles/          Shared stylesheets
-resources/views/blank.blade.php     Empty placeholder page at /blank
+resources/FrontEnd/components/      Shared components (LoginForm.vue)
+resources/FrontEnd/dashboard/       Dashboard parts (table, charts, overview)
+resources/FrontEnd/serverList/      Served-list page
+resources/FrontEnd/mock/            Sample data (see above)
 resources/css/app.css               Global stylesheet
-logo/                               DSWD logos, imported into the Vue components through Vite
-database/                           Migrations, seeders, and the SQLite file
-tests/                              PHPUnit tests
+logo/                               DSWD logos, loaded through Vite
 memory.md                           Team coding rules (code ethics)
 ```
 
-`LoginPage.vue` uses paths like `/logo/dswdlogo.png`. Vite finds these files in the `logo/` folder at the project root and adds them to the build, so they don't need to be in `public/`.
-
 ## Troubleshooting
 
-- **"Vite manifest not found":** the front end hasn't been built. Run `npm run build`, or keep `npm run dev` running.
-- **The page tries to load files from `localhost:5173` but Vite isn't running:** delete the `public/hot` file. Vite creates it while running and sometimes leaves it behind after a crash.
-- **`could not find driver` (SQLite):** turn on the `pdo_sqlite` extension in your PHP installation.
-- **Port 8000 is already in use:** run `php artisan serve --port=8001` and change `APP_URL` in `.env` to match.
+- **The page says to run `npm run build`:** either start Vite (`docker compose up`) or build the front end.
+- **The page loads but has no styling, or the browser console mentions port 5173:** the Vite container isn't running. Check `docker compose ps` and `docker compose logs vite`.
+- **Port 8000 or 5173 is already in use:** stop whatever is using it, or change the port mapping in `docker-compose.yml`.
+- **Edits don't show up in the browser:** reload once. If it keeps happening, restart with `docker compose restart vite`.
+- **npm packages look broken after switching branches:** run `docker compose down -v` to clear the container's package volume, then `docker compose up`.

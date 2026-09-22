@@ -1,6 +1,6 @@
 # Code Ethics
 
-Rules everyone working on this project follows.
+Rules everyone working on this project follows. The project is a Vue 3 front end served by plain PHP — no framework.
 
 ## Coding Style
 
@@ -8,45 +8,49 @@ Rules everyone working on this project follows.
 
 - Follow **PSR-12**.
 - Keep lines between **80 and 120 characters** max.
-- Use **CamelCase** for class names (e.g. `UserService`, `PayoutController`).
+- Use **CamelCase** for class names (e.g. `PayoutRepository`, `CsvImporter`).
 
-### Laravel / Vue.js
+### Vue.js
 
 - Use **CamelCase** naming.
   - Vue components: `LoginForm.vue`, `PayoutTable.vue`
   - Variables and functions: `rememberMe`, `fetchPayouts()`
-- **Routes are lowercase** (e.g. `/payouts`, `payouts.index`).
+- **Routes and URLs are lowercase** (e.g. `/payouts`, `/api/payout-dashboard`).
 
 ## Best Practices
 
-- **Single responsibility:** each class and method does one job. Move business logic out of controllers into service classes (e.g. `UserService`).
-- **Eager loading:** load relationships up front with `with()` to avoid N+1 queries.
+- **Single responsibility:** each class, function and component does one job. Keep data loading out of page components — put it in its own module (today `resources/FrontEnd/mock/payoutDashboard.js`, later a real API module). In PHP, keep the request handling separate from the queries.
+- **One query, not many:** never run a query inside a loop. Fetch what you need up front, joining or grouping in the query, then match the rows in code.
 
   ```php
-  $payouts = Payout::with('beneficiary')->get();
+  $sql = 'SELECT p.*, g.name AS province_name
+          FROM payout_records p
+          JOIN geographies g ON g.id = p.province_id';
+  $payouts = $pdo->query($sql)->fetchAll();
   ```
 
-- **Chunking:** process large datasets in chunks instead of loading everything at once.
+- **Chunking:** process large datasets in batches instead of loading everything into memory.
 
   ```php
-  Payout::chunkById(500, function ($payouts) {
+  $statement = $pdo->prepare('SELECT * FROM payout_records LIMIT :limit OFFSET :offset');
+
+  // Read uploaded CSVs a row at a time, too.
+  while (($row = fgetcsv($handle)) !== false) {
       // ...
-  });
+  }
   ```
 
 - **No white spaces:** no trailing white space at the end of lines (`.editorconfig` trims it in supported editors).
-- **No queries in Blade:** get the data in the controller and pass it to the view.
+- **No queries in templates:** a Vue component receives its data through props or a data module; a PHP page gets its data before it renders anything. No database calls inside markup.
+- **Do not read environment variables directly:** load them in one config file and read that everywhere else.
 
   ```php
-  return view('payouts.index', ['payouts' => $payouts]);
+  // config.php
+  return ['viteDevServer' => getenv('VITE_DEV_SERVER') ?: ''];
+
+  // elsewhere
+  $config = require __DIR__ . '/config.php';
+  $viteDevServer = $config['viteDevServer'];
   ```
 
-- **Do not access `.env` directly:** only call `env()` inside `config/` files. Everywhere else, use `config()`.
-
-  ```php
-  // config/services.php
-  'payout' => ['key' => env('PAYOUT_API_KEY')],
-
-  // app code
-  $key = config('services.payout.key');
-  ```
+  In Vue, read `import.meta.env` in a single module rather than scattering it through components.

@@ -1,5 +1,6 @@
-// resources/js/app.js
 import { createApp } from 'vue';
+
+import '../css/app.css';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
 
