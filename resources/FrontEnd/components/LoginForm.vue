@@ -108,6 +108,7 @@ const login = () => {
 
 .checkbox-label input {
     margin-top: 2px;
+    accent-color: #3730a3;
 }
 
 .checkbox-label a {
@@ -117,7 +118,7 @@ const login = () => {
 }
 
 .checkbox-error {
-    accent-color: #ef4444;
+    accent-color: #3730a3;
 }
 
 button {
@@ -158,3 +159,4 @@ button:hover {
     font-size: 12px;
 }
 </style>
+

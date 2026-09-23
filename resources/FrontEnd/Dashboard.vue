@@ -35,7 +35,7 @@
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
-                        <i class="pi pi-shield"></i> DSWD • PAYOUT SYSTEM
+                        <i class="pi"></i> DSWD • PAYOUT SYSTEM
                     </span>
 
                     <div class="title-row">
@@ -63,6 +63,7 @@
 
                     <div v-if="dashboardView === 'dashboard'" class="tab-row">
                         <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
+                            <i class="pi pi-box"></i>
                             AICS
                         </button>
 
@@ -72,6 +73,7 @@
                                 :class="['tab', { active: activeTab === 'ECT' }]"
                                 @click="setTab('ECT')"
                             >
+                                <i class="pi pi-file"></i>
                                 ECT
                             </button>
 
@@ -163,10 +165,10 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
+import ComparisonCharts from './dashboard/ComparisonCharts.vue';
 import DashboardOverview from './dashboard/DashboardOverview.vue';
 import DashboardTable from './dashboard/DashboardTable.vue';
-import ComparisonCharts from './dashboard/ComparisonCharts.vue';
+import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
 import ServerListPage from './serverList/ServerListPage.vue';
 
 const emit = defineEmits(['logout']);
@@ -655,11 +657,12 @@ button:hover { background: #2e2789; }
     position: relative;
     overflow: visible;
     border-radius: 10px;
-    padding: 30px 34px 24px;
+    padding: 35px 40px 25px;
     margin-bottom: 24px;
-    background: linear-gradient(135deg, #052557 0%, #073a91 45%, #0649b9 100%);
-    box-shadow: 0 8px 24px rgba(7, 32, 74, 0.35);
-    border-top: 5px solid transparent;
+    min-height: 245px;
+    background: linear-gradient(135deg, #052f86 0%, #073f9f 48%, #075bd8 100%);
+    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
+    border-top: 7px solid transparent;
     border-image: linear-gradient(90deg, #f28b27 0%, #f28b27 72%, #e9482f 92%, #b71c3c 100%) 1;
 }
 
@@ -669,44 +672,46 @@ button:hover { background: #2e2789; }
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
-    letter-spacing: 0.12em;
+    font-size: 16px;
+    letter-spacing: 0;
     text-transform: uppercase;
-    color: #f5bd18;
+    color: #9dc1f8;
     font-weight: 800;
 }
 
 .region-tag {
     display: inline-block;
-    margin-top: 6px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.12);
-    color: #cfe0fb;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    margin-top: 14px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0;
 }
 
 .title-row {
     display: flex;
     justify-content: space-between;
-    align-items: end;
-    gap: 18px;
-    margin-top: 12px;
+    align-items: flex-start;
+    gap: 32px;
+    margin-top: 20px;
 }
 
 .title-row h1 {
     margin: 0;
     color: #fff;
-    font-size: clamp(2rem, 4vw, 3.2rem);
+    font-size: 55px;
     font-weight: 800;
     letter-spacing: 0;
     line-height: 1;
 }
 
 .progress-box {
-    min-width: 340px;
+    width: 396px;
+    min-width: 396px;
+    margin-top: 25px;
     text-align: left;
 }
 
@@ -714,43 +719,64 @@ button:hover { background: #2e2789; }
     display: flex;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     text-align: left;
 }
 
 .header-beneficiaries {
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.2;
     white-space: nowrap;
 }
 
 .header-progress-value {
-    color: #fff;
-    font-size: clamp(1.7rem, 2.8vw, 2.5rem);
+    color: #ffffff;
+    font-size: 57px;
     line-height: 1;
     font-weight: 800;
+}
+
+.header-progress-wrap {
+    margin-top: 8px;
+    width: 100%;
+}
+
+:deep(.header-progress) {
+    height: 6px;
+    border-radius: 999px;
+    background: #06336f;
+    overflow: hidden;
+}
+
+:deep(.header-progress .p-progressbar-value) {
+    background: #ffae1a;
+    border-radius: 999px;
 }
 
 .header-updated {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
-    margin-top: 10px;
+    align-items: flex-end;
+    gap: 6px;
+    margin-top: 4px;
     color: #fff;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.2;
+    text-align: right;
 }
 
 .header-updated span {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    font-weight: 800;
 }
 
 .header-updated strong {
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .tab-row {
@@ -761,7 +787,7 @@ button:hover { background: #2e2789; }
     padding: 0;
     border-radius: 0;
     border: 0;
-    margin: 28px 0 0;
+    margin: 23px 0 0;
     position: relative;
     z-index: 1;
 }
@@ -771,6 +797,7 @@ button:hover { background: #2e2789; }
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    gap: 7px;
     box-sizing: border-box;
     width: auto;
     height: 36px;
@@ -783,6 +810,10 @@ button:hover { background: #2e2789; }
     font-weight: 700;
     font-size: 12px;
     cursor: pointer;
+}
+
+.tab i {
+    font-size: 12px;
 }
 
 .tab.active {
@@ -889,6 +920,11 @@ button:hover { background: #2e2789; }
   .progress-box {
       width: 100%;
       min-width: 0;
+      text-align: left;
+  }
+
+  .header-updated {
+      align-items: flex-start;
       text-align: left;
   }
 

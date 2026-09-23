@@ -2,7 +2,7 @@
   <section class="progress-overview">
     <div class="progress-overview-heading">
       <div class="overview-title">
-        <i class="pi pi-chart-bar"></i>
+        <i class="pi pi-percentage"></i>
         <strong>Progress Overview</strong>
       </div>
       <div class="overview-filters">
@@ -19,12 +19,25 @@
         <h3>Target Distribution</h3>
         <p>Total paid vs. remaining across all barangays.</p>
         <div class="donut-content">
-          <div class="donut" :style="{ '--paid-angle': `${dashboardProgress * 3.6}deg` }">
+          <div class="donut" :style="donutStyle">
             <div class="donut-hole"></div>
           </div>
           <div class="donut-legend">
-            <div><span class="legend-dot paid-dot"></span><span>Paid</span><strong>{{ formatNumber(totalPaidCount) }}</strong><small>{{ dashboardProgress }}%</small></div>
-            <div><span class="legend-dot remaining-dot"></span><span>Remaining</span><strong>{{ formatNumber(remainingCount) }}</strong><small>{{ 100 - dashboardProgress }}%</small></div>
+            <div class="legend-item" v-if="hasPaid">
+              <span class="legend-circle paid-dot">{{ dashboardProgress }}%</span>
+              <div class="legend-info">
+                <span>Paid</span>
+                <strong>{{ formatNumber(totalPaidCount) }}</strong>
+              </div>
+            </div>
+            <div class="legend-item" v-if="hasRemaining">
+              <span class="legend-circle remaining-dot">{{ 100 - dashboardProgress }}%</span>
+              <div class="legend-info">
+                <span>Remaining</span>
+                <strong>{{ formatNumber(remainingCount) }}</strong>
+              </div>
+            </div>
+            <div class="legend-empty" v-if="!hasPaid && !hasRemaining">No data yet</div>
           </div>
         </div>
       </section>
@@ -66,7 +79,24 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:dateFrom', 'update:dateTo']);
+
 const remainingCount = computed(() => Math.max(Number(props.totalTarget || 0) - Number(props.totalPaidCount || 0), 0));
+const hasPaid = computed(() => Number(props.totalPaidCount || 0) > 0);
+const hasRemaining = computed(() => remainingCount.value > 0);
+
+const donutStyle = computed(() => {
+  if (hasPaid.value && !hasRemaining.value) {
+    return { background: '#f9e943' };
+  }
+  if (!hasPaid.value && hasRemaining.value) {
+    return { background: '#211889' };
+  }
+  if (!hasPaid.value && !hasRemaining.value) {
+    return { background: '#e6ebf2' };
+  }
+  return { '--paid-angle': `${props.dashboardProgress * 3.6}deg` };
+});
+
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 </script>
 
@@ -112,13 +142,15 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
 .apply-filter {
   width: auto;
   min-width: 104px;
-  padding: 5px 14px;
+  height: 26px;
+  padding: 4px 14px;
   border: 1px solid #5968bb;
-  border-radius: 999px;
+  border-radius: 5px;
   background: #fff;
   color: #192782;
   font-size: 0.7rem;
   font-weight: 700;
+  box-sizing: border-box;
 }
 
 .quick-filter.active { box-shadow: 0 2px 6px rgba(21, 42, 132, 0.22); }
@@ -132,6 +164,7 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   background: #fff;
   color: #26366e;
   font-size: 0.67rem;
+  box-sizing: border-box;
 }
 
 .apply-filter {
@@ -174,24 +207,44 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   width: 184px;
   height: 184px;
   border-radius: 50%;
-  background: conic-gradient(#f9e943 0 var(--paid-angle), #211889 var(--paid-angle) 360deg);
+  background: conic-gradient(#f9e943 0 var(--paid-angle, 0deg), #211889 var(--paid-angle, 0deg) 360deg);
 }
 
 .donut-hole { width: 104px; height: 104px; border-radius: 50%; background: #fff; }
 
-.donut-legend { display: grid; gap: 24px; min-width: 140px; }
+.donut-legend { display: grid; gap: 20px; min-width: 150px; }
 
-.donut-legend > div {
-  display: grid;
-  grid-template-columns: 12px 1fr auto;
+.legend-item {
+  display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+}
+
+.legend-circle {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  font-size: 0.68rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.legend-circle.paid-dot { background: #f9e943; color: #4a3f00; }
+.legend-circle.remaining-dot { background: #211889; color: #fff; }
+
+.legend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   color: #343434;
   font-size: 0.72rem;
 }
 
-.donut-legend strong { grid-column: 2; font-size: 0.9rem; }
-.donut-legend small { grid-column: 3; color: #aaa; }
+.legend-info strong { font-size: 0.9rem; color: #202020; }
+.legend-empty { color: #a1a1a1; font-size: 0.78rem; align-self: center; }
+
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 .paid-dot { background: #f9e943; }
 .remaining-dot { background: #211889; }
