@@ -663,7 +663,7 @@ button:hover { background: #2e2789; }
     background: linear-gradient(135deg, #052f86 0%, #073f9f 48%, #075bd8 100%);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
     border-top: 7px solid transparent;
-    border-image: linear-gradient(90deg, #f28b27 0%, #f28b27 72%, #e9482f 92%, #b71c3c 100%) 1;
+    border-image: linear-gradient(90deg, #F3BB2E 0%, #F39D2A 72%, #F28E27 92%, #DD4B3B 100%) 1;
 }
 
 .header-content { position: relative; z-index: 1; }
