@@ -160,6 +160,13 @@ const emit = defineEmits([
   background: #dceafa;
 }
 
+.dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child .p-menuitem-link),
+.dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child .p-menuitem-text),
+.dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child span) {
+  color: #0c234d;
+  font-weight: 900;
+}
+
 .dashboard-breadcrumb :deep(.p-breadcrumb-separator) {
   color: #78a4d2;
   font-size: 0.65rem;
