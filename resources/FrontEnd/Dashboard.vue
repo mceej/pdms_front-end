@@ -160,6 +160,10 @@
                 @apply-served-list-date-filter="applyServedListDateFilter"
             />
         </div>
+
+        <footer class="dashboard-footer">
+            <p>Ⓒ 2026 Department of Social Welfare and Development - Field Office XI. All Rights Reserved.</p>
+        </footer>
     </div>
 </template>
 
@@ -657,13 +661,13 @@ button:hover { background: #2e2789; }
     position: relative;
     overflow: visible;
     border-radius: 10px;
-    padding: 35px 40px 25px;
+    padding: 42px 40px 25px;   /* top was 35px + 7px border */
     margin-bottom: 24px;
     min-height: 245px;
-    background: linear-gradient(135deg, #052f86 0%, #073f9f 48%, #075bd8 100%);
+    background:
+        linear-gradient(90deg, #F3BB2E 0%, #F39D2A 72%, #F28E27 92%, #DD4B3B 100%) top / 100% 7px no-repeat,
+        linear-gradient(135deg, #052f86 0%, #073f9f 48%, #075bd8 100%);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
-    border-top: 7px solid transparent;
-    border-image: linear-gradient(90deg, #F3BB2E 0%, #F39D2A 72%, #F28E27 92%, #DD4B3B 100%) 1;
 }
 
 .header-content { position: relative; z-index: 1; }
@@ -676,18 +680,18 @@ button:hover { background: #2e2789; }
     letter-spacing: 0;
     text-transform: uppercase;
     color: #9dc1f8;
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .region-tag {
     display: inline-block;
-    margin-top: 14px;
+    margin-top: 24px;
     padding: 0;
     border-radius: 0;
     background: none;
     color: #ffffff;
     font-size: 16px;
-    font-weight: 800;
+    font-weight: 600;
     letter-spacing: 0;
 }
 
@@ -703,7 +707,7 @@ button:hover { background: #2e2789; }
     margin: 0;
     color: #fff;
     font-size: 55px;
-    font-weight: 800;
+    font-weight: 650;
     letter-spacing: 0;
     line-height: 1;
 }
@@ -726,7 +730,7 @@ button:hover { background: #2e2789; }
 .header-beneficiaries {
     color: #fff;
     font-size: 12px;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
 }
@@ -735,7 +739,7 @@ button:hover { background: #2e2789; }
     color: #ffffff;
     font-size: 57px;
     line-height: 1;
-    font-weight: 800;
+    font-weight: 600;
 }
 
 .header-progress-wrap {
@@ -771,12 +775,13 @@ button:hover { background: #2e2789; }
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-weight: 800;
+    font-weight: 600;
+    margin-top: 14px;
 }
 
 .header-updated strong {
     font-size: 13px;
-    font-weight: 800;
+    font-weight: 600;
 }
 
 .tab-row {
@@ -787,7 +792,7 @@ button:hover { background: #2e2789; }
     padding: 0;
     border-radius: 0;
     border: 0;
-    margin: 23px 0 0;
+    margin: 5px 0 0;
     position: relative;
     z-index: 1;
 }
@@ -903,6 +908,20 @@ button:hover { background: #2e2789; }
     color: #fff;
 }
 
+.dashboard-footer {
+    width: calc(100% + 60px);
+    margin: 36px -30px -36px;
+    padding: 16px 22px;
+    background: #000;
+    color: #fff;
+    font-size: 14px;
+    text-align: center;
+}
+
+.dashboard-footer p {
+    margin: 0;
+}
+
 @media (max-width: 768px) {
     .welcome-bar {
             width: calc(100% + 32px);
@@ -930,6 +949,12 @@ button:hover { background: #2e2789; }
 
   .dashboard-page {
       padding: 18px 16px 24px;
+  }
+
+  .dashboard-footer {
+      width: calc(100% + 32px);
+      margin: 36px -16px -24px;
+      padding: 14px 16px;
   }
 }
 </style>

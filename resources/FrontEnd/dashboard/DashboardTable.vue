@@ -127,8 +127,10 @@ const emit = defineEmits([
   justify-content: space-between;
   gap: 14px;
   min-height: 42px;
-  padding: 0 18px;
+  padding: 20px 18px;
+  font-size: 1.15rem;
   flex-wrap: wrap;
+  background: linear-gradient(90deg, #E8F3FF 0%, #FBFDFF 50%, #FDFEFF 100%);
 }
 
 .table-header-actions {
@@ -185,7 +187,7 @@ const emit = defineEmits([
 :deep(.p-datatable-footer) {
   padding: 0;
   border: 0;
-  background: #f2f7fd;
+  background: #F6FAFF;
 }
 
 :deep(.p-datatable-table-container) {
@@ -193,11 +195,11 @@ const emit = defineEmits([
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  padding: 12px 16px;
+  padding: 18px 16px;
   border-color: #d8e2ec;
-  background: #f7fafd;
+  background: #FAFBFC;
   color: #52627b;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -215,7 +217,7 @@ const emit = defineEmits([
   padding: 12px 16px;
   border-color: #d8e2ec;
   color: #303030;
-  font-size: 0.78rem;
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
@@ -224,12 +226,13 @@ const emit = defineEmits([
   flex-direction: column;
   gap: 2px;
   color: #344292;
+  font-size: 1.05rem;
   font-weight: 700;
 }
 
 .paid-cell small {
   color: #a3a7ad;
-  font-size: 0.58rem;
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
@@ -241,14 +244,14 @@ const emit = defineEmits([
 
 .progress-cell-top {
   display: grid;
-  grid-template-columns: 42px 1fr;
+  grid-template-columns: 56px minmax(60px, 190px);
   align-items: center;
   gap: 10px;
 }
 
 .progress-pct {
   color: #313b83;
-  font-size: 0.76rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
@@ -259,12 +262,12 @@ const emit = defineEmits([
 }
 
 :deep(.compact-progress .p-progressbar-value) {
-  background: #2588d2;
+  background: #1C80CC;
 }
 
 .progress-remaining {
   color: #e47622;
-  font-size: 0.78rem;
+  font-size: 0.90rem;
   font-weight: 700;
 }
 
@@ -279,7 +282,7 @@ const emit = defineEmits([
   background: #f2f7fd;
   border-top: 2px solid #b9d5f1;
   color: #0c234d;
-  font-size: 0.78rem;
+  font-size: 1.05rem;
   font-weight: 700;
 }
 
@@ -297,10 +300,14 @@ const emit = defineEmits([
   padding-left: 0;
 }
 
-.total-progress .progress-pct,
+.total-progress .progress-pct {
+  color: #313b83;
+  font-size: 0.95rem;
+}
+
 .total-progress .progress-remaining {
-  color: #0c234d;
-  font-size: 0.78rem;
+  color: #e47622;
+  font-size: 0.90rem;
 }
 
 @media (max-width: 768px) {
@@ -310,3 +317,4 @@ const emit = defineEmits([
   }
 }
 </style>
+

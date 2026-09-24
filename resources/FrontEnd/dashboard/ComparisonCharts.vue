@@ -8,8 +8,14 @@
       <div class="overview-filters">
         <button type="button" class="quick-filter active">Last 7 Days</button>
         <button type="button" class="quick-filter">Last 30 Days</button>
-        <input :value="dateFrom" type="date" aria-label="Progress start date" @change="emit('update:dateFrom', $event.target.value)" />
-        <input :value="dateTo" type="date" aria-label="Progress end date" @change="emit('update:dateTo', $event.target.value)" />
+        <div :class="['date-field', { empty: !dateFrom }]">
+          <span class="date-placeholder">From</span>
+          <input :value="dateFrom" type="date" aria-label="Progress start date" @change="emit('update:dateFrom', $event.target.value)" />
+        </div>
+        <div :class="['date-field', { empty: !dateTo }]">
+          <span class="date-placeholder">To</span>
+          <input :value="dateTo" type="date" aria-label="Progress end date" @change="emit('update:dateTo', $event.target.value)" />
+        </div>
         <button type="button" class="apply-filter" @click="emit('update:dateFrom', dateFrom)">Apply</button>
       </div>
     </div>
@@ -21,21 +27,23 @@
         <div class="donut-content">
           <div class="donut" :style="donutStyle">
             <div class="donut-hole"></div>
+            <span v-if="showPaidLabel" class="donut-label paid-label" :style="paidLabelStyle">{{ formatPercent(paidPct) }}</span>
+            <span v-if="showRemainingLabel" class="donut-label remaining-label" :style="remainingLabelStyle">{{ formatPercent(remainingPct) }}</span>
           </div>
           <div class="donut-legend">
             <div class="legend-item" v-if="hasPaid">
-              <span class="legend-circle paid-dot">{{ dashboardProgress }}%</span>
-              <div class="legend-info">
-                <span>Paid</span>
-                <strong>{{ formatNumber(totalPaidCount) }}</strong>
+              <div class="legend-main">
+                <span class="legend-label"><i class="legend-dot paid-dot"></i>Paid</span>
+                <strong class="legend-amount">{{ paidAmount || formatNumber(totalPaidCount) }}</strong>
               </div>
+              <span class="legend-pct">{{ formatPercent(paidPct) }}</span>
             </div>
             <div class="legend-item" v-if="hasRemaining">
-              <span class="legend-circle remaining-dot">{{ 100 - dashboardProgress }}%</span>
-              <div class="legend-info">
-                <span>Remaining</span>
-                <strong>{{ formatNumber(remainingCount) }}</strong>
+              <div class="legend-main">
+                <span class="legend-label"><i class="legend-dot remaining-dot"></i>Remaining</span>
+                <strong class="legend-amount">{{ remainingAmount || formatNumber(remainingCount) }}</strong>
               </div>
+              <span class="legend-pct">{{ formatPercent(remainingPct) }}</span>
             </div>
             <div class="legend-empty" v-if="!hasPaid && !hasRemaining">No data yet</div>
           </div>
@@ -76,6 +84,8 @@ const props = defineProps({
   dashboardProgress: { type: Number, default: 0 },
   totalPaidCount: { type: [Number, String], default: 0 },
   totalTarget: { type: [Number, String], default: 0 },
+  paidAmount: { type: String, default: '' },
+  remainingAmount: { type: String, default: '' },
 });
 
 const emit = defineEmits(['update:dateFrom', 'update:dateTo']);
@@ -97,7 +107,30 @@ const donutStyle = computed(() => {
   return { '--paid-angle': `${props.dashboardProgress * 3.6}deg` };
 });
 
+const paidPct = computed(() => {
+  if (!hasPaid.value) return 0;
+  if (!hasRemaining.value) return 100;
+  return Math.min(Math.max(Number(props.dashboardProgress) || 0, 0), 100);
+});
+const remainingPct = computed(() => (hasRemaining.value ? Math.round((100 - paidPct.value) * 100) / 100 : 0));
+
+// Hide the in-donut label when a slice is too thin to hold the text (the legend still shows it)
+const MIN_LABEL_PCT = 6;
+const showPaidLabel = computed(() => hasPaid.value && paidPct.value >= MIN_LABEL_PCT);
+const showRemainingLabel = computed(() => hasRemaining.value && remainingPct.value >= MIN_LABEL_PCT);
+
+// Place each label at the middle of its slice, on the middle of the ring.
+// Angles run clockwise from the top, matching the conic-gradient.
+const paidAngle = computed(() => paidPct.value * 3.6);
+const labelPosition = (midAngle) => {
+  const rad = (midAngle * Math.PI) / 180;
+  return { '--lx': Math.sin(rad).toFixed(4), '--ly': (-Math.cos(rad)).toFixed(4) };
+};
+const paidLabelStyle = computed(() => labelPosition(paidAngle.value / 2));
+const remainingLabelStyle = computed(() => labelPosition(paidAngle.value + (360 - paidAngle.value) / 2));
+
 const formatNumber = (value) => Number(value || 0).toLocaleString();
+const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 </script>
 
 <style scoped>
@@ -118,7 +151,7 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   min-height: 54px;
   padding: 10px 24px;
   border-bottom: 1px solid #d5e0ea;
-  background: #eaf3fc;
+  background: linear-gradient(90deg, #E8F3FF 0%, #FBFDFF 50%, #FDFEFF 100%);
 }
 
 .overview-title {
@@ -144,12 +177,11 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   min-width: 104px;
   height: 26px;
   padding: 4px 14px;
-  border: 1px solid #5968bb;
+  border: 1.5px solid #181A7E;
   border-radius: 5px;
-  background: #fff;
   color: #192782;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 600;
   box-sizing: border-box;
 }
 
@@ -159,13 +191,37 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   width: 150px;
   height: 26px;
   padding: 4px 8px;
-  border: 1px solid #5968bb;
+  border: 1.4px solid #181A7E;
   border-radius: 5px;
   background: #fff;
   color: #26366e;
   font-size: 0.67rem;
   box-sizing: border-box;
 }
+
+.date-field {
+  position: relative;
+  display: inline-flex;
+}
+
+.date-placeholder {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  transform: translateY(-50%);
+  color: #6b7a99;
+  font-size: 0.67rem;
+  pointer-events: none;
+}
+
+/* empty: show "From"/"To" and hide the native mm/dd/yyyy text */
+.date-field.empty .date-placeholder { display: block; }
+.date-field.empty input { color: transparent; }
+
+/* while focused, show the native fields so the person can type a date */
+.date-field.empty input:focus { color: #26366e; }
+.date-field.empty:focus-within .date-placeholder { display: none; }
 
 .apply-filter {
   min-width: 52px;
@@ -190,7 +246,7 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
   box-shadow: 0 5px 9px rgba(24, 67, 101, 0.18);
 }
 
-.chart-card h3 { margin: 0; color: #252525; font-size: 0.95rem; }
+.chart-card h3 { margin: 0; color: #252525; font-size: 1.15rem; font-weight: 700; }
 .chart-card p { margin: 6px 0 0; color: #a1a1a1; font-size: 0.72rem; }
 
 .donut-content {
@@ -202,47 +258,73 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
 }
 
 .donut {
+  --donut-size: 184px;
+  --hole-size: 104px;
+  --ring-r: calc((var(--donut-size) + var(--hole-size)) / 4);
+  position: relative;
   display: grid;
   place-items: center;
-  width: 184px;
-  height: 184px;
+  width: var(--donut-size);
+  height: var(--donut-size);
   border-radius: 50%;
-  background: conic-gradient(#f9e943 0 var(--paid-angle, 0deg), #211889 var(--paid-angle, 0deg) 360deg);
+  background: conic-gradient(#F7E64B 0 var(--paid-angle, 0deg), #130774 var(--paid-angle, 0deg) 360deg);
 }
 
-.donut-hole { width: 104px; height: 104px; border-radius: 50%; background: #fff; }
+.donut-hole { width: var(--hole-size); height: var(--hole-size); border-radius: 50%; background: #fff; }
 
-.donut-legend { display: grid; gap: 20px; min-width: 150px; }
+.donut-label {
+  position: absolute;
+  left: calc(50% + var(--lx) * var(--ring-r));
+  top: calc(50% + var(--ly) * var(--ring-r));
+  transform: translate(-50%, -50%);
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.paid-label { color: #2b2500; }
+.remaining-label { color: #f9e943; }
+
+.donut-legend {
+  display: grid;
+  grid-template-columns: auto auto;
+  column-gap: 46px;
+  row-gap: 18px;
+  min-width: 150px;
+}
 
 .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.legend-circle {
   display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  font-size: 0.68rem;
-  font-weight: 800;
-  flex-shrink: 0;
+  grid-template-columns: subgrid;     
+  grid-column: 1 / -1;
+  align-items: end;
 }
 
-.legend-circle.paid-dot { background: #f9e943; color: #4a3f00; }
-.legend-circle.remaining-dot { background: #211889; color: #fff; }
-
-.legend-info {
+.legend-empty { grid-column: 1 / -1; }
+.legend-main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+}
+
+.legend-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #343434;
   font-size: 0.72rem;
 }
 
-.legend-info strong { font-size: 0.9rem; color: #202020; }
+.legend-amount { color: #202020; font-size: 0.95rem; font-weight: 700; }
+
+.legend-pct {
+  padding-bottom: 2px;
+  color: #a1a1a1;
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
 .legend-empty { color: #a1a1a1; font-size: 0.78rem; align-self: center; }
 
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
@@ -275,9 +357,10 @@ const formatNumber = (value) => Number(value || 0).toLocaleString();
 @media (max-width: 768px) {
   .progress-overview-heading { align-items: flex-start; flex-direction: column; }
   .overview-filters { width: 100%; }
-  .overview-filters input { flex: 1; min-width: 120px; }
+  .date-field { flex: 1; min-width: 120px; }
+  .date-field input { width: 100%; }
   .donut-content { gap: 12px; }
-  .donut { width: 150px; height: 150px; }
-  .donut-hole { width: 84px; height: 84px; }
+  .donut { --donut-size: 150px; --hole-size: 84px; }
+  .donut-label { font-size: 0.6rem; }
 }
 </style>
