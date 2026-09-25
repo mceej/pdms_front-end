@@ -6,7 +6,6 @@
                 <strong>Welcome, User (name)</strong>
             </div>
             <div class="welcome-actions">
-                <span>Welcome to,</span>
                 <button type="button" class="logout-button" @click="emit('logout')">
                     <i class="pi pi-sign-out"></i>
                     Log out
@@ -15,23 +14,6 @@
         </div>
 
         <div class="dashboard-shell">
-            <nav class="dashboard-nav" aria-label="Main navigation">
-                <button
-                    type="button"
-                    :class="['view-tab', { active: dashboardView === 'dashboard' }]"
-                    @click="dashboardView = 'dashboard'"
-                >
-                    Dashboard
-                </button>
-                <button
-                    type="button"
-                    :class="['view-tab', { active: dashboardView === 'server-list' }]"
-                    @click="dashboardView = 'server-list'"
-                >
-                    Server List
-                </button>
-            </nav>
-
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
@@ -40,8 +22,8 @@
 
                     <div class="title-row">
                         <div>
-                            <h1>{{ dashboardView === 'dashboard' ? 'DSWD Assist Track Dashboard' : 'DSWD Assist Track' }}</h1>
-                            <span class="region-tag">{{ dashboardView === 'dashboard' ? regionName : 'Server List' }}</span>
+                            <h1>DSWD Assist Track Dashboard</h1>
+                            <span class="region-tag">{{ regionName }}</span>
                         </div>
 
                         <div class="progress-box">
@@ -61,103 +43,96 @@
                         </div>
                     </div>
 
-                    <div v-if="dashboardView === 'dashboard'" class="tab-row">
-                        <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
-                            <i class="pi pi-box"></i>
-                            AICS
-                        </button>
+                    <div class="tab-row">
+    <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
+        <i class="pi pi-box"></i>
+        AICS
+    </button>
 
-                        <div :class="['program-disaster-control', { active: activeTab === 'ECT' }]">
-                            <button
-                                type="button"
-                                :class="['tab', { active: activeTab === 'ECT' }]"
-                                @click="setTab('ECT')"
-                            >
-                                <i class="pi pi-file"></i>
-                                ECT
-                            </button>
+    <div class="ect-control" ref="ectControlRef">
+        <button
+            type="button"
+            :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
+            @click="toggleEctTab"
+        >
+            <i class="pi pi-file"></i>
+            ECT
+            <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
+        </button>
 
-                            <div v-if="activeTab === 'ECT'" class="disaster-control">
-                                <Select
-                                    v-model="selectedDisasterType"
-                                    :options="disasterOptions"
-                                    placeholder="Type of Disaster"
-                                    showClear
-                                    panelClass="disaster-select-panel"
-                                    class="disaster-select"
-                                    @change="applyFilters"
-                                />
-                            </div>
-                        </div>
-                    </div>
+        <div v-if="disasterMenuOpen" class="disaster-menu">
+            <button
+                type="button"
+                class="disaster-menu-item disaster-menu-clear"
+                :disabled="!selectedDisasterType"
+                @click="chooseDisasterType('')"
+            >
+                Clear selection
+            </button>
+            <button
+                v-for="option in disasterOptions"
+                :key="option"
+                type="button"
+                :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
+                @click="chooseDisasterType(option)"
+            >
+                {{ option }}
+            </button>
+        </div>
+    </div>
+
+    <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
+        {{ selectedDisasterType }}
+    </span>
+</div>
                 </div>
             </header>
 
-            <template v-if="dashboardView === 'dashboard'">
-                <DashboardOverview
-                    :total-target="totalTarget"
-                    :total-disbursed="totalDisbursed"
-                    :total-paid-count="totalPaidCount"
-                    :total-balance="totalBalance"
-                    :unpaid-balance="unpaidBalance"
-                    :unpaid-disbursed="unpaidDisbursed"
-                />
+            <DashboardOverview
+                :total-target="totalTarget"
+                :total-disbursed="totalDisbursed"
+                :total-paid-count="totalPaidCount"
+                :total-balance="totalBalance"
+                :unpaid-balance="unpaidBalance"
+                :unpaid-disbursed="unpaidDisbursed"
+            />
 
-                <DashboardTable
-                    :breadcrumb-items="breadcrumbItems"
-                    :active-level="activeLevel"
-                    :municipality-search="municipalitySearch"
-                    :payout-site-filter="payoutSiteFilter"
-                    :payout-site-options="payoutSiteOptions"
-                    :rows-with-progress="rowsWithProgress"
-                    :total-table-target="totalTableTarget"
-                    :total-table-paid="totalTablePaid"
-                    :total-progress="totalProgress"
-                    @update:municipalitySearch="municipalitySearch = $event"
-                    @update:payoutSiteFilter="payoutSiteFilter = $event"
-                    @apply-filters="applyFilters"
-                    @row-click="handleRowClick"
-                    @home-click="goToLevel('province')"
-                />
+            <DashboardTable
+                :breadcrumb-items="breadcrumbItems"
+                :active-level="activeLevel"
+                :municipality-search="municipalitySearch"
+                :payout-site-filter="payoutSiteFilter"
+                :payout-site-options="payoutSiteOptions"
+                :rows-with-progress="rowsWithProgress"
+                :total-table-target="totalTableTarget"
+                :total-table-paid="totalTablePaid"
+                :total-progress="totalProgress"
+                @update:municipalitySearch="municipalitySearch = $event"
+                @update:payoutSiteFilter="payoutSiteFilter = $event"
+                @apply-filters="applyFilters"
+                @row-click="handleRowClick"
+                @home-click="goToLevel('province')"
+            />
 
-                <ComparisonCharts
-                    :selected-barangay="selectedBarangay"
-                    :chart-markers="chartMarkers"
-                    :comparison-rows="comparisonRows"
-                    :api-loaded="apiLoaded"
-                    :api-rows="apiRows"
-                    :applied-date-label="appliedDateLabel"
-                    :date-from="dateFrom"
-                    :date-to="dateTo"
-                    :dashboard-progress="dashboardProgress"
-                    :total-paid-count="totalPaidCount"
-                    :total-target="totalTarget"
-                    :comparison-color="comparisonColor"
-                    @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
-                    @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
-                />
-            </template>
-
-            <ServerListPage
-                v-else
-                :current-time="currentTime"
-                :tabs="tabs"
-                :served-list-form="servedListForm"
-                :served-province-options="servedProvinceOptions"
-                :served-municipality-options="servedMunicipalityOptions"
-                :served-barangay-options="servedBarangayOptions"
-                :is-uploading="isUploading"
-                :served-list-message="servedListMessage"
-                :served-list-error="servedListError"
-                :served-list-rows="servedListRows"
-                :served-list-date-from="servedListDateFrom"
-                :served-list-date-to="servedListDateTo"
-                :applied-served-list-date-label="appliedServedListDateLabel"
-                @upload-served-list="uploadServedList"
-                @select-served-list-file="selectServedListFile"
-                @update:servedListDateFrom="(value) => { servedListDateFrom = value; applyServedListDateFilter(); }"
-                @update:servedListDateTo="(value) => { servedListDateTo = value; applyServedListDateFilter(); }"
-                @apply-served-list-date-filter="applyServedListDateFilter"
+            <ComparisonCharts
+                :selected-barangay="selectedBarangay"
+                :chart-markers="chartMarkers"
+                :comparison-rows="chartRowsWithProgress"
+                :api-loaded="apiLoaded"
+                :api-rows="apiRows"
+                :applied-date-label="appliedDateLabel"
+                :date-from="dateFrom"
+                :date-to="dateTo"
+                :dashboard-progress="chartProgress"
+                :total-paid-count="chartTotalPaid"
+                :total-target="chartTotalTarget"
+                :comparison-color="comparisonColor"
+                :active-level="activeLevel"
+                :scope-name="scopeName"
+                :extra-stat="extraStat"
+                @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
+                @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
+                @apply="applyFilters"
             />
         </div>
 
@@ -168,19 +143,19 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import ComparisonCharts from './dashboard/ComparisonCharts.vue';
 import DashboardOverview from './dashboard/DashboardOverview.vue';
 import DashboardTable from './dashboard/DashboardTable.vue';
 import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
-import ServerListPage from './serverList/ServerListPage.vue';
 
 const emit = defineEmits(['logout']);
 
-const dashboardView = ref('dashboard');
 const activeTab = ref('AICS');
 const disasterName = ref('');
 const selectedDisasterType = ref('');
+const disasterMenuOpen = ref(false);
+const ectControlRef = ref(null);
 const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
@@ -203,6 +178,28 @@ const formatUpdatedAt = (value) => {
     })}`;
 };
 
+const toggleEctTab = () => {
+    const switchingIn = activeTab.value !== 'ECT';
+    if (switchingIn) {
+        setTab('ECT');
+        disasterMenuOpen.value = true;
+        return;
+    }
+    disasterMenuOpen.value = !disasterMenuOpen.value;
+};
+
+const chooseDisasterType = (value) => {
+    selectedDisasterType.value = value;
+    disasterMenuOpen.value = false;
+    applyFilters();
+};
+
+const closeDisasterMenuOnOutsideClick = (event) => {
+    if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
+        disasterMenuOpen.value = false;
+    }
+};
+
 const apiRows = ref([]);
 const apiLoaded = ref(false);
 const apiSummary = ref({ target: 0, paid: 0, remaining: 0, target_amount: 0, amount_disbursed: 0, unpaid_amount: 0, progress: 0 });
@@ -221,26 +218,8 @@ const disasterOptions = computed(() => [
     ]),
 ]);
 const apiPayoutSites = ref([]);
-const isUploading = ref(false);
-const servedListMessage = ref('');
-const servedListError = ref(false);
-const servedListRows = ref([]);
-const servedListForm = reactive({ program: '', province: '', municipality: '', barangay: '', file: null });
-const servedListDateFrom = ref('');
-const servedListDateTo = ref('');
-const appliedServedListDateLabel = ref(`as of ${currentTime.value}`);
-
-const applyServedListDateFilter = () => {
-    if (servedListDateFrom.value && servedListDateTo.value && servedListDateTo.value < servedListDateFrom.value) {
-        servedListDateTo.value = servedListDateFrom.value;
-    }
-    appliedServedListDateLabel.value = servedListDateFrom.value && servedListDateTo.value
-        ? `from ${servedListDateFrom.value} to ${servedListDateTo.value}`
-        : `as of ${currentTime.value}`;
-};
 
 const regionName = ref('REGION XI');
-const tabs = ['AICS', 'ECT'];
 const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
@@ -285,16 +264,6 @@ const dashboardData = {
 };
 
 const activeData = computed(() => dashboardData[activeTab.value]);
-const servedProvinceOptions = computed(() => dashboardData[servedListForm.program || activeTab.value].provinces.map((province) => province.name));
-const servedMunicipalityOptions = computed(() => {
-    const province = dashboardData[servedListForm.program || activeTab.value].provinces.find((item) => item.name === servedListForm.province);
-    return (province?.municipalities || []).map((municipality) => municipality.name);
-});
-const servedBarangayOptions = computed(() => {
-    const province = dashboardData[servedListForm.program || activeTab.value].provinces.find((item) => item.name === servedListForm.province);
-    const municipality = province?.municipalities.find((item) => item.name === servedListForm.municipality);
-    return (municipality?.barangays || []).map((barangay) => barangay.name);
-});
 
 const totalTarget = computed(() => apiLoaded.value ? apiSummary.value.target : activeData.value.target);
 const totalDisbursed = computed(() => {
@@ -327,14 +296,6 @@ const dashboardProgress = computed(() => {
 });
 
 const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
-
-const comparisonRows = computed(() => apiLoaded.value ? apiRows.value : activeData.value.provinces.map((row, index) => ({
-    id: index,
-    name: row.name,
-    target: row.target,
-    paid: row.paid,
-    progress: row.target ? Math.round((row.paid / row.target) * 100) : 0,
-})));
 
 const activeLevel = computed(() => {
   if (selectedBarangay.value) return 'detail';
@@ -382,6 +343,47 @@ const totalTablePaid = computed(() =>
 const totalProgress = computed(() =>
   totalTableTarget.value ? Math.round((totalTablePaid.value / totalTableTarget.value) * 100) : 0
 );
+
+/* ---------- Data fed to the Target Distribution / Progress charts ----------
+   Mirrors the table's drill-down level, except at 'detail' (a barangay is
+   selected) where the chart shows that single barangay's own paid/remaining
+   split plus an extra stat, since there's nothing further to drill into. */
+const chartRows = computed(() => {
+  if (activeLevel.value === 'detail' && selectedBarangay.value) {
+    return [selectedBarangay.value];
+  }
+  return currentTableRows.value;
+});
+const chartRowsWithProgress = computed(() =>
+  chartRows.value.map((row) => ({
+    ...row,
+    progress: row.target ? Math.round((row.paid / row.target) * 100) : 0,
+  }))
+);
+const chartTotalTarget = computed(() => chartRows.value.reduce((sum, r) => sum + (r.target || 0), 0));
+const chartTotalPaid = computed(() => chartRows.value.reduce((sum, r) => sum + (r.paid || 0), 0));
+const chartProgress = computed(() =>
+  chartTotalTarget.value ? Math.round((chartTotalPaid.value / chartTotalTarget.value) * 100) : 0
+);
+
+// Name of the parent entity the chart is currently scoped to (shown in the subtitle)
+const scopeName = computed(() => {
+  if (activeLevel.value === 'municipality') return selectedProvince.value?.name || '';
+  if (activeLevel.value === 'barangay') return selectedMunicipality.value?.name || '';
+  if (activeLevel.value === 'detail') return selectedBarangay.value?.name || '';
+  return '';
+});
+
+// Extra "minority" data point surfaced once a barangay is selected
+const extraStat = computed(() => {
+  if (activeLevel.value === 'detail' && selectedBarangay.value) {
+    return {
+      label: 'Beneficiaries Served',
+      value: selectedBarangay.value.beneficiaries ?? selectedBarangay.value.paid,
+    };
+  }
+  return null;
+});
 
 const payoutSiteOptions = computed(() => {
     if (apiLoaded.value) return apiPayoutSites.value;
@@ -507,16 +509,8 @@ const applyDateRange = (changedField) => {
     applyFilters();
 };
 
-const selectServedListFile = (event) => {
-    servedListForm.file = event.target.files?.[0] || null;
-    servedListMessage.value = '';
-    servedListError.value = false;
-};
-
-const uploadServedList = async () => {
-    servedListError.value = true;
-    servedListMessage.value = 'Uploading a served list needs the PHP backend, which is not built yet.';
-};
+onMounted(() => document.addEventListener('click', closeDisasterMenuOnOutsideClick));
+onUnmounted(() => document.removeEventListener('click', closeDisasterMenuOnOutsideClick));
 
 onMounted(() => fetchDashboard().catch((error) => console.error(error)));
 onMounted(() => {
@@ -571,9 +565,7 @@ button:hover { background: #2e2789; }
     gap: 9px;
 }
 
-.welcome-actions {
-    gap: 12px;
-}
+.welcome-actions { gap: 12px; }
 
 .logout-button {
     display: inline-flex;
@@ -589,9 +581,7 @@ button:hover { background: #2e2789; }
     font-weight: 700;
 }
 
-.logout-button:hover {
-    background: rgba(255, 255, 255, 0.22);
-}
+.logout-button:hover { background: rgba(255, 255, 255, 0.22); }
 
 .welcome-user-icon {
     display: inline-flex;
@@ -615,53 +605,11 @@ button:hover { background: #2e2789; }
     box-shadow: none;
 }
 
-.dashboard-nav {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 18px;
-    padding: 6px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(12, 35, 77, 0.08);
-    box-shadow: 0 10px 26px rgba(16, 40, 78, 0.06);
-    width: fit-content;
-}
-
-.view-tab {
-    width: auto;
-    min-width: 132px;
-    padding: 10px 18px;
-    border: none;
-    border-radius: 10px;
-    background: transparent;
-    color: #35507d;
-    font-weight: 700;
-    font-size: 0.82rem;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.view-tab.active {
-    background: linear-gradient(135deg, #0d234a 0%, #1647a5 100%);
-    color: #ffffff;
-    box-shadow: 0 8px 18px rgba(18, 52, 112, 0.2);
-}
-
-.view-tab:hover {
-    background: rgba(17, 58, 134, 0.06);
-}
-
-.view-tab.active:hover {
-    background: linear-gradient(135deg, #0d234a 0%, #1647a5 100%);
-}
-
 .dashboard-header {
     position: relative;
     overflow: visible;
     border-radius: 10px;
-    padding: 42px 40px 25px;   /* top was 35px + 7px border */
+    padding: 42px 40px 25px;
     margin-bottom: 24px;
     min-height: 245px;
     background:
@@ -817,9 +765,7 @@ button:hover { background: #2e2789; }
     cursor: pointer;
 }
 
-.tab i {
-    font-size: 12px;
-}
+.tab i { font-size: 12px; }
 
 .tab.active {
     background: #fff;
@@ -853,59 +799,110 @@ button:hover { background: #2e2789; }
     box-shadow: 0 2px 8px rgba(5, 37, 87, 0.24);
 }
 
-.dashboard-as-of {
-    margin: -14px 0 18px;
-    color: #5b7288;
-    font-size: 12px;
-    font-weight: 500;
-    text-align: right;
+/* Badge that shows the chosen disaster type beside the ECT tab; not rendered at all when N/A */
+.disaster-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 98px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #5972DC 0%, #3036E3 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.disaster-control {
+.ect-control {
+    position: relative;
+}
+
+.ect-tab {
+    gap: 8px;
+}
+
+.ect-chevron {
+    font-size: 10px;
+    margin-left: 2px;
+    transition: transform 0.15s ease;
+}
+
+.ect-chevron.open {
+    transform: rotate(180deg);
+}
+
+.disaster-menu {
     position: absolute;
-    top: 0;
-    left: calc(100% + 8px);
+    top: calc(100% + 6px);
+    left: 0;
     z-index: 10;
-    min-width: 260px;
-    padding: 4px;
-    border: 0;
+    min-width: 200px;
+    padding: 6px;
     border-radius: 8px;
     background: #073a91;
-    box-shadow: 0 4px 10px rgba(5, 37, 87, 0.2);
-}
-
-.disaster-control :deep(.p-select) {
-    width: 100%;
-    min-height: 34px;
     border: 1px solid #6d86ed;
-    border-radius: 8px;
-    background: #073a91;
-    box-shadow: inset 0 1px 2px rgba(5, 37, 87, 0.08);
+    box-shadow: 0 6px 16px rgba(5, 37, 87, 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.disaster-control :deep(.p-select-label) {
+.disaster-menu-item {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
     color: #fff;
     font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
 }
 
-.disaster-control :deep(.p-select-dropdown) {
-    color: #fff;
-}
-
-:deep(.disaster-select-panel) {
-    border: 1px solid #6d86ed;
-    background: #073a91;
-    color: #fff;
-}
-
-:deep(.disaster-select-panel .p-select-option) {
-    color: #fff;
-}
-
-:deep(.disaster-select-panel .p-select-option:hover),
-:deep(.disaster-select-panel .p-select-option.p-focus) {
+.disaster-menu-item:hover:not(:disabled) {
     background: #0649b9;
-    color: #fff;
+}
+
+.disaster-menu-item.selected {
+    background: #0649b9;
+    font-weight: 800;
+}
+
+.disaster-menu-clear {
+    color: #b9c8f5;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 4px;
+}
+
+.disaster-menu-clear:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.disaster-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 98px;
+    max-width: 220px;
+    height: 24px;
+    padding: 18px;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #5972DC 0%, #3036E3 100%);
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dashboard-footer {
@@ -918,9 +915,7 @@ button:hover { background: #2e2789; }
     text-align: center;
 }
 
-.dashboard-footer p {
-    margin: 0;
-}
+.dashboard-footer p { margin: 0; }
 
 @media (max-width: 768px) {
     .welcome-bar {
@@ -947,9 +942,7 @@ button:hover { background: #2e2789; }
       text-align: left;
   }
 
-  .dashboard-page {
-      padding: 18px 16px 24px;
-  }
+  .dashboard-page { padding: 18px 16px 24px; }
 
   .dashboard-footer {
       width: calc(100% + 32px);

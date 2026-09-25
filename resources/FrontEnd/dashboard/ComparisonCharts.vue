@@ -6,24 +6,36 @@
         <strong>Progress Overview</strong>
       </div>
       <div class="overview-filters">
-        <button type="button" class="quick-filter active">Last 7 Days</button>
-        <button type="button" class="quick-filter">Last 30 Days</button>
+        <button
+          type="button"
+          :class="['quick-filter', { active: activeQuickFilter === 7 }]"
+          @click="applyQuickFilter(7)"
+        >
+          Last 7 Days
+        </button>
+        <button
+          type="button"
+          :class="['quick-filter', { active: activeQuickFilter === 30 }]"
+          @click="applyQuickFilter(30)"
+        >
+          Last 30 Days
+        </button>
         <div :class="['date-field', { empty: !dateFrom }]">
           <span class="date-placeholder">From</span>
-          <input :value="dateFrom" type="date" aria-label="Progress start date" @change="emit('update:dateFrom', $event.target.value)" />
+          <input :value="dateFrom" type="date" aria-label="Progress start date" @change="onManualDate('update:dateFrom', $event.target.value)" />
         </div>
         <div :class="['date-field', { empty: !dateTo }]">
           <span class="date-placeholder">To</span>
-          <input :value="dateTo" type="date" aria-label="Progress end date" @change="emit('update:dateTo', $event.target.value)" />
+          <input :value="dateTo" type="date" aria-label="Progress end date" @change="onManualDate('update:dateTo', $event.target.value)" />
         </div>
-        <button type="button" class="apply-filter" @click="emit('update:dateFrom', dateFrom)">Apply</button>
+        <button type="button" class="apply-filter" @click="emit('apply')">Apply</button>
       </div>
     </div>
 
     <div class="chart-layout">
       <section class="chart-card target-distribution-card">
-        <h3>Target Distribution</h3>
-        <p>Total paid vs. remaining across all barangays.</p>
+        <h3>{{ meta.donutTitle }}</h3>
+        <p>{{ donutSubtitle }}</p>
         <div class="donut-content">
           <div class="donut" :style="donutStyle">
             <div class="donut-hole"></div>
@@ -45,7 +57,13 @@
               </div>
               <span class="legend-pct">{{ formatPercent(remainingPct) }}</span>
             </div>
-            <div class="legend-empty" v-if="!hasPaid && !hasRemaining">No data yet</div>
+            <div class="legend-item" v-if="extraStat">
+              <div class="legend-main">
+                <span class="legend-label"><i class="legend-dot extra-dot"></i>{{ extraStat.label }}</span>
+                <strong class="legend-amount">{{ formatNumber(extraStat.value) }}</strong>
+              </div>
+            </div>
+            <div class="legend-empty" v-if="!hasPaid && !hasRemaining && !extraStat">No data yet</div>
           </div>
         </div>
       </section>
@@ -53,8 +71,8 @@
       <section class="chart-card barangay-progress-card">
         <div class="chart-card-heading">
           <div>
-            <h3>Barangay Progress</h3>
-            <p>Paid vs. remaining target for each barangay.</p>
+            <h3>{{ meta.barTitle }}</h3>
+            <p>{{ meta.barSubtitle }}</p>
           </div>
           <div class="stacked-legend"><span><i class="legend-dot paid-dot"></i>Paid</span><span><i class="legend-dot remaining-dot"></i>Remaining</span></div>
         </div>
@@ -75,7 +93,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   comparisonRows: { type: Array, default: () => [] },
@@ -86,10 +104,81 @@ const props = defineProps({
   totalTarget: { type: [Number, String], default: 0 },
   paidAmount: { type: String, default: '' },
   remainingAmount: { type: String, default: '' },
+  // Which drill-down level is currently showing, so titles/labels stay accurate:
+  // 'province' (nothing selected), 'municipality' (a province is selected),
+  // 'barangay' (a municipality is selected), 'detail' (a barangay is selected)
+  activeLevel: { type: String, default: 'province' },
+  // Name of the parent entity currently drilled into (province/municipality/barangay name)
+  scopeName: { type: String, default: '' },
+  // Optional extra data point to surface once a barangay is selected (e.g. beneficiaries served)
+  extraStat: { type: Object, default: null },
+});
+const emit = defineEmits(['update:dateFrom', 'update:dateTo', 'apply']);
+
+
+/* ---------- Quick filter (Last 7 / 30 Days) ---------- */
+const activeQuickFilter = ref(7);
+let settingViaQuickFilter = false;
+
+const toISODate = (d) => d.toISOString().slice(0, 10);
+
+const applyQuickFilter = (days) => {
+  settingViaQuickFilter = true;
+  activeQuickFilter.value = days;
+  const to = new Date();
+  const from = new Date();
+  from.setDate(to.getDate() - (days - 1));
+  emit('update:dateFrom', toISODate(from));
+  emit('update:dateTo', toISODate(to));
+};
+
+// If the person edits a date field by hand, the quick filter no longer applies — clear the highlight.
+const onManualDate = (eventName, value) => {
+  activeQuickFilter.value = null;
+  emit(eventName, value);
+};
+
+watch([() => props.dateFrom, () => props.dateTo], () => {
+  if (settingViaQuickFilter) {
+    settingViaQuickFilter = false;
+  }
 });
 
-const emit = defineEmits(['update:dateFrom', 'update:dateTo']);
+/* ---------- Level-aware titles ---------- */
+const LEVEL_META = {
+  province: {
+    donutTitle: 'Target Distribution',
+    donutSubtitle: 'Total paid vs. remaining across all provinces.',
+    barTitle: 'Province Progress',
+    barSubtitle: 'Paid vs. remaining target for each province.',
+  },
+  municipality: {
+    donutTitle: 'Province Progress',
+    donutSubtitle: 'Total paid vs. remaining across all municipalities',
+    barTitle: 'Municipality Progress',
+    barSubtitle: 'Paid vs. remaining target for each municipality.',
+  },
+  barangay: {
+    donutTitle: 'Municipality Progress',
+    donutSubtitle: 'Total paid vs. remaining across all barangays',
+    barTitle: 'Barangay Progress',
+    barSubtitle: 'Paid vs. remaining target for each barangay.',
+  },
+  detail: {
+    donutTitle: 'Barangay Progress',
+    donutSubtitle: 'Paid vs. remaining for the selected barangay',
+    barTitle: 'Barangay Detail',
+    barSubtitle: 'Breakdown for the selected barangay.',
+  },
+};
 
+const meta = computed(() => LEVEL_META[props.activeLevel] || LEVEL_META.province);
+const donutSubtitle = computed(() => {
+  if (props.activeLevel === 'province' || !props.scopeName) return meta.value.donutSubtitle;
+  return `${meta.value.donutSubtitle} in ${props.scopeName}.`;
+});
+
+/* ---------- Donut math (unchanged) ---------- */
 const remainingCount = computed(() => Math.max(Number(props.totalTarget || 0) - Number(props.totalPaidCount || 0), 0));
 const hasPaid = computed(() => Number(props.totalPaidCount || 0) > 0);
 const hasRemaining = computed(() => remainingCount.value > 0);
@@ -114,13 +203,10 @@ const paidPct = computed(() => {
 });
 const remainingPct = computed(() => (hasRemaining.value ? Math.round((100 - paidPct.value) * 100) / 100 : 0));
 
-// Hide the in-donut label when a slice is too thin to hold the text (the legend still shows it)
 const MIN_LABEL_PCT = 6;
 const showPaidLabel = computed(() => hasPaid.value && paidPct.value >= MIN_LABEL_PCT);
 const showRemainingLabel = computed(() => hasRemaining.value && remainingPct.value >= MIN_LABEL_PCT);
 
-// Place each label at the middle of its slice, on the middle of the ring.
-// Angles run clockwise from the top, matching the conic-gradient.
 const paidAngle = computed(() => paidPct.value * 3.6);
 const labelPosition = (midAngle) => {
   const rad = (midAngle * Math.PI) / 180;
@@ -183,9 +269,25 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   font-size: 0.7rem;
   font-weight: 600;
   box-sizing: border-box;
+  cursor: pointer;
+  background: #fff;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
 
-.quick-filter.active { box-shadow: 0 2px 6px rgba(21, 42, 132, 0.22); }
+.quick-filter:hover {
+  background: #eef2ff;
+  box-shadow: 0 2px 6px rgba(21, 42, 132, 0.15);
+}
+
+.quick-filter.active {
+  background: #181A7E;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(21, 42, 132, 0.22);
+}
+
+.quick-filter.active:hover {
+  background: #12145f;
+}
 
 .overview-filters input {
   width: 150px;
@@ -215,11 +317,8 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   pointer-events: none;
 }
 
-/* empty: show "From"/"To" and hide the native mm/dd/yyyy text */
 .date-field.empty .date-placeholder { display: block; }
 .date-field.empty input { color: transparent; }
-
-/* while focused, show the native fields so the person can type a date */
 .date-field.empty input:focus { color: #26366e; }
 .date-field.empty:focus-within .date-placeholder { display: none; }
 
@@ -228,7 +327,10 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   border-radius: 5px;
   background: #171b82;
   color: #fff;
+  border-color: #171b82;
 }
+
+.apply-filter:hover { background: #12145f; }
 
 .chart-layout {
   display: grid;
@@ -296,7 +398,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 
 .legend-item {
   display: grid;
-  grid-template-columns: subgrid;     
+  grid-template-columns: subgrid;
   grid-column: 1 / -1;
   align-items: end;
 }
@@ -330,6 +432,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 .paid-dot { background: #f9e943; }
 .remaining-dot { background: #211889; }
+.extra-dot { background: #25a269; }
 
 .chart-card-heading { display: flex; justify-content: space-between; gap: 12px; }
 
