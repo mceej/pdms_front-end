@@ -1,19 +1,63 @@
 ﻿﻿<template>
-    <div class="dashboard-page">
-        <div class="welcome-bar">
-            <div class="welcome-user">
-                <span class="welcome-user-icon"><i class="pi pi-user"></i></span>
-                <strong>Welcome, User (name)</strong>
-            </div>
-            <div class="welcome-actions">
-                <button type="button" class="logout-button" @click="emit('logout')">
-                    <i class="pi pi-sign-out"></i>
-                    Log out
-                </button>
-            </div>
-        </div>
+    <div class="app-layout">
+        <aside :class="['app-sidebar', { expanded: sidebarExpanded }]">
+            <button
+                type="button"
+                class="sidebar-brand"
+                :aria-expanded="sidebarExpanded"
+                :aria-label="sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'"
+                @click="sidebarExpanded = !sidebarExpanded"
+            >
+                <img src="/logo/dswdlogod.png" alt="DSWD logo" />
+                <span v-if="sidebarExpanded">DSWD Assist Track</span>
+            </button>
 
-        <div class="dashboard-shell">
+            <nav class="sidebar-nav" aria-label="Main navigation">
+                <button
+                    type="button"
+                    :class="['sidebar-link', { active: activePage === 'dashboard' }]"
+                    title="Dashboard"
+                    :aria-current="activePage === 'dashboard' ? 'page' : undefined"
+                    @click="activePage = 'dashboard'"
+                >
+                    <i class="pi pi-home"></i>
+                    <span v-if="sidebarExpanded">Dashboard</span>
+                </button>
+                <button type="button" class="sidebar-link" title="Target Management">
+                    <i class="pi pi-chart-bar"></i>
+                    <span v-if="sidebarExpanded">Target Management</span>
+                </button>
+                <button
+                    type="button"
+                    :class="['sidebar-link', { active: activePage === 'server-list' }]"
+                    title="Import Served List"
+                    :aria-current="activePage === 'server-list' ? 'page' : undefined"
+                    @click="activePage = 'server-list'"
+                >
+                    <i class="pi pi-file"></i>
+                    <span v-if="sidebarExpanded">Import Served List</span>
+                </button>
+            </nav>
+
+            <button type="button" class="sidebar-link sidebar-logout" title="Log out" @click="confirmLogout">
+                <i class="pi pi-sign-out"></i>
+                <span v-if="sidebarExpanded">Log out</span>
+            </button>
+
+            <button
+                type="button"
+                class="sidebar-toggle"
+                :aria-label="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+                :title="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+                :aria-expanded="sidebarExpanded"
+                @click="sidebarExpanded = !sidebarExpanded"
+            >
+                <i :class="sidebarExpanded ? 'pi pi-angle-left' : 'pi pi-angle-right'"></i>
+            </button>
+        </aside>
+
+        <div class="dashboard-page">
+        <div v-if="activePage === 'dashboard'" class="dashboard-shell">
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
@@ -136,9 +180,23 @@
             />
         </div>
 
-        <footer class="dashboard-footer">
+        <ServerListPage
+            v-else
+            :current-time="currentTime"
+            :tabs="programOptions"
+            :served-list-form="servedListForm"
+        />
+
+        <footer v-if="activePage === 'dashboard'" class="dashboard-footer">
             <p>Ⓒ 2026 Department of Social Welfare and Development - Field Office XI. All Rights Reserved.</p>
         </footer>
+        </div>
+
+        <LogoutConfirmDialog
+            :open="logoutDialogOpen"
+            @cancel="logoutDialogOpen = false"
+            @confirm="emit('logout')"
+        />
     </div>
 </template>
 
@@ -147,10 +205,17 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import ComparisonCharts from './dashboard/ComparisonCharts.vue';
 import DashboardOverview from './dashboard/DashboardOverview.vue';
 import DashboardTable from './dashboard/DashboardTable.vue';
+import LogoutConfirmDialog from './components/LogoutConfirmDialog.vue';
+import ServerListPage from './serverList/ServerListPage.vue';
 import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
 
 const emit = defineEmits(['logout']);
 
+const sidebarExpanded = ref(false);
+const logoutDialogOpen = ref(false);
+const activePage = ref('dashboard');
+const programOptions = ['AICS', 'ECT'];
+const servedListForm = ref({ program: '', province: '', municipality: '', barangay: '', file: null });
 const activeTab = ref('AICS');
 const disasterName = ref('');
 const selectedDisasterType = ref('');
@@ -163,6 +228,10 @@ const dateTo = ref('');
 const appliedDateLabel = ref('as of 9/14/2026 | 10:30:23 AM');
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
+
+const confirmLogout = () => {
+    logoutDialogOpen.value = true;
+};
 
 const formatCount = (value) => {
     if (value === null || value === undefined || value === '' || value === '-----') return '0';
@@ -538,60 +607,118 @@ button {
 }
 button:hover { background: #2e2789; }
 
-.dashboard-page {
+.app-layout {
+    display: flex;
     min-height: 100vh;
-    width: 100%;
-    padding: 0 30px 36px;
+    background: #f4f7fb;
 }
 
-.welcome-bar {
+.app-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex: 0 0 60px;
+    flex-direction: column;
+    width: 60px;
+    height: 100vh;
+    padding: 12px 7px;
+    overflow: visible;
+    background: #063d94;
+    color: #fff;
+    transition: width 180ms ease, flex-basis 180ms ease;
+}
+
+.app-sidebar.expanded {
+    flex-basis: 232px;
+    width: 232px;
+}
+
+.sidebar-brand,
+.sidebar-link {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: calc(100% + 60px);
-    min-height: 46px;
-    margin: 0 -30px 16px;
-    padding: 0 22px;
-    background: #171b82;
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
     color: #fff;
-    box-shadow: 0 2px 5px rgba(12, 23, 92, 0.3);
-    font-size: 12px;
+    text-align: left;
 }
 
-.welcome-user,
-.welcome-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-}
-
-.welcome-actions { gap: 12px; }
-
-.logout-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    width: auto;
-    padding: 7px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.logout-button:hover { background: rgba(255, 255, 255, 0.22); }
-
-.welcome-user-icon {
-    display: inline-flex;
-    align-items: center;
+.sidebar-brand {
     justify-content: center;
-    width: 25px;
-    height: 25px;
-    border: 2px solid #fff;
-    border-radius: 50%;
+    gap: 10px;
+    height: 46px;
+    margin-bottom: 36px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.sidebar-brand:hover,
+.sidebar-link:hover { background: rgba(255, 255, 255, 0.14); }
+
+.sidebar-brand img {
+    display: block;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    object-fit: contain;
+}
+
+.app-sidebar.expanded .sidebar-brand { justify-content: flex-start; padding: 0 8px; }
+
+.sidebar-nav {
+    display: grid;
+    gap: 10px;
+}
+
+.sidebar-link {
+    justify-content: center;
+    gap: 12px;
     font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.sidebar-link i {
+    flex: 0 0 18px;
+    width: 18px;
+    font-size: 15px;
+    text-align: center;
+}
+
+.sidebar-link.active { background: rgba(255, 255, 255, 0.17); }
+.app-sidebar.expanded .sidebar-link { justify-content: flex-start; padding: 0 12px; }
+.sidebar-logout { margin-top: auto; }
+
+.sidebar-toggle {
+    position: absolute;
+    top: 62px;
+    right: -10px;
+    z-index: 2;
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #cbd8e8;
+    border-radius: 6px;
+    background: #fff;
+    color: #17477f;
+    box-shadow: 1px 2px 5px rgba(14, 39, 71, 0.18);
+    font-size: 12px;
+}
+
+.sidebar-toggle:hover { background: #edf5ff; }
+.sidebar-toggle:focus-visible { outline: 3px solid #8bcaf0; outline-offset: 2px; }
+
+.dashboard-page {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 100vh;
+    padding: 18px 30px 36px;
 }
 
 .dashboard-shell {
@@ -609,12 +736,12 @@ button:hover { background: #2e2789; }
     position: relative;
     overflow: visible;
     border-radius: 10px;
-    padding: 42px 40px 25px;
+    padding: 34px 36px 20px;
     margin-bottom: 24px;
-    min-height: 245px;
+    min-height: 220px;
     background:
-        linear-gradient(90deg, #F3BB2E 0%, #F39D2A 72%, #F28E27 92%, #DD4B3B 100%) top / 100% 7px no-repeat,
-        linear-gradient(135deg, #052f86 0%, #073f9f 48%, #075bd8 100%);
+        linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
+        linear-gradient(90deg, #052f86 0%, #073f9f 50%, #075bd8 100%);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
@@ -633,7 +760,7 @@ button:hover { background: #2e2789; }
 
 .region-tag {
     display: inline-block;
-    margin-top: 24px;
+    margin-top: 18px;
     padding: 0;
     border-radius: 0;
     background: none;
@@ -647,23 +774,23 @@ button:hover { background: #2e2789; }
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 32px;
-    margin-top: 20px;
+    gap: 24px;
+    margin-top: 16px;
 }
 
 .title-row h1 {
     margin: 0;
     color: #fff;
-    font-size: 55px;
+    font-size: 50px;
     font-weight: 650;
     letter-spacing: 0;
     line-height: 1;
 }
 
 .progress-box {
-    width: 396px;
-    min-width: 396px;
-    margin-top: 25px;
+    width: 360px;
+    min-width: 360px;
+    margin-top: 20px;
     text-align: left;
 }
 
@@ -685,7 +812,7 @@ button:hover { background: #2e2789; }
 
 .header-progress-value {
     color: #ffffff;
-    font-size: 57px;
+    font-size: 50px;
     line-height: 1;
     font-weight: 600;
 }
@@ -724,7 +851,7 @@ button:hover { background: #2e2789; }
     align-items: center;
     gap: 4px;
     font-weight: 600;
-    margin-top: 14px;
+    margin-top: 10px;
 }
 
 .header-updated strong {
@@ -753,7 +880,7 @@ button:hover { background: #2e2789; }
     gap: 7px;
     box-sizing: border-box;
     width: auto;
-    height: 36px;
+    height: 34px;
     min-width: 82px;
     padding: 0 20px;
     border-radius: 8px;
@@ -908,28 +1035,26 @@ button:hover { background: #2e2789; }
 .dashboard-footer {
     width: calc(100% + 60px);
     margin: 36px -30px -36px;
-    padding: 16px 22px;
+    padding: 8px 18px;
     background: #000;
     color: #fff;
-    font-size: 14px;
+    font-size: 10px;
+    line-height: 1.35;
     text-align: center;
 }
 
 .dashboard-footer p { margin: 0; }
 
 @media (max-width: 768px) {
-    .welcome-bar {
-            width: calc(100% + 32px);
-            margin-left: -16px;
-            margin-right: -16px;
-            padding: 0 16px;
-    }
+    .dashboard-header { padding: 28px 22px 20px; }
 
   .title-row {
       flex-direction: column;
       align-items: flex-start;
       gap: 16px;
   }
+
+    .title-row h1 { font-size: 40px; }
 
   .progress-box {
       width: 100%;
@@ -942,12 +1067,12 @@ button:hover { background: #2e2789; }
       text-align: left;
   }
 
-  .dashboard-page { padding: 18px 16px 24px; }
+    .dashboard-page { padding: 12px 16px 24px; }
 
   .dashboard-footer {
       width: calc(100% + 32px);
       margin: 36px -16px -24px;
-      padding: 14px 16px;
+            padding: 8px 12px;
   }
 }
 </style>

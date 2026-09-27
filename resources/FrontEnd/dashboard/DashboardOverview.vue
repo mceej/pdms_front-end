@@ -94,12 +94,12 @@ const stripPeso = (value) => {
 
 .metric-card-label {
   padding: 14px 20px 40px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border-radius: 14px 14px 0 0;
-  border: 1.5px solid #C7DCEF;
+  border: 2px solid #C7DCEF;
   border-bottom: none;
 }
 
@@ -112,7 +112,7 @@ const stripPeso = (value) => {
   margin-top: -28px;
   background: #fff;
   border-radius: 13px 13px 15px 15px;
-  padding: 16px 20px;
+  padding: 30px 20px;
   box-shadow: 0 18px 28px -6px rgba(148, 163, 184, 0.45), 0 6px 10px -4px rgba(148, 163, 184, 0.3);
   border: none;
 }
@@ -141,7 +141,7 @@ const stripPeso = (value) => {
 .metric-card--unpaid .metric-card-label {
   color: #063B95;
   background: transparent;
-  border-color: #4A5579;
+  border-color: #3e4c79;
 }
 
 .metric-card--target .metric-card-value-box,
@@ -166,7 +166,7 @@ const stripPeso = (value) => {
 .metric-card--balance .metric-card-label {
   color: #C2410C;
   background: transparent;
-  border-color: #F9B87F;
+  border-color: #ff7967;
 }
 
 .metric-card--amount-to-disburse .metric-card-value-box,

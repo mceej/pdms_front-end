@@ -99,7 +99,16 @@ const props = defineProps({
   isUploading: { type: Boolean, default: false },
   servedListMessage: { type: String, default: '' },
   servedListError: { type: Boolean, default: false },
-  servedListRows: { type: Array, default: () => [] },
+  servedListRows: {
+    type: Array,
+    default: () => [
+      { file_name: 'AICS_Davao_City_Served_List_2026-09-28.csv', imported_at: 'Sep 28, 2026, 11:30 AM', imported_by: 'John michael Quisaot' },
+      { file_name: 'ECT_Davao_City_Served_List_2026-09-27.csv', imported_at: 'Sep 27, 2026, 3:45 PM', imported_by: 'Benidict Solo (Star Wars)' },
+      { file_name: 'AICS_Davao_del_Sur_Served_List_2026-09-26.csv', imported_at: 'Sep 26, 2026, 1:10 PM', imported_by: 'Oliver Orano' },
+      { file_name: 'ECT_Davao_del_Norte_Served_List_2026-09-25.csv', imported_at: 'Sep 25, 2026, 10:05 AM', imported_by: 'John Carlo Morre' },
+      { file_name: 'AICS_Davao_Oriental_Served_List_2026-09-24.csv', imported_at: 'Sep 24, 2026, 9:20 AM', imported_by: 'Mikaella Summer Gorgonio' },
+    ],
+  },
   servedListDateFrom: { type: String, default: '' },
   servedListDateTo: { type: String, default: '' },
   appliedServedListDateLabel: { type: String, default: 'as of today' },
@@ -121,16 +130,24 @@ const emit = defineEmits([
 }
 
 .server-list-heading {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 16px;
-  margin-top: 8px;
+  min-height: 190px;
+  margin-top: 0;
+  padding: 38px 40px 30px;
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
+    linear-gradient(90deg, #052f86 0%, #073f9f 50%, #075bd8 100%);
+  box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
 .eyebrow {
   display: block;
-  color: #ffb703;
+  color: #F3BB2E;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.72rem;
@@ -138,20 +155,22 @@ const emit = defineEmits([
 }
 
 .server-list-heading h2 {
-  margin: 6px 0 0;
-  color: #0d234a;
-  font-size: clamp(1.8rem, 2.5vw, 2.5rem);
+  margin: 10px 0 0;
+  color: #fff;
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.05;
 }
 
 .server-list-heading > span {
-  color: #5b7288;
+  color: #fff;
   font-size: 0.8rem;
 }
 
 .served-list-form {
   display: grid;
   gap: 18px;
-  padding: 22px;
+  padding: 22px 18px;
   border-radius: 18px;
   background: rgba(255,255,255,0.96);
   border: 1px solid rgba(12, 35, 77, 0.08);
@@ -299,5 +318,12 @@ const emit = defineEmits([
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .server-list-heading {
+    min-height: 170px;
+    padding: 30px 22px 24px;
+  }
+
+  .server-list-heading h2 { font-size: 40px; }
 }
 </style>
