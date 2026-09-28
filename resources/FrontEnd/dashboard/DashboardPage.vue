@@ -1,6 +1,63 @@
 ﻿﻿<template>
-    <div class="dashboard-page">
-        <div class="dashboard-shell">
+    <div class="app-layout">
+        <aside :class="['app-sidebar', { expanded: sidebarExpanded }]">
+            <button
+                type="button"
+                class="sidebar-brand"
+                :aria-expanded="sidebarExpanded"
+                :aria-label="sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'"
+                @click="sidebarExpanded = !sidebarExpanded"
+            >
+                <img src="/logo/dswdlogod.png" alt="DSWD logo" />
+                <span v-if="sidebarExpanded">DSWD Assist Track</span>
+            </button>
+
+            <nav class="sidebar-nav" aria-label="Main navigation">
+                <button
+                    type="button"
+                    :class="['sidebar-link', { active: activePage === 'dashboard' }]"
+                    title="Dashboard"
+                    :aria-current="activePage === 'dashboard' ? 'page' : undefined"
+                    @click="activePage = 'dashboard'"
+                >
+                    <i class="pi pi-home"></i>
+                    <span v-if="sidebarExpanded">Dashboard</span>
+                </button>
+                <button type="button" class="sidebar-link" title="Target Management">
+                    <i class="pi pi-chart-bar"></i>
+                    <span v-if="sidebarExpanded">Target Management</span>
+                </button>
+                <button
+                    type="button"
+                    :class="['sidebar-link', { active: activePage === 'server-list' }]"
+                    title="Import Served List"
+                    :aria-current="activePage === 'server-list' ? 'page' : undefined"
+                    @click="activePage = 'server-list'"
+                >
+                    <i class="pi pi-file"></i>
+                    <span v-if="sidebarExpanded">Import Served List</span>
+                </button>
+            </nav>
+
+            <button type="button" class="sidebar-link sidebar-logout" title="Log out" @click="confirmLogout">
+                <i class="pi pi-sign-out"></i>
+                <span v-if="sidebarExpanded">Log out</span>
+            </button>
+
+            <button
+                type="button"
+                class="sidebar-toggle"
+                :aria-label="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+                :title="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
+                :aria-expanded="sidebarExpanded"
+                @click="sidebarExpanded = !sidebarExpanded"
+            >
+                <i :class="sidebarExpanded ? 'pi pi-angle-left' : 'pi pi-angle-right'"></i>
+            </button>
+        </aside>
+
+        <div class="dashboard-page">
+        <div v-if="activePage === 'dashboard'" class="dashboard-shell">
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
