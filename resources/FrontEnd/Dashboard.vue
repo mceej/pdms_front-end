@@ -8,7 +8,7 @@
                 :aria-label="sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'"
                 @click="sidebarExpanded = !sidebarExpanded"
             >
-                <img src="/logo/dswdlogod.png" alt="DSWD logo" />
+                <img src="/logo/dswdlogo.png" alt="DSWD logo" />
                 <span v-if="sidebarExpanded">DSWD Assist Track</span>
             </button>
 
