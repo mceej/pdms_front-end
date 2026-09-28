@@ -36,13 +36,13 @@
       class="dashboard-table"
       :class="{ 'clickable-rows': activeLevel !== 'detail' }"
     >
-      <Column field="name" header="Name" sortable style="width: 28%" />
-      <Column field="target" header="Total Target" sortable style="width: 24%">
+      <Column field="name" header="Name" sortable style="width: 21%" />
+      <Column field="target" header="Total Target" sortable style="width: 17%">
         <template #body="{ data }">
           {{ data.target ? data.target.toLocaleString() : '-----' }}
         </template>
       </Column>
-      <Column field="paid" header="Paid" sortable style="width: 11%">
+      <Column field="paid" header="Paid" sortable style="width: 15%">
         <template #body="{ data }">
           <div class="paid-cell">
             <span>{{ data.paid ? data.paid.toLocaleString() : '-----' }}</span>
@@ -273,7 +273,7 @@ const emit = defineEmits([
 
 .total-row-footer {
   display: grid;
-  grid-template-columns: 36.3% 31.5% 14.5% 15%;
+  grid-template-columns: 31% 25.9% 22.4% 15%;
   align-items: center;
   gap: 0;
   width: 100%;

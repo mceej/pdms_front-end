@@ -14,7 +14,7 @@
                     <p>Please login to your account to continue</p>
                 </div>
 
-                <LoginForm @authenticated="emit('authenticated')" />
+                <LoginForm @authenticated="(role) => emit('authenticated', role)" />
             </div>
 
             <div class="right-panel" aria-hidden="true">

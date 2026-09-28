@@ -1,68 +1,12 @@
 ﻿﻿<template>
-    <div class="app-layout">
-        <aside :class="['app-sidebar', { expanded: sidebarExpanded }]">
-            <button
-                type="button"
-                class="sidebar-brand"
-                :aria-expanded="sidebarExpanded"
-                :aria-label="sidebarExpanded ? 'Collapse navigation' : 'Expand navigation'"
-                @click="sidebarExpanded = !sidebarExpanded"
-            >
-                <img src="/logo/dswdlogod.png" alt="DSWD logo" />
-                <span v-if="sidebarExpanded">DSWD Assist Track</span>
-            </button>
-
-            <nav class="sidebar-nav" aria-label="Main navigation">
-                <button
-                    type="button"
-                    :class="['sidebar-link', { active: activePage === 'dashboard' }]"
-                    title="Dashboard"
-                    :aria-current="activePage === 'dashboard' ? 'page' : undefined"
-                    @click="activePage = 'dashboard'"
-                >
-                    <i class="pi pi-home"></i>
-                    <span v-if="sidebarExpanded">Dashboard</span>
-                </button>
-                <button type="button" class="sidebar-link" title="Target Management">
-                    <i class="pi pi-chart-bar"></i>
-                    <span v-if="sidebarExpanded">Target Management</span>
-                </button>
-                <button
-                    type="button"
-                    :class="['sidebar-link', { active: activePage === 'server-list' }]"
-                    title="Import Served List"
-                    :aria-current="activePage === 'server-list' ? 'page' : undefined"
-                    @click="activePage = 'server-list'"
-                >
-                    <i class="pi pi-file"></i>
-                    <span v-if="sidebarExpanded">Import Served List</span>
-                </button>
-            </nav>
-
-            <button type="button" class="sidebar-link sidebar-logout" title="Log out" @click="confirmLogout">
-                <i class="pi pi-sign-out"></i>
-                <span v-if="sidebarExpanded">Log out</span>
-            </button>
-
-            <button
-                type="button"
-                class="sidebar-toggle"
-                :aria-label="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
-                :title="sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'"
-                :aria-expanded="sidebarExpanded"
-                @click="sidebarExpanded = !sidebarExpanded"
-            >
-                <i :class="sidebarExpanded ? 'pi pi-angle-left' : 'pi pi-angle-right'"></i>
-            </button>
-        </aside>
-
-        <div class="dashboard-page">
-        <div v-if="activePage === 'dashboard'" class="dashboard-shell">
+    <div class="dashboard-page">
+        <div class="dashboard-shell">
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
                         <i class="pi"></i> DSWD • PAYOUT SYSTEM
                     </span>
+                    <slot name="header-actions"></slot>
 
                     <div class="title-row">
                         <div>
@@ -180,42 +124,19 @@
             />
         </div>
 
-        <ServerListPage
-            v-else
-            :current-time="currentTime"
-            :tabs="programOptions"
-            :served-list-form="servedListForm"
-        />
-
-        <footer v-if="activePage === 'dashboard'" class="dashboard-footer">
+        <footer class="dashboard-footer">
             <p>Ⓒ 2026 Department of Social Welfare and Development - Field Office XI. All Rights Reserved.</p>
         </footer>
-        </div>
-
-        <LogoutConfirmDialog
-            :open="logoutDialogOpen"
-            @cancel="logoutDialogOpen = false"
-            @confirm="emit('logout')"
-        />
     </div>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import ComparisonCharts from './dashboard/ComparisonCharts.vue';
-import DashboardOverview from './dashboard/DashboardOverview.vue';
-import DashboardTable from './dashboard/DashboardTable.vue';
-import LogoutConfirmDialog from './components/LogoutConfirmDialog.vue';
-import ServerListPage from './serverList/ServerListPage.vue';
-import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
+import ComparisonCharts from './ComparisonCharts.vue';
+import DashboardOverview from './DashboardOverview.vue';
+import DashboardTable from './DashboardTable.vue';
+import { fetchPayoutDashboard } from '../mock/payoutDashboard.js';
 
-const emit = defineEmits(['logout']);
-
-const sidebarExpanded = ref(false);
-const logoutDialogOpen = ref(false);
-const activePage = ref('dashboard');
-const programOptions = ['AICS', 'ECT'];
-const servedListForm = ref({ program: '', province: '', municipality: '', barangay: '', file: null });
 const activeTab = ref('AICS');
 const disasterName = ref('');
 const selectedDisasterType = ref('');
@@ -228,10 +149,6 @@ const dateTo = ref('');
 const appliedDateLabel = ref('as of 9/14/2026 | 10:30:23 AM');
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
-
-const confirmLogout = () => {
-    logoutDialogOpen.value = true;
-};
 
 const formatCount = (value) => {
     if (value === null || value === undefined || value === '' || value === '-----') return '0';
@@ -607,113 +524,6 @@ button {
 }
 button:hover { background: #2e2789; }
 
-.app-layout {
-    display: flex;
-    min-height: 100vh;
-    background: #f4f7fb;
-}
-
-.app-sidebar {
-    position: sticky;
-    top: 0;
-    display: flex;
-    flex: 0 0 60px;
-    flex-direction: column;
-    width: 60px;
-    height: 100vh;
-    padding: 12px 7px;
-    overflow: visible;
-    background: #063d94;
-    color: #fff;
-    transition: width 180ms ease, flex-basis 180ms ease;
-}
-
-.app-sidebar.expanded {
-    flex-basis: 232px;
-    width: 232px;
-}
-
-.sidebar-brand,
-.sidebar-link {
-    display: flex;
-    align-items: center;
-    flex: 0 0 auto;
-    min-height: 42px;
-    padding: 0;
-    border: 0;
-    border-radius: 4px;
-    background: transparent;
-    color: #fff;
-    text-align: left;
-}
-
-.sidebar-brand {
-    justify-content: center;
-    gap: 10px;
-    height: 46px;
-    margin-bottom: 36px;
-    font-size: 13px;
-    white-space: nowrap;
-}
-
-.sidebar-brand:hover,
-.sidebar-link:hover { background: rgba(255, 255, 255, 0.14); }
-
-.sidebar-brand img {
-    display: block;
-    flex: 0 0 38px;
-    width: 38px;
-    height: 38px;
-    object-fit: contain;
-}
-
-.app-sidebar.expanded .sidebar-brand { justify-content: flex-start; padding: 0 8px; }
-
-.sidebar-nav {
-    display: grid;
-    gap: 10px;
-}
-
-.sidebar-link {
-    justify-content: center;
-    gap: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.sidebar-link i {
-    flex: 0 0 18px;
-    width: 18px;
-    font-size: 15px;
-    text-align: center;
-}
-
-.sidebar-link.active { background: rgba(255, 255, 255, 0.17); }
-.app-sidebar.expanded .sidebar-link { justify-content: flex-start; padding: 0 12px; }
-.sidebar-logout { margin-top: auto; }
-
-.sidebar-toggle {
-    position: absolute;
-    top: 62px;
-    right: -10px;
-    z-index: 2;
-    display: grid;
-    width: 20px;
-    height: 20px;
-    place-items: center;
-    padding: 0;
-    border: 1px solid #cbd8e8;
-    border-radius: 6px;
-    background: #fff;
-    color: #17477f;
-    box-shadow: 1px 2px 5px rgba(14, 39, 71, 0.18);
-    font-size: 12px;
-}
-
-.sidebar-toggle:hover { background: #edf5ff; }
-.sidebar-toggle:focus-visible { outline: 3px solid #8bcaf0; outline-offset: 2px; }
-
 .dashboard-page {
     flex: 1 1 auto;
     min-width: 0;
@@ -746,6 +556,23 @@ button:hover { background: #2e2789; }
 }
 
 .header-content { position: relative; z-index: 1; }
+
+.header-logout {
+    position: absolute;
+    top: -12px;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    padding: 8px 12px;
+    border: 1px solid rgb(255 255 255 / 55%);
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+}
+
+.header-logout:hover { background: rgb(255 255 255 / 14%); }
 
 .brand {
     display: inline-flex;
