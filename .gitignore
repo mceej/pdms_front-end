@@ -13,3 +13,5 @@
 /node_modules
 /public/build
 Thumbs.db
+pdms_front-end/
+node_modules/
