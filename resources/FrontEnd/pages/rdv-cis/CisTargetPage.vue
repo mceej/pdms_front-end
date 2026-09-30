@@ -60,7 +60,7 @@
                         <th>Payout Site</th>
                         <th>Date Start</th>
                         <th>Date End</th>
-                        <th>Action</th>
+                        <th class="action-col">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,7 +76,7 @@
                         <td>{{ target.payoutSite }}</td>
                         <td>{{ formatDate(target.dateStart) }}</td>
                         <td>{{ formatDate(target.dateEnd) }}</td>
-                        <td>
+                        <td class="action-col">
                             <button
                                 type="button"
                                 class="edit-target-button"
@@ -87,6 +87,13 @@
                                 <i class="pi pi-pencil" aria-hidden="true"></i>
                             </button>
                         </td>
+                    </tr>
+                    <tr v-if="visibleTargets.length > 0" class="vacant-row" aria-hidden="true">
+                        <td
+                            v-for="n in columnCount"
+                            :key="n"
+                            :class="{ 'action-col': n === columnCount }"
+                        ></td>
                     </tr>
                     <tr v-if="visibleTargets.length === 0">
                         <td class="empty-targets" :colspan="isDrmd ? 8 : 9">No targets found.</td>
@@ -173,11 +180,13 @@
                 </div>
             </form>
         </div>
+        <AppFooter class="target-footer" />
     </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import AppFooter from '../../components/AppFooter.vue';
 
 const props = defineProps({
     pageTitle: { type: String, required: true },
@@ -198,6 +207,7 @@ const disasterNames = [
     'Tropical Storm',
 ];
 const isDrmd = computed(() => props.variant === 'drmd');
+const columnCount = computed(() => (isDrmd.value ? 8 : 9));
 const filterLabel = computed(() => (isDrmd.value ? 'Disaster Name' : 'Program Type'));
 const filterOptions = computed(() => (isDrmd.value ? disasterNames : programTypes));
 const search = ref('');
@@ -337,6 +347,7 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-header {
+    flex: 0 0 auto;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -487,11 +498,13 @@ watch([search, pageSize], () => { page.value = 1; });
     color: #fff;
 }
 
+/* Table height follows its rows (data rows + 1 vacant row), so the pagination
+   bar sits right under the table. Only horizontal scrolling happens inside the box. */
 .target-table-scroll {
+    flex: 0 0 auto;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    min-height: 700px;
     margin: 0;
     overflow: auto;
     border: 1px solid #dce3ed;
@@ -504,20 +517,16 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-table {
-    width: 1480px;
-    min-width: 1480px;
-    table-layout: fixed;
-    border-collapse: collapse;
+    width: 100%;
+    min-width: 1480px; /* forces horizontal scroll on smaller screens so the Action column visibly stays put */
+    table-layout: auto;
+    border-collapse: separate; /* more reliable than collapse for sticky cells */
+    border-spacing: 0;
     color: #111827;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
     white-space: nowrap;
-}
-
-.target-table.drmd-table {
-    width: 1480px;
-    min-width: 1480px;
 }
 
 .target-table th,
@@ -528,35 +537,50 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     height: 47px;
     background: #f8faff;
     color: #354768;
     font-size: 15px;
-    font-weight: 2700;
+    font-weight: 700;
     text-transform: uppercase;
 }
 
-.target-table th:nth-child(1),
-.target-table td:nth-child(1) { width: 370px; }
-.target-table th:nth-child(2),
-.target-table td:nth-child(2) { width: 370px; }
-.target-table th:nth-child(3),
-.target-table td:nth-child(3) { width: 370px; }
-.target-table th:nth-child(4),
-.target-table td:nth-child(4) { width: 370px; }
-.target-table th:nth-child(5),
-.target-table td:nth-child(5) { width: 370px; }
-.target-table th:nth-child(6),
-.target-table td:nth-child(6) { width: 350px; }
-.target-table th:nth-child(7),
-.target-table td:nth-child(7) { width: 330px; }
-.target-table th:nth-child(8),
-.target-table td:nth-child(8) { width: 310px; }
-.target-table th:nth-child(9),
-.target-table td:nth-child(9) { width: 80px; }
+/* Action column: frozen to the right edge, sized to its content */
+.target-table .action-col {
+    position: sticky;
+    right: 0;
+    width: 1%;
+    text-align: center;
+    background: #fff;
+    border-left: 1px solid #e4e8ef;
+}
+
+.target-table th.action-col {
+    z-index: 2;
+    background: #f8faff;
+}
+
+.target-table td.action-col {
+    z-index: 1;
+}
 
 .target-table tbody tr:hover {
     background: #f8faff;
+}
+
+.target-table tbody tr:hover td.action-col {
+    background: #f8faff;
+}
+
+.target-table tbody tr.vacant-row:hover {
+    background: transparent;
+}
+
+.target-table tbody tr.vacant-row:hover td.action-col {
+    background: #fff;
 }
 
 .edit-target-button {
@@ -582,13 +606,14 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-pagination {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 24px;
     width: 100%;
     min-height: 44px;
-    margin: 0;
+    margin: 0 0 24px;
     border: 1px solid #dce3ed;
     border-top: 0;
     background: #fff;
@@ -632,6 +657,10 @@ watch([search, pageSize], () => { page.value = 1; });
     color: #516074;
     font: inherit;
     font-size: 11px;
+}
+
+.target-footer {
+    margin-top: auto;
 }
 
 .dialog-backdrop {
@@ -725,26 +754,6 @@ watch([search, pageSize], () => { page.value = 1; });
         max-width: 220px;
     }
 
-    .target-table {
-        width: 1110px;
-        min-width: 1110px;
-    }
-
-    .target-table.drmd-table {
-        width: 1200px;
-        min-width: 1200px;
-    }
-
-    .target-table th:nth-child(1),
-    .target-table td:nth-child(1) { width: 95px; }
-    .target-table th:nth-child(2),
-    .target-table td:nth-child(2) { width: 100px; }
-    .target-table th:nth-child(3),
-    .target-table td:nth-child(3) { width: 155px; }
-    .target-table th:nth-child(4),
-    .target-table td:nth-child(4) { width: 125px; }
-    .target-table th:nth-child(5),
-    .target-table td:nth-child(5) { width: 135px; }
 }
 
 @media (max-width: 720px) {

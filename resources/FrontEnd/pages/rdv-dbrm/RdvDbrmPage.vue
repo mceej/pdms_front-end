@@ -20,6 +20,7 @@
                     :tabs="programOptions"
                     :served-list-form="servedListForm"
                 />
+                <AppFooter variant="served-list" />
             </div>
         </main>
 
@@ -34,6 +35,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 import AppSidebar from '../../components/AppSidebar.vue';
+import AppFooter from '../../components/AppFooter.vue';
 import LogoutConfirmDialog from '../../components/LogoutConfirmDialog.vue';
 import DashboardPage from '../../dashboard/DashboardPage.vue';
 import ServerListPage from '../../components/ServerListPage.vue';
@@ -80,6 +82,8 @@ onUnmounted(() => window.clearInterval(clockTimer));
 }
 
 .served-list-shell {
+    display: flex;
+    flex-direction: column;
     min-height: 100vh;
     padding: 18px 30px 36px;
 }

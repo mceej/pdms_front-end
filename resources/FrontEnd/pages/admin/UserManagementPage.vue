@@ -310,11 +310,13 @@
                 </div>
             </section>
         </div>
+        <AppFooter />
     </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import AppFooter from '../../components/AppFooter.vue';
 
 const search = ref('');
 const page = ref(1);
@@ -578,12 +580,14 @@ watch(
     position: relative;
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
-    padding: 22px 28px 0;
+    height: 100vh;
+    padding: 22px 28px 24px;
+    overflow: hidden;
     background: #f4f7fb;
 }
 
 .admin-page-header {
+    flex: 0 0 auto;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -783,8 +787,11 @@ watch(
     font-weight: 600;
 }
 
+/* Table fills the leftover space between the header and pagination bar,
+   and scrolls internally instead of stretching the page. */
 .table-wrap {
-    min-height: 700px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
     border: 1px solid #dce3ed;
     background: #fff;
@@ -800,6 +807,9 @@ watch(
 }
 
 .admin-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     height: 32px;
     padding: 0 14px;
     background: #f8faff;
@@ -911,6 +921,7 @@ watch(
 }
 
 .table-pagination {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1101,7 +1112,7 @@ watch(
 
 @media (max-width: 720px) {
     .admin-workspace {
-        padding: 16px 12px 0;
+        padding: 16px 12px 16px;
     }
 
     .admin-page-header {

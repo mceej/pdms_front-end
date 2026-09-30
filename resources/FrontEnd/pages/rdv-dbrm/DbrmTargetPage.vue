@@ -60,7 +60,7 @@
                         <th>Payout Site</th>
                         <th>Date Start</th>
                         <th>Date End</th>
-                        <th>Action</th>
+                        <th class="action-col">Action</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -76,7 +76,7 @@
                         <td>{{ target.payoutSite }}</td>
                         <td>{{ formatDate(target.dateStart) }}</td>
                         <td>{{ formatDate(target.dateEnd) }}</td>
-                        <td>
+                        <td class="action-col">
                             <button
                                 type="button"
                                 class="edit-target-button"
@@ -173,11 +173,13 @@
                 </div>
             </form>
         </div>
+        <AppFooter />
     </section>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import AppFooter from '../../components/AppFooter.vue';
 
 const props = defineProps({
     pageTitle: { type: String, required: true },
@@ -331,12 +333,14 @@ watch([search, pageSize], () => { page.value = 1; });
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    min-height: 100vh;
-    padding: 22px 28px 0;
+    height: 100vh;
+    padding: 22px 28px 24px;
+    overflow: hidden;
     background: #f4f7fb;
 }
 
 .target-header {
+    flex: 0 0 auto;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -487,11 +491,14 @@ watch([search, pageSize], () => { page.value = 1; });
     color: #fff;
 }
 
+/* Table fills the leftover space between the header and pagination bar,
+   and scrolls internally (vertical and horizontal) instead of stretching the page. */
 .target-table-scroll {
+    flex: 1 1 auto;
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    min-height: 700px;
+    min-height: 0;
     margin: 0;
     overflow: auto;
     border: 1px solid #dce3ed;
@@ -504,20 +511,16 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-table {
-    width: 1480px;
-    min-width: 1480px;
-    table-layout: fixed;
-    border-collapse: collapse;
+    width: 100%;
+    min-width: 1480px; /* forces horizontal scroll on smaller screens so the Action column visibly stays put */
+    table-layout: auto;
+    border-collapse: separate; /* more reliable than collapse for sticky cells */
+    border-spacing: 0;
     color: #111827;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
     white-space: nowrap;
-}
-
-.target-table.drmd-table {
-    width: 1480px;
-    min-width: 1480px;
 }
 
 .target-table th,
@@ -528,34 +531,41 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     height: 47px;
     background: #f8faff;
     color: #354768;
     font-size: 15px;
-    font-weight: 2700;
+    font-weight: 700;
     text-transform: uppercase;
 }
 
-.target-table th:nth-child(1),
-.target-table td:nth-child(1) { width: 370px; }
-.target-table th:nth-child(2),
-.target-table td:nth-child(2) { width: 370px; }
-.target-table th:nth-child(3),
-.target-table td:nth-child(3) { width: 370px; }
-.target-table th:nth-child(4),
-.target-table td:nth-child(4) { width: 370px; }
-.target-table th:nth-child(5),
-.target-table td:nth-child(5) { width: 370px; }
-.target-table th:nth-child(6),
-.target-table td:nth-child(6) { width: 350px; }
-.target-table th:nth-child(7),
-.target-table td:nth-child(7) { width: 330px; }
-.target-table th:nth-child(8),
-.target-table td:nth-child(8) { width: 310px; }
-.target-table th:nth-child(9),
-.target-table td:nth-child(9) { width: 80px; }
+/* Action column: frozen to the right edge, sized to its content */
+.target-table .action-col {
+    position: sticky;
+    right: 0;
+    width: 1%;
+    text-align: center;
+    background: #fff;
+    border-left: 1px solid #e4e8ef;
+}
+
+.target-table th.action-col {
+    z-index: 2;
+    background: #f8faff;
+}
+
+.target-table td.action-col {
+    z-index: 1;
+}
 
 .target-table tbody tr:hover {
+    background: #f8faff;
+}
+
+.target-table tbody tr:hover td.action-col {
     background: #f8faff;
 }
 
@@ -582,6 +592,7 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .target-pagination {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -725,31 +736,11 @@ watch([search, pageSize], () => { page.value = 1; });
         max-width: 220px;
     }
 
-    .target-table {
-        width: 1110px;
-        min-width: 1110px;
-    }
-
-    .target-table.drmd-table {
-        width: 1200px;
-        min-width: 1200px;
-    }
-
-    .target-table th:nth-child(1),
-    .target-table td:nth-child(1) { width: 95px; }
-    .target-table th:nth-child(2),
-    .target-table td:nth-child(2) { width: 100px; }
-    .target-table th:nth-child(3),
-    .target-table td:nth-child(3) { width: 155px; }
-    .target-table th:nth-child(4),
-    .target-table td:nth-child(4) { width: 125px; }
-    .target-table th:nth-child(5),
-    .target-table td:nth-child(5) { width: 135px; }
 }
 
 @media (max-width: 720px) {
     .target-workspace {
-        padding: 16px 12px 0;
+        padding: 16px 12px 16px;
     }
 }
 

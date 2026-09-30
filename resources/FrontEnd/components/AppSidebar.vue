@@ -1,7 +1,7 @@
 <template>
     <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]">
         <div class="sidebar-brand">
-            <img src="/logo/dswdlogo.png" alt="DSWD logo" />
+            <img src="/logo/dswdsidebarlogo.png" alt="DSWD logo" />
             <span v-if="sidebarExpanded">DSWD Assist Track</span>
         </div>
 
