@@ -1,5 +1,5 @@
 <template>
-    <div class="rdv-cis-layout">
+    <div :class="['rdv-cis-layout', { 'rdv-cis-layout--target': activePage === 'target-management' }]">
         <AppSidebar
             :items="sidebarItems"
             :active-item="activePage"
@@ -81,6 +81,15 @@ onUnmounted(() => window.clearInterval(clockTimer));
 .rdv-cis-content {
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.rdv-cis-layout--target {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.rdv-cis-layout--target .rdv-cis-content {
+    overflow: hidden;
 }
 
 .served-list-shell {

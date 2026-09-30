@@ -1,5 +1,5 @@
 <template>
-    <div class="rdv-dbrm-layout">
+    <div :class="['rdv-dbrm-layout', { 'rdv-dbrm-layout--target': activePage === 'target-management' }]">
         <AppSidebar
             :items="sidebarItems"
             :active-item="activePage"
@@ -79,6 +79,15 @@ onUnmounted(() => window.clearInterval(clockTimer));
 .rdv-dbrm-content {
     flex: 1 1 auto;
     min-width: 0;
+}
+
+.rdv-dbrm-layout--target {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.rdv-dbrm-layout--target .rdv-dbrm-content {
+    overflow: hidden;
 }
 
 .served-list-shell {

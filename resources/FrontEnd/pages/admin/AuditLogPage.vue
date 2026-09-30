@@ -12,24 +12,44 @@
                         aria-label="Search audit log"
                     />
                 </label>
-                <label class="filter-control">
-                    <i class="pi pi-filter" aria-hidden="true"></i>
-                    <select v-model="moduleFilter" aria-label="Filter audit log by module">
-                        <option value="">Filter</option>
-                        <option value="Target Management">Target Management</option>
-                        <option value="Dashboard">Dashboard</option>
-                        <option value="Import Served List">Import Served List</option>
-                    </select>
-                </label>
+                <div class="filter-control" ref="filterControl">
+                    <button
+                        type="button"
+                        class="filter-trigger"
+                        :class="{ 'filter-active': hasSelectedFilters }"
+                        :aria-expanded="filterOpen"
+                        @click="filterOpen = !filterOpen"
+                    >
+                        <i class="pi pi-filter" aria-hidden="true"></i>
+                        <span>Filter</span>
+                        <i class="pi pi-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <div v-if="filterOpen" class="filter-panel">
+                        <section class="filter-group">
+                            <h2>Module</h2>
+                            <label v-for="module in moduleOptions" :key="module">
+                                <input
+                                    v-model="draftModules"
+                                    type="checkbox"
+                                    :value="module"
+                                />
+                                {{ module }}
+                            </label>
+                        </section>
+                        <div class="filter-actions">
+                            <button type="button" class="clear-filters" @click="clearFilters">
+                                Clear All
+                            </button>
+                            <button type="button" class="apply-filters" @click="applyFilters">
+                                Apply
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <div
-            class="table-wrap"
-            role="region"
-            aria-label="Audit log table. Scroll horizontally to see Activity and IP Address."
-            tabindex="0"
-        >
+        <div class="table-wrap" role="region" aria-label="Audit log table" tabindex="0">
             <table class="admin-table">
                 <thead>
                     <tr>
@@ -118,24 +138,80 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
 
 const search = ref('');
-const moduleFilter = ref('');
+const filterOpen = ref(false);
+const filterControl = ref(null);
+const moduleOptions = ['Target Management', 'Dashboard', 'Import Served List'];
+const draftModules = ref([]);
+const selectedModules = ref([]);
 const page = ref(1);
 const pageSize = ref(25);
 const rows = ref(
-    Array.from({ length: 10 }, (_, rowIndex) => ({
-        id: rowIndex + 1,
-        timestamp: '25-02-2026, 9:30 AM',
-        name: 'Juan Dela Cruz',
-        userType: 'Program RDV Focal',
-        module: 'Target Management',
-        action: 'Add Target',
-        activity: 'Added Target record ID #5522',
-        ipAddress: '192.168.1.45',
-    })),
+    [
+        ...Array.from({ length: 10 }, (_, rowIndex) => ({
+            id: rowIndex + 1,
+            timestamp: '25-02-2026, 9:30 AM',
+            name: 'Juan Dela Cruz',
+            userType: 'Program RDV Focal',
+            module: 'Target Management',
+            action: 'Add Target',
+            activity: 'Added Target record ID #5522',
+            ipAddress: '192.168.1.45',
+        })),
+        {
+            id: 11,
+            timestamp: '25-02-2026, 10:05 AM',
+            name: 'Maria Santos',
+            userType: 'Administrator',
+            module: 'Dashboard',
+            action: 'View Dashboard',
+            activity: 'Viewed payout dashboard summary',
+            ipAddress: '192.168.1.52',
+        },
+        {
+            id: 12,
+            timestamp: '25-02-2026, 10:18 AM',
+            name: 'Carlos Reyes',
+            userType: 'Program RDV Focal',
+            module: 'Import Served List',
+            action: 'Import File',
+            activity: 'Imported served-list-february.csv',
+            ipAddress: '192.168.1.63',
+        },
+        {
+            id: 13,
+            timestamp: '25-02-2026, 10:42 AM',
+            name: 'Ana Garcia',
+            userType: 'Regional Focal',
+            module: 'Target Management',
+            action: 'Update Target',
+            activity: 'Updated target record ID #5522',
+            ipAddress: '192.168.1.71',
+        },
+        {
+            id: 14,
+            timestamp: '25-02-2026, 11:10 AM',
+            name: 'Ramon Cruz',
+            userType: 'Administrator',
+            module: 'Dashboard',
+            action: 'Export Report',
+            activity: 'Exported monthly payout report',
+            ipAddress: '192.168.1.88',
+        },
+        {
+            id: 15,
+            timestamp: '25-02-2026, 11:35 AM',
+            name: 'Liza Mendoza',
+            userType: 'Program RDV Focal',
+            module: 'Import Served List',
+            action: 'Validate File',
+            activity: 'Validated served-list-march.csv',
+            ipAddress: '192.168.1.96',
+        },
+    ],
 );
 
 const filteredRows = computed(() => {
@@ -143,7 +219,8 @@ const filteredRows = computed(() => {
     return rows.value.filter((row) => {
         const matchesSearch =
             !query || Object.values(row).join(' ').toLowerCase().includes(query);
-        const matchesModule = !moduleFilter.value || row.module === moduleFilter.value;
+        const matchesModule =
+            selectedModules.value.length === 0 || selectedModules.value.includes(row.module);
         return matchesSearch && matchesModule;
     });
 });
@@ -154,8 +231,31 @@ const visibleRows = computed(() => {
     return filteredRows.value.slice(start, start + pageSize.value);
 });
 
+const hasSelectedFilters = computed(() => draftModules.value.length > 0);
+
+const applyFilters = () => {
+    selectedModules.value = [...draftModules.value];
+    filterOpen.value = false;
+    page.value = 1;
+};
+
+const clearFilters = () => {
+    draftModules.value = [];
+    selectedModules.value = [];
+    page.value = 1;
+};
+
+const closeFilterOnOutsidePointer = (event) => {
+    if (filterOpen.value && !filterControl.value?.contains(event.target)) {
+        filterOpen.value = false;
+    }
+};
+
+onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
+onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+
 watch(
-    [search, moduleFilter, pageSize],
+    [search, pageSize],
     () => {
         page.value = 1;
     },
@@ -241,7 +341,6 @@ watch(
     font-size: 14px;
 }
 
-.filter-control select,
 .table-pagination select {
     border: 0;
     outline: 0;
@@ -251,13 +350,113 @@ watch(
     font-size: 14px;
 }
 
-.filter-control select {
-    width: 58px;
-    cursor: pointer;
+.filter-control {
+    position: relative;
+    height: auto;
+    padding: 0;
+    overflow: visible;
+    border: 0;
+    background: transparent;
 }
 
-/* Table fills the leftover space between the header and pagination bar,
-   and scrolls internally (vertical and horizontal) instead of stretching the page. */
+.filter-trigger {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 9px;
+    border: 1px solid #dce3ed;
+    border-radius: 4px;
+    background: #f9fbfe;
+    color: #718096;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+}
+
+.filter-trigger .pi-chevron-down {
+    margin-left: 3px;
+    font-size: 10px;
+}
+
+.filter-trigger.filter-active {
+    border-color: #9fc9ed;
+    background: #e5f3ff;
+    color: #256da8;
+}
+
+.filter-panel {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    z-index: 30;
+    width: 250px;
+    padding: 14px;
+    border: 1px solid #dce3ed;
+    border-radius: 5px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgb(20 35 60 / 16%);
+}
+
+.filter-group {
+    display: grid;
+    gap: 8px;
+    padding: 0 0 12px;
+}
+
+.filter-group h2 {
+    margin: 0;
+    color: #39465a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.filter-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #273244;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.filter-group input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: #302b9c;
+}
+
+.filter-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid #e7ebf1;
+}
+
+.filter-actions button {
+    min-height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+}
+
+.clear-filters {
+    background: transparent;
+    color: #302b9c;
+}
+
+.apply-filters {
+    background: #302b9c;
+    color: #fff;
+}
+
+/* Keep every audit-log column within the page width; only vertical scrolling is needed. */
 .table-wrap {
     display: block;
     flex: 1 1 auto;
@@ -265,63 +464,28 @@ watch(
     max-width: 100%;
     min-height: 0;
     min-width: 0;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: auto;
     border: 1px solid #dce3ed;
     background: #fff;
 }
 
 .admin-table {
-    width: 2120px;
-    min-width: 2120px;
-    table-layout: fixed;
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
     border-collapse: collapse;
     color: #111827;
     font-size: 14px;
     text-align: left;
-    white-space: nowrap;
-}
-
-.admin-table th:nth-child(1),
-.admin-table td:nth-child(1) {
-    width: 400px;
-}
-
-.admin-table th:nth-child(2),
-.admin-table td:nth-child(2) {
-    width: 310px;
-}
-
-.admin-table th:nth-child(3),
-.admin-table td:nth-child(3) {
-    width: 400px;
-}
-
-.admin-table th:nth-child(4),
-.admin-table td:nth-child(4) {
-    width: 450px;
-}
-
-.admin-table th:nth-child(5),
-.admin-table td:nth-child(5) {
-    width: 320px;
-}
-
-.admin-table th:nth-child(6),
-.admin-table td:nth-child(6) {
-    width: 370px;
-}
-
-.admin-table th:nth-child(7),
-.admin-table td:nth-child(7) {
-    width: 180px;
+    white-space: normal;
 }
 
 .admin-table th {
     position: sticky;
     top: 0;
     z-index: 1;
-    height: 32px;
+    height: 45px;
     padding: 0 14px;
     background: #f8faff;
     color: #354768;
@@ -331,9 +495,10 @@ watch(
 }
 
 .admin-table td {
-    height: 50px;
+    height: 76px;
     padding: 0 14px;
     border-top: 1px solid #e4e8ef;
+    overflow-wrap: anywhere;
 }
 
 .admin-table tbody tr:hover {
@@ -363,6 +528,7 @@ watch(
     justify-content: center;
     gap: 24px;
     min-height: 44px;
+    margin-bottom: 16px;
     border: 1px solid #dce3ed;
     border-top: 0;
     background: #fff;

@@ -18,6 +18,7 @@
                     <button
                         type="button"
                         class="filter-trigger"
+                        :class="{ 'filter-active': hasSelectedFilters }"
                         :aria-expanded="filterOpen"
                         @click="filterOpen = !filterOpen"
                     >
@@ -25,6 +26,10 @@
                         Filter
                         <i class="pi pi-chevron-down" aria-hidden="true"></i>
                     </button>
+                    <div v-if="actionNotification" class="action-notification" role="status">
+                        <i class="pi pi-check-circle" aria-hidden="true"></i>
+                        {{ actionNotification }}
+                    </div>
                     <div v-if="filterOpen" class="filter-panel">
                         <strong>{{ filterLabel }}</strong>
                         <label v-for="option in filterOptions" :key="option">
@@ -43,7 +48,7 @@
         <div
             class="target-table-scroll"
             role="region"
-            aria-label="Target management table. Scroll horizontally to see payout site, dates, and actions."
+            aria-label="Target management table"
             tabindex="0"
         >
             <table :class="['target-table', { 'drmd-table': isDrmd }]">
@@ -173,6 +178,32 @@
                 </div>
             </form>
         </div>
+
+        <div
+            v-if="pendingTargetSave"
+            class="dialog-backdrop"
+            @click.self="pendingTargetSave = null"
+        >
+            <section class="confirmation-dialog" role="alertdialog" aria-modal="true">
+                <span class="confirmation-icon" aria-hidden="true">
+                    <i class="pi pi-exclamation-circle"></i>
+                </span>
+                <h2>{{ pendingTargetSave.isNew ? 'Save new target?' : 'Save target changes?' }}</h2>
+                <p>
+                    {{ pendingTargetSave.isNew
+                        ? 'Add this target to the list?'
+                        : 'Save the changes to this target record?' }}
+                </p>
+                <div class="dialog-actions">
+                    <button type="button" class="cancel-button" @click="pendingTargetSave = null">
+                        Cancel
+                    </button>
+                    <button type="button" class="save-target-button" @click="confirmTargetSave">
+                        {{ pendingTargetSave.isNew ? 'Save Target' : 'Save Changes' }}
+                    </button>
+                </div>
+            </section>
+        </div>
         <AppFooter />
     </section>
 </template>
@@ -209,8 +240,12 @@ const filterOpen = ref(false);
 const filterRoot = ref(null);
 const draftPrograms = ref([]);
 const selectedPrograms = ref([]);
+const hasSelectedFilters = computed(() => draftPrograms.value.length > 0);
 const showTargetDialog = ref(false);
 const editingTargetId = ref(null);
+const pendingTargetSave = ref(null);
+const actionNotification = ref('');
+let actionNotificationTimer;
 const targetDraft = ref(createEmptyTarget());
 const targets = ref(
     Array.from({ length: 10 }, (_, index) => ({
@@ -303,13 +338,36 @@ const closeTargetDialog = () => {
 };
 
 const saveTarget = () => {
-    const target = { ...targetDraft.value };
-    if (editingTargetId.value === null) {
-        targets.value.unshift({ id: Date.now(), ...target });
+    pendingTargetSave.value = {
+        isNew: editingTargetId.value === null,
+        target: { ...targetDraft.value },
+        targetId: editingTargetId.value,
+    };
+};
+
+const showActionNotification = (message) => {
+    window.clearTimeout(actionNotificationTimer);
+    actionNotification.value = message;
+    actionNotificationTimer = window.setTimeout(() => {
+        actionNotification.value = '';
+    }, 3500);
+};
+
+const confirmTargetSave = () => {
+    const pendingSave = pendingTargetSave.value;
+    if (!pendingSave) return;
+
+    if (pendingSave.isNew) {
+        targets.value.unshift({ id: Date.now(), ...pendingSave.target });
     } else {
-        const targetIndex = targets.value.findIndex((item) => item.id === editingTargetId.value);
-        if (targetIndex !== -1) targets.value[targetIndex] = { id: editingTargetId.value, ...target };
+        const targetIndex = targets.value.findIndex((item) => item.id === pendingSave.targetId);
+        if (targetIndex !== -1) {
+            targets.value[targetIndex] = { id: pendingSave.targetId, ...pendingSave.target };
+        }
     }
+
+    showActionNotification(pendingSave.isNew ? 'Target added successfully.' : 'Target updated successfully.');
+    pendingTargetSave.value = null;
     showTargetDialog.value = false;
 };
 
@@ -320,7 +378,10 @@ const closeFilterOnOutsidePointer = (event) => {
 };
 
 onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    window.clearTimeout(actionNotificationTimer);
+});
 
 watch([search, pageSize], () => { page.value = 1; });
 </script>
@@ -432,6 +493,31 @@ watch([search, pageSize], () => { page.value = 1; });
     font-size: 9px;
 }
 
+.filter-trigger.filter-active {
+    border-color: #9fc9ed;
+    background: #e5f3ff;
+    color: #256da8;
+}
+
+.action-notification {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: max-content;
+    padding: 9px 12px;
+    border: 1px solid #b8e1c5;
+    border-radius: 4px;
+    background: #effcf3;
+    box-shadow: 0 5px 14px rgb(13 78 42 / 14%);
+    color: #237644;
+    font-size: 12px;
+    font-weight: 600;
+}
+
 .filter-panel {
     position: absolute;
     top: calc(100% + 6px);
@@ -491,8 +577,7 @@ watch([search, pageSize], () => { page.value = 1; });
     color: #fff;
 }
 
-/* Table fills the leftover space between the header and pagination bar,
-   and scrolls internally (vertical and horizontal) instead of stretching the page. */
+/* Keep every target column within the page width without horizontal scrolling. */
 .target-table-scroll {
     flex: 1 1 auto;
     width: 100%;
@@ -500,65 +585,53 @@ watch([search, pageSize], () => { page.value = 1; });
     min-width: 0;
     min-height: 0;
     margin: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid #dce3ed;
     background: #fff;
 }
 
-.target-table-scroll:focus-visible {
-    outline: 2px solid #3f8fd2;
-    outline-offset: 2px;
-}
-
 .target-table {
     width: 100%;
-    min-width: 1480px; /* forces horizontal scroll on smaller screens so the Action column visibly stays put */
+    min-width: 0;
     table-layout: auto;
-    border-collapse: separate; /* more reliable than collapse for sticky cells */
+    border-collapse: collapse;
     border-spacing: 0;
     color: #111827;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
-    white-space: nowrap;
+    white-space: normal;
 }
 
-.target-table th,
 .target-table td {
-    height: 40px;
-    padding: 0 12px;
-    border-bottom: 1px solid #e4e8ef;
+    height: 76px;
+    padding: 0 14px;
+    border-top: 1px solid #e4e8ef;
+    overflow-wrap: anywhere;
 }
 
 .target-table th {
     position: sticky;
     top: 0;
     z-index: 1;
-    height: 47px;
+    height: 45px;
+    padding: 0 14px;
     background: #f8faff;
     color: #354768;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
 }
 
-/* Action column: frozen to the right edge, sized to its content */
 .target-table .action-col {
-    position: sticky;
-    right: 0;
-    width: 1%;
+    width: auto;
     text-align: center;
     background: #fff;
-    border-left: 1px solid #e4e8ef;
 }
 
 .target-table th.action-col {
-    z-index: 2;
     background: #f8faff;
-}
-
-.target-table td.action-col {
-    z-index: 1;
 }
 
 .target-table tbody tr:hover {
@@ -570,7 +643,7 @@ watch([search, pageSize], () => { page.value = 1; });
 }
 
 .edit-target-button {
-    display: grid;
+    display: center;
     width: 28px;
     height: 28px;
     place-items: center;
@@ -599,7 +672,7 @@ watch([search, pageSize], () => { page.value = 1; });
     gap: 24px;
     width: 100%;
     min-height: 44px;
-    margin: 0;
+    margin: 0 0 16px;
     border: 1px solid #dce3ed;
     border-top: 0;
     background: #fff;
@@ -717,6 +790,49 @@ watch([search, pageSize], () => { page.value = 1; });
 .save-target-button {
     background: #302b9c;
     color: #fff;
+}
+
+.confirmation-dialog {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+    width: min(100%, 390px);
+    padding: 26px;
+    border: 1px solid #e0e5ed;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 48px rgb(13 28 51 / 24%);
+    text-align: center;
+}
+
+.confirmation-icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 50%;
+    background: #eeedff;
+    color: #302b9c;
+    font-size: 18px;
+}
+
+.confirmation-dialog h2 {
+    margin: 0;
+    color: #20242c;
+    font-size: 20px;
+}
+
+.confirmation-dialog p {
+    margin: 0;
+    color: #64748b;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.confirmation-dialog .dialog-actions {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
 }
 
 @media (max-width: 900px) {

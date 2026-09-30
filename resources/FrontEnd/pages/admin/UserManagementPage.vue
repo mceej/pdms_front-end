@@ -26,6 +26,7 @@
                     <button
                         type="button"
                         class="filter-trigger"
+                        :class="{ 'filter-active': hasSelectedFilters }"
                         :aria-expanded="filterOpen"
                         @click="filterOpen = !filterOpen"
                     >
@@ -33,6 +34,10 @@
                         <span>Filter</span>
                         <i class="pi pi-chevron-down" aria-hidden="true"></i>
                     </button>
+                    <div v-if="actionNotification" class="action-notification" role="status">
+                        <i class="pi pi-check-circle" aria-hidden="true"></i>
+                        {{ actionNotification }}
+                    </div>
                     <div v-if="filterOpen" class="filter-panel">
                         <section class="filter-group">
                             <h2>Assigned Section</h2>
@@ -69,7 +74,12 @@
             </div>
         </header>
 
-        <div class="table-wrap">
+        <div
+            class="table-wrap"
+            role="region"
+            aria-label="User management table"
+            tabindex="0"
+        >
             <table class="admin-table users-table">
                 <thead>
                     <tr>
@@ -107,7 +117,7 @@
                                 <button type="button" @click="beginEditUser(user)">
                                     Edit Credentials
                                 </button>
-                                <button type="button" @click="toggleUserStatus(user)">
+                                <button type="button" @click="requestStatusChange(user)">
                                     {{ user.status === 'Active' ? 'Deactivate' : 'Activate' }}
                                 </button>
                                 <button
@@ -287,25 +297,26 @@
         </div>
 
         <div
-            v-if="userToDelete"
+            v-if="confirmationAction"
             class="dialog-backdrop"
-            @click.self="userToDelete = null"
+            @click.self="confirmationAction = null"
         >
-            <section class="delete-confirm-dialog" role="alertdialog" aria-modal="true">
-                <span class="delete-icon" aria-hidden="true">
-                    <i class="pi pi-trash"></i>
+            <section class="confirmation-dialog" role="alertdialog" aria-modal="true">
+                <span :class="['confirmation-icon', confirmationAction.type]" aria-hidden="true">
+                    <i :class="confirmationIcon"></i>
                 </span>
-                <h2>Delete user?</h2>
-                <p>
-                    This will permanently remove <strong>{{ userToDelete.name }}</strong> from
-                    this list.
-                </p>
+                <h2>{{ confirmationTitle }}</h2>
+                <p>{{ confirmationMessage }}</p>
                 <div class="dialog-actions">
-                    <button type="button" class="cancel-button" @click="userToDelete = null">
+                    <button type="button" class="cancel-button" @click="confirmationAction = null">
                         Cancel
                     </button>
-                    <button type="button" class="delete-button" @click="confirmDeleteUser">
-                        Delete User
+                    <button
+                        type="button"
+                        :class="confirmationAction.type === 'delete' ? 'delete-button' : 'submit-button'"
+                        @click="confirmAction"
+                    >
+                        {{ confirmationButtonLabel }}
                     </button>
                 </div>
             </section>
@@ -320,7 +331,7 @@ import AppFooter from '../../components/AppFooter.vue';
 
 const search = ref('');
 const page = ref(1);
-const pageSize = ref(25);
+const pageSize = ref(10);
 const openUserActions = ref(null);
 const filterOpen = ref(false);
 const filterControl = ref(null);
@@ -336,8 +347,10 @@ const selectedSections = ref([]);
 const selectedRoles = ref([]);
 const showAddUserDialog = ref(false);
 const editingUser = ref(null);
-const userToDelete = ref(null);
+const confirmationAction = ref(null);
+const actionNotification = ref('');
 const passwordMismatch = ref(false);
+let actionNotificationTimer;
 const newUser = ref({
     name: '',
     email: '',
@@ -451,6 +464,34 @@ const visibleUsers = computed(() => {
     return filteredUsers.value.slice(start, start + pageSize.value);
 });
 
+const hasSelectedFilters = computed(
+    () => draftSections.value.length > 0 || draftRoles.value.length > 0,
+);
+
+const confirmationTitle = computed(() => {
+    if (confirmationAction.value?.type === 'edit') return 'Save user changes?';
+    if (confirmationAction.value?.type === 'delete') return 'Delete user?';
+    return `${confirmationAction.value?.nextStatus} user?`;
+});
+
+const confirmationMessage = computed(() => {
+    const action = confirmationAction.value;
+    if (!action) return '';
+    if (action.type === 'edit') return `Save the updated credentials for ${action.user.name}?`;
+    if (action.type === 'delete') return `This will permanently remove ${action.user.name} from this list.`;
+    return `${action.nextStatus} ${action.user.name}'s account?`;
+});
+
+const confirmationButtonLabel = computed(() => {
+    if (confirmationAction.value?.type === 'edit') return 'Save Changes';
+    if (confirmationAction.value?.type === 'delete') return 'Delete User';
+    return confirmationAction.value?.nextStatus;
+});
+
+const confirmationIcon = computed(() =>
+    confirmationAction.value?.type === 'delete' ? 'pi pi-trash' : 'pi pi-exclamation-circle',
+);
+
 const addUser = () => {
     if (newUser.value.password !== newUser.value.confirmPassword) {
         passwordMismatch.value = true;
@@ -524,30 +565,59 @@ const saveUserEdit = () => {
         return;
     }
 
-    Object.assign(editingUser.value, {
-        name: editDraft.value.name,
-        email: editDraft.value.email,
-        section: editDraft.value.section,
-        role: editDraft.value.role,
-        password: editDraft.value.newPassword,
-    });
-    cancelEditUser();
+    confirmationAction.value = {
+        type: 'edit',
+        user: editingUser.value,
+        draft: { ...editDraft.value },
+    };
 };
 
 const requestDeleteUser = (user) => {
-    userToDelete.value = user;
+    confirmationAction.value = { type: 'delete', user };
     openUserActions.value = null;
 };
 
-const confirmDeleteUser = () => {
-    users.value = users.value.filter((user) => user.id !== userToDelete.value.id);
-    userToDelete.value = null;
-    page.value = Math.min(page.value, pageCount.value);
+const requestStatusChange = (user) => {
+    confirmationAction.value = {
+        type: 'status',
+        user,
+        nextStatus: user.status === 'Active' ? 'Deactivate' : 'Activate',
+    };
+    openUserActions.value = null;
 };
 
-const toggleUserStatus = (user) => {
-    user.status = user.status === 'Active' ? 'Inactive' : 'Active';
-    openUserActions.value = null;
+const showActionNotification = (message) => {
+    window.clearTimeout(actionNotificationTimer);
+    actionNotification.value = message;
+    actionNotificationTimer = window.setTimeout(() => {
+        actionNotification.value = '';
+    }, 3500);
+};
+
+const confirmAction = () => {
+    const action = confirmationAction.value;
+    if (!action) return;
+
+    if (action.type === 'edit') {
+        Object.assign(action.user, {
+            name: action.draft.name,
+            email: action.draft.email,
+            section: action.draft.section,
+            role: action.draft.role,
+            password: action.draft.newPassword,
+        });
+        cancelEditUser();
+        showActionNotification('User credentials updated successfully.');
+    } else if (action.type === 'delete') {
+        users.value = users.value.filter((user) => user.id !== action.user.id);
+        page.value = Math.min(page.value, pageCount.value);
+        showActionNotification('User deleted successfully.');
+    } else {
+        action.user.status = action.nextStatus === 'Deactivate' ? 'Inactive' : 'Active';
+        showActionNotification(`User ${action.user.status.toLowerCase()} successfully.`);
+    }
+
+    confirmationAction.value = null;
 };
 
 const toggleUserActions = (userId) => {
@@ -560,8 +630,21 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+const closeUserActionsOnOutsidePointer = (event) => {
+    if (openUserActions.value && !event.target.closest('.action-cell')) {
+        openUserActions.value = null;
+    }
+};
+
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    document.addEventListener('pointerdown', closeUserActionsOnOutsidePointer);
+});
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    document.removeEventListener('pointerdown', closeUserActionsOnOutsidePointer);
+    window.clearTimeout(actionNotificationTimer);
+});
 
 watch(
     [search, pageSize],
@@ -696,6 +779,32 @@ watch(
     font-size: 10px;
 }
 
+.filter-trigger.filter-active {
+    border-color: #9fc9ed;
+    background: #e5f3ff;
+    color: #256da8;
+}
+
+.action-notification {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: max-content;
+    max-width: 290px;
+    padding: 10px 12px;
+    border: 1px solid #a8dfba;
+    border-radius: 5px;
+    background: #f0fdf4;
+    box-shadow: 0 6px 18px rgb(13 28 51 / 15%);
+    color: #166534;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .filter-panel {
     position: absolute;
     top: calc(100% + 7px);
@@ -787,12 +896,11 @@ watch(
     font-weight: 600;
 }
 
-/* Table fills the leftover space between the header and pagination bar,
-   and scrolls internally instead of stretching the page. */
 .table-wrap {
     flex: 1 1 auto;
     min-height: 0;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid #dce3ed;
     background: #fff;
 }
@@ -810,7 +918,7 @@ watch(
     position: sticky;
     top: 0;
     z-index: 1;
-    height: 32px;
+    height: 45px;
     padding: 0 14px;
     background: #f8faff;
     color: #354768;
@@ -820,7 +928,7 @@ watch(
 }
 
 .admin-table td {
-    height: 50px;
+    height: 76px;
     padding: 0 14px;
     border-top: 1px solid #e4e8ef;
 }
@@ -927,6 +1035,7 @@ watch(
     justify-content: center;
     gap: 24px;
     min-height: 44px;
+    margin-bottom: 16px;
     border: 1px solid #dce3ed;
     border-top: 0;
     background: #fff;
@@ -1050,7 +1159,7 @@ watch(
     font-size: 12px;
 }
 
-.delete-confirm-dialog {
+.confirmation-dialog {
     display: grid;
     justify-items: center;
     gap: 12px;
@@ -1063,31 +1172,36 @@ watch(
     text-align: center;
 }
 
-.delete-icon {
+.confirmation-icon {
     display: grid;
     width: 46px;
     height: 46px;
     place-items: center;
     border-radius: 50%;
-    background: #fff0ef;
-    color: #c73535;
+    background: #eeedff;
+    color: #302b9c;
     font-size: 18px;
 }
 
-.delete-confirm-dialog h2 {
+.confirmation-icon.delete {
+    background: #fff0ef;
+    color: #c73535;
+}
+
+.confirmation-dialog h2 {
     margin: 0;
     color: #20242c;
     font-size: 20px;
 }
 
-.delete-confirm-dialog p {
+.confirmation-dialog p {
     margin: 0;
     color: #64748b;
     font-size: 14px;
     line-height: 1.5;
 }
 
-.delete-confirm-dialog .dialog-actions {
+.confirmation-dialog .dialog-actions {
     width: 100%;
     justify-content: center;
     margin-top: 8px;

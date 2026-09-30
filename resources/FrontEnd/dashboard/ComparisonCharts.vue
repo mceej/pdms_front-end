@@ -104,19 +104,12 @@ const props = defineProps({
   totalTarget: { type: [Number, String], default: 0 },
   paidAmount: { type: String, default: '' },
   remainingAmount: { type: String, default: '' },
-  // Which drill-down level is currently showing, so titles/labels stay accurate:
-  // 'province' (nothing selected), 'municipality' (a province is selected),
-  // 'barangay' (a municipality is selected), 'detail' (a barangay is selected)
   activeLevel: { type: String, default: 'province' },
-  // Name of the parent entity currently drilled into (province/municipality/barangay name)
   scopeName: { type: String, default: '' },
-  // Optional extra data point to surface once a barangay is selected (e.g. beneficiaries served)
   extraStat: { type: Object, default: null },
 });
 const emit = defineEmits(['update:dateFrom', 'update:dateTo', 'apply']);
 
-
-/* ---------- Quick filter (Last 7 / 30 Days) ---------- */
 const activeQuickFilter = ref(7);
 let settingViaQuickFilter = false;
 
@@ -132,7 +125,6 @@ const applyQuickFilter = (days) => {
   emit('update:dateTo', toISODate(to));
 };
 
-// If the person edits a date field by hand, the quick filter no longer applies — clear the highlight.
 const onManualDate = (eventName, value) => {
   activeQuickFilter.value = null;
   emit(eventName, value);
@@ -144,7 +136,6 @@ watch([() => props.dateFrom, () => props.dateTo], () => {
   }
 });
 
-/* ---------- Level-aware titles ---------- */
 const LEVEL_META = {
   province: {
     donutTitle: 'Target Distribution',
@@ -178,7 +169,6 @@ const donutSubtitle = computed(() => {
   return `${meta.value.donutSubtitle} in ${props.scopeName}.`;
 });
 
-/* ---------- Donut math (unchanged) ---------- */
 const remainingCount = computed(() => Math.max(Number(props.totalTarget || 0) - Number(props.totalPaidCount || 0), 0));
 const hasPaid = computed(() => Number(props.totalPaidCount || 0) > 0);
 const hasRemaining = computed(() => remainingCount.value > 0);
@@ -222,51 +212,55 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 <style scoped>
 .progress-overview {
   overflow: hidden;
-  margin-top: 26px;
-  border: 1px solid #d4dee8;
-  border-radius: 8px;
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
   background: #f4f8fc;
-  box-shadow: 0 8px 18px rgba(24, 67, 101, 0.14);
+  box-shadow: none;
 }
 
+/* Original layout: title left, filters right. Filters sit slightly lower than the title. */
 .progress-overview-heading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  min-height: 54px;
-  padding: 10px 24px;
-  border-bottom: 1px solid #d5e0ea;
-  background: linear-gradient(90deg, #E8F3FF 0%, #FBFDFF 50%, #FDFEFF 100%);
+  gap: 1px;
+  min-height: 10px;
+  padding: 8px 28px 18px;
+  border-top: 1px solid #d5e0ea;
+  background: linear-gradient(90deg, #f2f7fd);
 }
 
 .overview-title {
   display: flex;
   align-items: center;
-  gap: 14px;
-  color: #52658b;
-  font-size: 0.86rem;
+  gap: 10px;
+  margin-top: 30px; /* keeps the title where it was */
+  color: #000001;
+  font-size: 1rem;
 }
 
-.overview-title i { font-size: 1.45rem; }
+.overview-title i { font-size: 1.6rem; }
+.overview-title strong { font-weight: 600; }
 
 .overview-filters {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
+  margin-top: 25px; /* lowers the filters - adjust this value to taste */
 }
 
 .quick-filter,
 .apply-filter {
   width: auto;
-  min-width: 104px;
-  height: 26px;
-  padding: 4px 14px;
+  min-width: 140px;
+  height: 40px;
+  padding: 6px 20px;
   border: 1.5px solid #181A7E;
-  border-radius: 5px;
+  border-radius: 6px;
   color: #192782;
-  font-size: 0.7rem;
+  font-size: 0.85rem;
   font-weight: 600;
   box-sizing: border-box;
   cursor: pointer;
@@ -290,14 +284,14 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 }
 
 .overview-filters input {
-  width: 150px;
-  height: 26px;
-  padding: 4px 8px;
+  width: 200px;
+  height: 40px;
+  padding: 10px;
   border: 1.4px solid #181A7E;
-  border-radius: 5px;
+  border-radius: 6px;
   background: #fff;
   color: #26366e;
-  font-size: 0.67rem;
+  font-size: 0.85rem;
   box-sizing: border-box;
 }
 
@@ -310,10 +304,10 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   display: none;
   position: absolute;
   top: 50%;
-  left: 9px;
+  left: 14px;
   transform: translateY(-50%);
   color: #6b7a99;
-  font-size: 0.67rem;
+  font-size: 0.85rem;
   pointer-events: none;
 }
 
@@ -323,8 +317,8 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .date-field.empty:focus-within .date-placeholder { display: none; }
 
 .apply-filter {
-  min-width: 52px;
-  border-radius: 5px;
+  min-width: 90px;
+  border-radius: 6px;
   background: #171b82;
   color: #fff;
   border-color: #171b82;
@@ -351,17 +345,21 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .chart-card h3 { margin: 0; color: #252525; font-size: 1.15rem; font-weight: 700; }
 .chart-card p { margin: 6px 0 0; color: #a1a1a1; font-size: 0.72rem; }
 
+/* Donut card fills its column height so the donut can use the space */
+.target-distribution-card { display: flex; flex-direction: column; }
+
 .donut-content {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  height: 220px;
+  gap: 40px;
+  min-height: 260px;
 }
 
 .donut {
-  --donut-size: 184px;
-  --hole-size: 104px;
+  --donut-size: 250px;
+  --hole-size: 142px;
   --ring-r: calc((var(--donut-size) + var(--hole-size)) / 4);
   position: relative;
   display: grid;
@@ -369,7 +367,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   width: var(--donut-size);
   height: var(--donut-size);
   border-radius: 50%;
-  background: conic-gradient(#F7E64B 0 var(--paid-angle, 0deg), #130774 var(--paid-angle, 0deg) 360deg);
+  background: conic-gradient(#ee1c25 0 var(--paid-angle, 0deg), #130774 var(--paid-angle, 0deg) 360deg);
 }
 
 .donut-hole { width: var(--hole-size); height: var(--hole-size); border-radius: 50%; background: #fff; }
@@ -379,20 +377,20 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   left: calc(50% + var(--lx) * var(--ring-r));
   top: calc(50% + var(--ly) * var(--ring-r));
   transform: translate(-50%, -50%);
-  font-size: 0.66rem;
+  font-size: 0.85rem;
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
 }
 
-.paid-label { color: #2b2500; }
-.remaining-label { color: #f9e943; }
+.paid-label { color: #fffffd; }
+.remaining-label { color: #fffffd; }
 
 .donut-legend {
   display: grid;
   grid-template-columns: auto auto;
   column-gap: 46px;
-  row-gap: 18px;
+  row-gap: 22px;
   min-width: 150px;
 }
 
@@ -415,23 +413,23 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   align-items: center;
   gap: 6px;
   color: #343434;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
 }
 
-.legend-amount { color: #202020; font-size: 0.95rem; font-weight: 700; }
+.legend-amount { color: #202020; font-size: 1.1rem; font-weight: 700; }
 
 .legend-pct {
   padding-bottom: 2px;
   color: #a1a1a1;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 500;
 }
 
 .legend-empty { color: #a1a1a1; font-size: 0.78rem; align-self: center; }
 
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
-.paid-dot { background: #f9e943; }
-.remaining-dot { background: #211889; }
+.paid-dot { background: #211889; }
+.remaining-dot { background: #ee1c25; }
 .extra-dot { background: #25a269; }
 
 .chart-card-heading { display: flex; justify-content: space-between; gap: 12px; }
@@ -449,9 +447,9 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 }
 
 .stacked-row > strong { color: #606060; font-size: 0.72rem; }
-.stacked-track { display: flex; height: 28px; overflow: hidden; background: #211889; }
-.stacked-paid { background: #f9e943; }
-.stacked-remaining { background: #211889; }
+.stacked-track { display: flex; height: 28px; overflow: hidden; background: #ee1c25; }
+.stacked-paid { background: #211889; }
+.stacked-remaining { background: #ee1c25; }
 .stacked-row > small { color: #4b4b4b; font-size: 0.62rem; line-height: 1.4; }
 .chart-state { padding: 80px 10px; color: #607897; text-align: center; font-size: 0.82rem; }
 
@@ -459,11 +457,11 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 
 @media (max-width: 768px) {
   .progress-overview-heading { align-items: flex-start; flex-direction: column; }
-  .overview-filters { width: 100%; }
-  .date-field { flex: 1; min-width: 120px; }
+  .overview-filters { width: 100%; margin-top: 0; }
+  .date-field { flex: 1; min-width: 140px; }
   .date-field input { width: 100%; }
   .donut-content { gap: 12px; }
-  .donut { --donut-size: 150px; --hole-size: 84px; }
-  .donut-label { font-size: 0.6rem; }
+  .donut { --donut-size: 180px; --hole-size: 102px; }
+  .donut-label { font-size: 0.7rem; }
 }
 </style>

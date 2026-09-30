@@ -32,47 +32,47 @@
                     </div>
 
                     <div class="tab-row">
-    <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
-        <i class="pi pi-box"></i>
-        AICS
-    </button>
+                        <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
+                            <i class="pi pi-box"></i>
+                            AICS
+                        </button>
 
-    <div class="ect-control" ref="ectControlRef">
-        <button
-            type="button"
-            :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
-            @click="toggleEctTab"
-        >
-            <i class="pi pi-file"></i>
-            ECT
-            <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
-        </button>
+                        <div class="ect-control" ref="ectControlRef">
+                            <button
+                                type="button"
+                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
+                                @click="toggleEctTab"
+                            >
+                                <i class="pi pi-file"></i>
+                                ECT
+                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
+                            </button>
 
-        <div v-if="disasterMenuOpen" class="disaster-menu">
-            <button
-                type="button"
-                class="disaster-menu-item disaster-menu-clear"
-                :disabled="!selectedDisasterType"
-                @click="chooseDisasterType('')"
-            >
-                Clear selection
-            </button>
-            <button
-                v-for="option in disasterOptions"
-                :key="option"
-                type="button"
-                :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
-                @click="chooseDisasterType(option)"
-            >
-                {{ option }}
-            </button>
-        </div>
-    </div>
+                            <div v-if="disasterMenuOpen" class="disaster-menu">
+                                <button
+                                    type="button"
+                                    class="disaster-menu-item disaster-menu-clear"
+                                    :disabled="!selectedDisasterType"
+                                    @click="chooseDisasterType('')"
+                                >
+                                    Clear selection
+                                </button>
+                                <button
+                                    v-for="option in disasterOptions"
+                                    :key="option"
+                                    type="button"
+                                    :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
+                                    @click="chooseDisasterType(option)"
+                                >
+                                    {{ option }}
+                                </button>
+                            </div>
+                        </div>
 
-    <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
-        {{ selectedDisasterType }}
-    </span>
-</div>
+                        <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
+                            {{ selectedDisasterType }}
+                        </span>
+                    </div>
                 </div>
             </header>
 
@@ -85,43 +85,46 @@
                 :unpaid-disbursed="unpaidDisbursed"
             />
 
-            <DashboardTable
-                :breadcrumb-items="breadcrumbItems"
-                :active-level="activeLevel"
-                :municipality-search="municipalitySearch"
-                :payout-site-filter="payoutSiteFilter"
-                :payout-site-options="payoutSiteOptions"
-                :rows-with-progress="rowsWithProgress"
-                :total-table-target="totalTableTarget"
-                :total-table-paid="totalTablePaid"
-                :total-progress="totalProgress"
-                @update:municipalitySearch="municipalitySearch = $event"
-                @update:payoutSiteFilter="payoutSiteFilter = $event"
-                @apply-filters="applyFilters"
-                @row-click="handleRowClick"
-                @home-click="goToLevel('province')"
-            />
+            <!-- Table (with Total row) + Progress Overview merged into one container -->
+            <div class="summary-panel">
+                <DashboardTable
+                    :breadcrumb-items="breadcrumbItems"
+                    :active-level="activeLevel"
+                    :municipality-search="municipalitySearch"
+                    :payout-site-filter="payoutSiteFilter"
+                    :payout-site-options="payoutSiteOptions"
+                    :rows-with-progress="rowsWithProgress"
+                    :total-table-target="summaryTarget"
+                    :total-table-paid="summaryPaid"
+                    :total-progress="summaryProgress"
+                    @update:municipalitySearch="municipalitySearch = $event"
+                    @update:payoutSiteFilter="payoutSiteFilter = $event"
+                    @apply-filters="applyFilters"
+                    @row-click="handleRowClick"
+                    @home-click="goToLevel('province')"
+                />
 
-            <ComparisonCharts
-                :selected-barangay="selectedBarangay"
-                :chart-markers="chartMarkers"
-                :comparison-rows="chartRowsWithProgress"
-                :api-loaded="apiLoaded"
-                :api-rows="apiRows"
-                :applied-date-label="appliedDateLabel"
-                :date-from="dateFrom"
-                :date-to="dateTo"
-                :dashboard-progress="chartProgress"
-                :total-paid-count="chartTotalPaid"
-                :total-target="chartTotalTarget"
-                :comparison-color="comparisonColor"
-                :active-level="activeLevel"
-                :scope-name="scopeName"
-                :extra-stat="extraStat"
-                @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
-                @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
-                @apply="applyFilters"
-            />
+                <ComparisonCharts
+                    :selected-barangay="selectedBarangay"
+                    :chart-markers="chartMarkers"
+                    :comparison-rows="chartRowsWithProgress"
+                    :api-loaded="apiLoaded"
+                    :api-rows="apiRows"
+                    :applied-date-label="appliedDateLabel"
+                    :date-from="dateFrom"
+                    :date-to="dateTo"
+                    :dashboard-progress="chartProgress"
+                    :total-paid-count="chartTotalPaid"
+                    :total-target="chartTotalTarget"
+                    :comparison-color="comparisonColor"
+                    :active-level="activeLevel"
+                    :scope-name="scopeName"
+                    :extra-stat="extraStat"
+                    @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
+                    @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
+                    @apply="applyFilters"
+                />
+            </div>
         </div>
 
         <footer class="dashboard-footer">
@@ -352,6 +355,14 @@ const chartProgress = computed(() =>
   chartTotalTarget.value ? Math.round((chartTotalPaid.value / chartTotalTarget.value) * 100) : 0
 );
 
+/* ---------- Total row (table footer) ----------
+   Now that the table and the progress overview share one container, the Total
+   row must agree with the charts. At 'detail' level the table has no rows, so
+   fall back to the selected barangay's numbers used by the charts. */
+const summaryTarget = computed(() => activeLevel.value === 'detail' ? chartTotalTarget.value : totalTableTarget.value);
+const summaryPaid = computed(() => activeLevel.value === 'detail' ? chartTotalPaid.value : totalTablePaid.value);
+const summaryProgress = computed(() => activeLevel.value === 'detail' ? chartProgress.value : totalProgress.value);
+
 // Name of the parent entity the chart is currently scoped to (shown in the subtitle)
 const scopeName = computed(() => {
   if (activeLevel.value === 'municipality') return selectedProvince.value?.name || '';
@@ -542,6 +553,15 @@ button:hover { background: #2e2789; }
     box-shadow: none;
 }
 
+/* One container for the table (incl. Total row) and the Progress Overview */
+.summary-panel {
+    overflow: hidden;
+    border: 1px solid #d5e0ea;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
+}
+
 .dashboard-header {
     position: relative;
     overflow: visible;
@@ -551,7 +571,7 @@ button:hover { background: #2e2789; }
     min-height: 220px;
     background:
         linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
-        linear-gradient(90deg, #052f86 0%, #073f9f 50%, #075bd8 100%);
+        linear-gradient(90deg, #052f86 0%);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
@@ -762,7 +782,7 @@ button:hover { background: #2e2789; }
     height: 24px;
     padding: 0 10px;
     border-radius: 6px;
-    background: linear-gradient(90deg, #5972DC 0%, #3036E3 100%);
+    background:#063b95;
     color: #ffffff;
     font-size: 11px;
     font-weight: 700;
@@ -850,7 +870,7 @@ button:hover { background: #2e2789; }
     height: 24px;
     padding: 18px;
     border-radius: 6px;
-    background: linear-gradient(90deg, #5972DC 0%, #3036E3 100%);
+    background: #063b95;
     color: #ffffff;
     font-size: 11px;
     font-weight: 700;

@@ -36,13 +36,13 @@
       class="dashboard-table"
       :class="{ 'clickable-rows': activeLevel !== 'detail' }"
     >
-      <Column field="name" header="Name" sortable style="width: 21%" />
-      <Column field="target" header="Total Target" sortable style="width: 17%">
+      <Column field="name" header="Name" sortable />
+      <Column field="target" header="Total Target" sortable>
         <template #body="{ data }">
           {{ data.target ? data.target.toLocaleString() : '-----' }}
         </template>
       </Column>
-      <Column field="paid" header="Paid" sortable style="width: 15%">
+      <Column field="paid" header="Paid" sortable>
         <template #body="{ data }">
           <div class="paid-cell">
             <span>{{ data.paid ? data.paid.toLocaleString() : '-----' }}</span>
@@ -50,7 +50,7 @@
           </div>
         </template>
       </Column>
-      <Column header="Progress Bar" style="width:15%">
+      <Column header="Progress Bar">
         <template #body="{ data }">
           <div class="progress-cell">
             <div class="progress-cell-top">
@@ -64,27 +64,34 @@
         </template>
       </Column>
 
-      <template #footer>
-        <div class="total-row-footer">
-          <span class="total-label">Total</span>
-          <span class="total-target">{{ totalTableTarget ? totalTableTarget.toLocaleString() : '-----' }}</span>
-          <span class="total-paid">{{ totalTablePaid ? totalTablePaid.toLocaleString() : '-----' }}</span>
-          <div class="progress-cell total-progress">
-            <div class="progress-cell-top">
-              <span class="progress-pct">{{ totalTableTarget ? totalProgress + '%' : '-----' }}</span>
-              <ProgressBar :value="totalTableTarget ? totalProgress : 0" :showValue="false" class="compact-progress" />
-            </div>
-            <small class="progress-remaining">
-              Remaining: {{ totalTableTarget ? (totalTableTarget - totalTablePaid).toLocaleString() : '-----' }}
-            </small>
-          </div>
-        </div>
-      </template>
+      <ColumnGroup type="footer">
+        <Row>
+          <Column footer="Total" footerClass="total-label" />
+          <Column :footer="totalTableTarget ? totalTableTarget.toLocaleString() : '-----'" footerClass="total-target" />
+          <Column :footer="totalTablePaid ? totalTablePaid.toLocaleString() : '-----'" footerClass="total-paid" />
+          <Column>
+            <template #footer>
+              <div class="progress-cell">
+                <div class="progress-cell-top">
+                  <span class="progress-pct">{{ totalTableTarget ? totalProgress + '%' : '-----' }}</span>
+                  <ProgressBar :value="totalTableTarget ? totalProgress : 0" :showValue="false" class="compact-progress" />
+                </div>
+                <small class="progress-remaining">
+                  Remaining: {{ totalTableTarget ? (totalTableTarget - totalTablePaid).toLocaleString() : '-----' }}
+                </small>
+              </div>
+            </template>
+          </Column>
+        </Row>
+      </ColumnGroup>
     </DataTable>
   </div>
 </template>
 
 <script setup>
+import ColumnGroup from 'primevue/columngroup';
+import Row from 'primevue/row';
+
 const props = defineProps({
   breadcrumbItems: { type: Array, required: true },
   activeLevel: { type: String, required: true },
@@ -109,9 +116,9 @@ const emit = defineEmits([
 <style scoped>
 .table-panel {
   background: #fff;
-  border: 1px solid #cbd8e5;
-  border-radius: 8px;
-  box-shadow: 0 9px 7px rgba(24, 67, 101, 0.28);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -166,7 +173,7 @@ const emit = defineEmits([
 .dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child .p-menuitem-text),
 .dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child span) {
   color: #0c234d;
-  font-weight: 900;
+  font-weight: 0;
 }
 
 .dashboard-breadcrumb :deep(.p-breadcrumb-separator) {
@@ -182,12 +189,35 @@ const emit = defineEmits([
 .dashboard-table {
   width: 100%;
   border-radius: 0;
+  --col-1: 25%;
+  --col-2: 25%;
+  --col-3: 25%;
+  --col-4: 25%;
 }
 
-:deep(.p-datatable-footer) {
-  padding: 0;
-  border: 0;
-  background: #F6FAFF;
+:deep(.p-datatable-table) {
+  width: 100%;
+  table-layout: fixed;
+}
+
+:deep(.p-datatable-thead > tr > th:nth-child(1)),
+:deep(.p-datatable-tbody > tr > td:nth-child(1)) {
+  width: var(--col-1);
+}
+
+:deep(.p-datatable-thead > tr > th:nth-child(2)),
+:deep(.p-datatable-tbody > tr > td:nth-child(2)) {
+  width: var(--col-2);
+}
+
+:deep(.p-datatable-thead > tr > th:nth-child(3)),
+:deep(.p-datatable-tbody > tr > td:nth-child(3)) {
+  width: var(--col-3);
+}
+
+:deep(.p-datatable-thead > tr > th:nth-child(4)),
+:deep(.p-datatable-tbody > tr > td:nth-child(4)) {
+  width: var(--col-4);
 }
 
 :deep(.p-datatable-table-container) {
@@ -196,13 +226,17 @@ const emit = defineEmits([
 
 :deep(.p-datatable-thead > tr > th) {
   padding: 18px 16px;
-  border-color: #d8e2ec;
+  border-color: #014e9b;
   background: #FAFBFC;
-  color: #52627b;
+  color: #000001;
   font-size: 0.9rem;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+:deep(.p-datatable-thead > tr > th .p-datatable-column-title) {
+  font-weight: 700;
 }
 
 :deep(.p-datatable-tbody > tr) {
@@ -218,7 +252,28 @@ const emit = defineEmits([
   border-color: #d8e2ec;
   color: #303030;
   font-size: 1.05rem;
-  font-weight: 600;
+  font-weight: 0;
+}
+
+:deep(.p-datatable-tfoot > tr > td),
+:deep(.p-datatable-tfoot > tr > th) {
+  padding: 14px 16px;
+  background: #f2f7fd;
+  border-top: 2px solid #b9d5f1;
+  border-bottom: 0;
+  color: #0c234d;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+:deep(.p-datatable-tfoot .total-label) {
+  color: #0c234d;
+}
+
+:deep(.p-datatable-tfoot .total-target),
+:deep(.p-datatable-tfoot .total-paid) {
+  color: #4d0c0e;
 }
 
 .paid-cell {
@@ -244,7 +299,7 @@ const emit = defineEmits([
 
 .progress-cell-top {
   display: grid;
-  grid-template-columns: 56px minmax(60px, 190px);
+  grid-template-columns: 56px 1fr;
   align-items: center;
   gap: 10px;
 }
@@ -262,59 +317,12 @@ const emit = defineEmits([
 }
 
 :deep(.compact-progress .p-progressbar-value) {
-  background: #1C80CC;
+  background: #052f86;
 }
 
 .progress-remaining {
-  color: #e47622;
+  color: #ee1c25;
   font-size: 0.90rem;
   font-weight: 700;
-}
-
-.total-row-footer {
-  display: grid;
-  grid-template-columns: 31% 25.9% 22.4% 15%;
-  align-items: center;
-  gap: 0;
-  width: 100%;
-  padding: 12px 16px;
-  box-sizing: border-box;
-  background: #f2f7fd;
-  border-top: 2px solid #b9d5f1;
-  color: #0c234d;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.total-label {
-  color: #0c234d;
-}
-
-.total-target,
-.total-paid {
-  color: #0c234d;
-}
-
-.total-progress {
-  min-width: 0;
-  padding-left: 0;
-}
-
-.total-progress .progress-pct {
-  color: #313b83;
-  font-size: 0.95rem;
-}
-
-.total-progress .progress-remaining {
-  color: #e47622;
-  font-size: 0.90rem;
-}
-
-@media (max-width: 768px) {
-  .total-row-footer {
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
 }
 </style>
-

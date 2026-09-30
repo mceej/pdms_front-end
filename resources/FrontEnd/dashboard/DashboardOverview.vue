@@ -153,11 +153,6 @@ const stripPeso = (value) => {
 .metric-icon--human {
   background: #E0ECFF;
   color: #063B95;
-  
-}
-
-.metric-icon--human .pi {
-  font-size: 1.8rem;
 }
 
 .metric-card--amount-to-disburse,
@@ -183,10 +178,6 @@ const stripPeso = (value) => {
 .metric-icon--peso {
   background: #FFF5EE;
   color: #C2410C;
-}
-
-.metric-icon--peso {
-  font-size: 1.6rem;
 }
 
 .metric-value {
