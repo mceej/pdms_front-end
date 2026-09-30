@@ -1,0 +1,67 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+        ".validate": "newData.hasChildren(['name', 'role', 'section', 'status'])",
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "email": { ".validate": "newData.isString()" },
+        "section": { ".validate": "newData.val() === 'CIS' || newData.val() === 'DRMD'" },
+        "role": {
+          ".validate": "newData.val() === 'ADMIN' || newData.val() === 'MANCOM' || newData.val() === 'RDV Focal'"
+        },
+        "status": { ".validate": "newData.val() === 'Active' || newData.val() === 'Inactive'" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "targets": {
+      ".read": "auth != null",
+      ".indexOn": ["section", "payoutType", "dateStart"],
+      "$targetId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || (root.child('users').child(auth.uid).child('role').val() === 'RDV Focal' && root.child('users').child(auth.uid).child('section').val() === (newData.exists() ? newData.child('section').val() : data.child('section').val())))",
+        ".validate": "newData.hasChildren(['section', 'payoutType', 'targetBeneficiary', 'targetDisbursement', 'payoutSite', 'dateStart', 'dateEnd'])",
+        "section": { ".validate": "newData.val() === 'CIS' || newData.val() === 'DRMD'" },
+        "payoutType": { ".validate": "newData.val() === 'AICS' || newData.val() === 'ECT'" },
+        "targetBeneficiary": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "targetDisbursement": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "dateStart": { ".validate": "newData.isString()" },
+        "dateEnd": { ".validate": "newData.isString()" }
+      }
+    },
+
+    "geographies": {
+      ".read": "auth != null",
+      ".indexOn": ["level", "parentId"],
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "payoutRecords": {
+      ".read": "auth != null",
+      ".indexOn": ["program", "provinceId", "municipalityId", "barangayId", "servedDate"],
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "summaries": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "auditLogs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      ".indexOn": ["at", "uid"],
+      "$logId": {
+        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['at', 'uid', 'name', 'action']) && newData.child('uid').val() === auth.uid",
+        "at": { ".validate": "newData.isNumber()" }
+      }
+    }
+  }
+}

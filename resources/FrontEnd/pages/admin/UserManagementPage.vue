@@ -1,5 +1,8 @@
 <template>
     <section class="admin-workspace">
+        <p v-if="serverError && !showAddUserDialog && !editingUser && !userToDelete" class="form-error page-error">
+            {{ serverError }}
+        </p>
         <header class="admin-page-header user-page-header">
             <div class="user-heading">
                 <h1>User Management</h1>
@@ -220,6 +223,7 @@
                     <input v-model="newUser.confirmPassword" type="password" required />
                 </label>
                 <p v-if="passwordMismatch" class="form-error">Passwords do not match.</p>
+                <p v-if="serverError" class="form-error">{{ serverError }}</p>
                 <div class="dialog-actions">
                     <button
                         type="button"
@@ -228,7 +232,7 @@
                     >
                         Cancel
                     </button>
-                    <button type="submit" class="submit-button">Add User</button>
+                    <button type="submit" class="submit-button" :disabled="isSaving">Add User</button>
                 </div>
             </form>
         </div>
@@ -246,7 +250,7 @@
                 </label>
                 <label>
                     Email
-                    <input v-model="editDraft.email" type="email" required />
+                    <input v-model="editDraft.email" type="email" disabled />
                 </label>
                 <label>
                     Assigned Section
@@ -265,23 +269,20 @@
                     </select>
                 </label>
                 <label>
-                    Old Password
-                    <input v-model="editDraft.oldPassword" type="password" required />
-                </label>
-                <label>
-                    New Password
-                    <input v-model="editDraft.newPassword" type="password" required />
+                    New Password <span class="field-note">leave blank to keep the current one</span>
+                    <input v-model="editDraft.newPassword" type="password" autocomplete="new-password" />
                 </label>
                 <label>
                     Confirm Password
-                    <input v-model="editDraft.confirmPassword" type="password" required />
+                    <input v-model="editDraft.confirmPassword" type="password" autocomplete="new-password" />
                 </label>
                 <p v-if="passwordMismatch" class="form-error">Passwords do not match.</p>
+                <p v-if="serverError" class="form-error">{{ serverError }}</p>
                 <div class="dialog-actions">
                     <button type="button" class="cancel-button" @click="cancelEditUser">
                         Cancel
                     </button>
-                    <button type="submit" class="submit-button">Save Changes</button>
+                    <button type="submit" class="submit-button" :disabled="isSaving">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -304,7 +305,12 @@
                     <button type="button" class="cancel-button" @click="userToDelete = null">
                         Cancel
                     </button>
-                    <button type="button" class="delete-button" @click="confirmDeleteUser">
+                    <button
+                        type="button"
+                        class="delete-button"
+                        :disabled="isSaving"
+                        @click="confirmDeleteUser"
+                    >
                         Delete User
                     </button>
                 </div>
@@ -315,6 +321,13 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+    createUser,
+    deleteUser,
+    setUserPassword,
+    subscribeUsers,
+    updateUser,
+} from '../../data/users.js';
 
 const search = ref('');
 const page = ref(1);
@@ -345,88 +358,11 @@ const newUser = ref({
     confirmPassword: '',
 });
 const editDraft = ref({});
-const users = ref([
-    {
-        id: 1,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 2,
-        name: 'Oliver Orano',
-        email: 'oorano@gmail.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Inactive',
-    },
-    {
-        id: 3,
-        name: 'Michael John',
-        email: 'mjohn@gmail.com',
-        section: 'DRMD',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 4,
-        name: 'Benedict Solo',
-        email: 'solob@gmail.com',
-        section: 'CIS',
-        role: 'ADMIN',
-        status: 'Active',
-    },
-    {
-        id: 5,
-        name: 'John Carlo',
-        email: 'hellomorre@gmail.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Active',
-    },
-    {
-        id: 6,
-        name: 'Raymund Rai',
-        email: 'rrgo@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 7,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 8,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 9,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 10,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-]);
+const users = ref([]);
+const isSaving = ref(false);
+const serverError = ref('');
+
+let unsubscribeUsers = () => {};
 
 const filteredUsers = computed(() => {
     const query = search.value.trim().toLowerCase();
@@ -449,14 +385,16 @@ const visibleUsers = computed(() => {
     return filteredUsers.value.slice(start, start + pageSize.value);
 });
 
-const addUser = () => {
+const addUser = async () => {
     if (newUser.value.password !== newUser.value.confirmPassword) {
         passwordMismatch.value = true;
         return;
     }
 
-    users.value.unshift({
-        id: Date.now(),
+    isSaving.value = true;
+    serverError.value = '';
+
+    const result = await createUser({
         name: newUser.value.name,
         email: newUser.value.email,
         section: newUser.value.section,
@@ -464,6 +402,14 @@ const addUser = () => {
         status: 'Active',
         password: newUser.value.password,
     });
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        return;
+    }
+
     newUser.value = {
         name: '',
         email: '',
@@ -478,6 +424,7 @@ const addUser = () => {
 
 const openAddUserDialog = () => {
     passwordMismatch.value = false;
+    serverError.value = '';
     showAddUserDialog.value = true;
 };
 
@@ -503,11 +450,11 @@ const beginEditUser = (user) => {
         email: user.email,
         section: user.section,
         role: user.role,
-        oldPassword: '',
         newPassword: '',
         confirmPassword: '',
     };
     passwordMismatch.value = false;
+    serverError.value = '';
     openUserActions.value = null;
 };
 
@@ -516,19 +463,40 @@ const cancelEditUser = () => {
     passwordMismatch.value = false;
 };
 
-const saveUserEdit = () => {
+const saveUserEdit = async () => {
     if (editDraft.value.newPassword !== editDraft.value.confirmPassword) {
         passwordMismatch.value = true;
         return;
     }
 
-    Object.assign(editingUser.value, {
+    isSaving.value = true;
+    serverError.value = '';
+
+    const { uid, status } = editingUser.value;
+    const result = await updateUser(uid, {
         name: editDraft.value.name,
-        email: editDraft.value.email,
         section: editDraft.value.section,
         role: editDraft.value.role,
-        password: editDraft.value.newPassword,
+        status,
     });
+
+    if (result.ok && editDraft.value.newPassword) {
+        const passwordResult = await setUserPassword(uid, editDraft.value.newPassword);
+
+        if (!passwordResult.ok) {
+            isSaving.value = false;
+            serverError.value = passwordResult.message;
+            return;
+        }
+    }
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        return;
+    }
+
     cancelEditUser();
 };
 
@@ -537,15 +505,37 @@ const requestDeleteUser = (user) => {
     openUserActions.value = null;
 };
 
-const confirmDeleteUser = () => {
-    users.value = users.value.filter((user) => user.id !== userToDelete.value.id);
+const confirmDeleteUser = async () => {
+    isSaving.value = true;
+    serverError.value = '';
+
+    const result = await deleteUser(userToDelete.value.uid);
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        return;
+    }
+
     userToDelete.value = null;
     page.value = Math.min(page.value, pageCount.value);
 };
 
-const toggleUserStatus = (user) => {
-    user.status = user.status === 'Active' ? 'Inactive' : 'Active';
+const toggleUserStatus = async (user) => {
     openUserActions.value = null;
+    serverError.value = '';
+
+    const result = await updateUser(user.uid, {
+        name: user.name,
+        section: user.section,
+        role: user.role,
+        status: user.status === 'Active' ? 'Inactive' : 'Active',
+    });
+
+    if (!result.ok) {
+        serverError.value = result.message;
+    }
 };
 
 const toggleUserActions = (userId) => {
@@ -558,8 +548,17 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    unsubscribeUsers = subscribeUsers((list) => {
+        users.value = list;
+    });
+});
+
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    unsubscribeUsers();
+});
 
 watch(
     [search, pageSize],
@@ -1037,6 +1036,20 @@ watch(
     margin: -6px 0 0;
     color: #c73535;
     font-size: 12px;
+}
+
+.page-error {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #fdecec;
+    font-size: 13px;
+}
+
+.field-note {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 400;
 }
 
 .delete-confirm-dialog {
