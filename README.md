@@ -106,7 +106,29 @@ php scripts/seed-firebase.php     # add --force to overwrite branches that alrea
 
 It never touches `users`, so logins and profiles are safe. The figures it loads come from `resources/FrontEnd/mock/payoutData.json`.
 
-Uploading a served-list CSV is still switched off; importing beneficiary lists needs its own endpoint.
+## Importing a served list
+
+An RDV Focal or an admin imports a CSV on the **Import Served List** page. The file goes to
+`public/api/served-lists.php`, which checks it, writes the payout records and records the import in the audit
+log — successes and failures alike.
+
+The file holds one beneficiary per row. Where the payout happened comes from the form, not the file:
+
+| Column | Required | Example |
+|---|---|---|
+| `served_date` | yes | 2026-09-20 |
+| `is_paid` | yes | yes / no / true / false / 1 / 0 |
+| `disbursed_amount` | yes | 5000 |
+| `beneficiary_reference` | no | BEN-001 |
+| `target_amount` | no | 5000 (defaults to the disbursed amount) |
+| `payout_site` | no | Covered Court |
+
+[`scripts/sample-served-list.csv`](scripts/sample-served-list.csv) is a working example. Rows that fail a check
+are skipped and counted, and the reason is kept in the audit entry; the rest still import.
+
+The programme follows the person's section — CIS imports AICS, DRMD imports ECT — and an ECT import must name
+the disaster. Importing the same file into the same barangay twice is refused; send it again with `replace` to
+overwrite the earlier rows.
 
 ## Useful commands
 

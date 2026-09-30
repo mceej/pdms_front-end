@@ -136,6 +136,38 @@ class FirebaseAdmin
     }
 
     /**
+     * Write several records under a path in one request, leaving the rest alone.
+     *
+     * @param array<string, mixed> $values keyed by record id
+     */
+    public function patch(string $path, array $values): void
+    {
+        $response = $this->callDatabase('PATCH', $path, $values);
+
+        if ($response['status'] !== 200) {
+            throw new RuntimeException('Could not save to the database.');
+        }
+    }
+
+    /**
+     * Read the records under a path whose field holds a given value.
+     *
+     * @return array<string, mixed>
+     */
+    public function findBy(string $path, string $field, string $value): array
+    {
+        $query = sprintf('?orderBy=%s&equalTo=%s', urlencode('"' . $field . '"'), urlencode('"' . $value . '"'));
+        $response = HttpJson::send(
+            'GET',
+            $this->databaseUrl . '/' . ltrim($path, '/') . '.json' . $query,
+            [],
+            ['Authorization: Bearer ' . $this->account->accessToken()]
+        );
+
+        return $response['status'] === 200 ? $response['body'] : [];
+    }
+
+    /**
      * Delete a path in the database, ignoring the security rules.
      */
     public function remove(string $path): void

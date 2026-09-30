@@ -8,7 +8,7 @@ Follow the team's code ethics in `memory.md`.
 
 - **Front end:** Vue 3 single-file components with `<script setup>`, PrimeVue 4 (Aura theme), Chart.js, Tailwind CSS 4, built by Vite 8.
 - **Logins and data:** Firebase Authentication and Realtime Database, project `pdmsfoxi`.
-- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, `public/api/admin-users.php` manages accounts, and `public/api/audit.php` records audit entries.
+- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, `public/api/admin-users.php` manages accounts, `public/api/served-lists.php` imports payout CSVs, and `public/api/audit.php` records audit entries.
 - **Environment:** Docker Compose runs a `php` container (port 8000) and a `vite` container (port 5173).
 
 ## Running it

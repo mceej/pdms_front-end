@@ -19,6 +19,15 @@
                     :current-time="currentTime"
                     :tabs="programOptions"
                     :served-list-form="servedListForm"
+                    :served-province-options="provinceOptions"
+                    :served-municipality-options="municipalityOptions"
+                    :served-barangay-options="barangayOptions"
+                    :served-list-rows="importedLists"
+                    :is-uploading="isUploading"
+                    :served-list-message="importMessage"
+                    :served-list-error="importFailed"
+                    @select-served-list-file="onFileChosen"
+                    @upload-served-list="uploadServedList"
                 />
             </div>
         </main>
@@ -32,11 +41,13 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import AppSidebar from '../../components/AppSidebar.vue';
 import LogoutConfirmDialog from '../../components/LogoutConfirmDialog.vue';
 import DashboardPage from '../../dashboard/DashboardPage.vue';
 import ServerListPage from '../../components/ServerListPage.vue';
+import { loadGeographies, placeNames } from '../../data/geographies.js';
+import { importServedList, subscribeServedLists } from '../../data/servedLists.js';
 import RdvTargetPage from './DbrmTargetPage.vue';
 
 const emit = defineEmits(['logout']);
@@ -55,8 +66,75 @@ const servedListForm = ref({
     barangay: '',
     file: null,
 });
+const places = ref([]);
+const importedLists = ref([]);
+const isUploading = ref(false);
+const importMessage = ref('');
+const importFailed = ref(false);
+let unsubscribeServedLists = () => {};
+
+const provinceOptions = computed(() => placeNames(places.value, 'province'));
+const municipalityOptions = computed(
+    () => placeNames(places.value, 'municipality', servedListForm.value.province || null)
+);
+const barangayOptions = computed(
+    () => placeNames(places.value, 'barangay', servedListForm.value.municipality || null)
+);
+
+const onFileChosen = (event) => {
+    servedListForm.value.file = event?.target?.files?.[0] || null;
+    importMessage.value = '';
+    importFailed.value = false;
+};
+
+const uploadServedList = async () => {
+    if (!servedListForm.value.file) {
+        importFailed.value = true;
+        importMessage.value = 'Choose a CSV file first.';
+        return;
+    }
+
+    isUploading.value = true;
+    importMessage.value = '';
+    importFailed.value = false;
+
+    const result = await importServedList({
+        file: servedListForm.value.file,
+        province: servedListForm.value.province,
+        municipality: servedListForm.value.municipality,
+        barangay: servedListForm.value.barangay,
+        disasterType: servedListForm.value.disasterName || '',
+        program: servedListForm.value.program || 'ECT',
+    });
+
+    isUploading.value = false;
+
+    if (!result.ok) {
+        importFailed.value = true;
+        importMessage.value = result.message;
+        return;
+    }
+
+    const skipped = result.skipped?.length ? ` (${result.skipped.length} skipped)` : '';
+    importMessage.value = `Imported ${result.rowsImported} of ${result.rowsRead} rows into ${result.where}${skipped}.`;
+    servedListForm.value.file = null;
+};
+
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
+
+onMounted(async () => {
+    places.value = await loadGeographies();
+    unsubscribeServedLists = subscribeServedLists((lists) => {
+        importedLists.value = lists.map((list) => ({
+            file_name: list.fileName,
+            imported_at: new Date(list.importedAt).toLocaleString(),
+            imported_by: list.importedByName,
+        }));
+    });
+});
+
+onUnmounted(() => unsubscribeServedLists());
 
 onMounted(() => {
     clockTimer = window.setInterval(() => {

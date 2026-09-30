@@ -15,10 +15,10 @@
                 <label class="filter-control">
                     <i class="pi pi-filter" aria-hidden="true"></i>
                     <select v-model="moduleFilter" aria-label="Filter audit log by module">
-                        <option value="">Filter</option>
-                        <option value="Target Management">Target Management</option>
-                        <option value="Dashboard">Dashboard</option>
-                        <option value="Import Served List">Import Served List</option>
+                        <option value="">All modules</option>
+                        <option v-for="module in moduleOptions" :key="module" :value="module">
+                            {{ module }}
+                        </option>
                     </select>
                 </label>
             </div>
@@ -164,6 +164,12 @@ onMounted(() => {
 });
 
 onUnmounted(() => unsubscribeAuditLog());
+
+// Built from the entries themselves, so the filter always offers exactly the
+// modules that appear in the log and never drifts from what is recorded.
+const moduleOptions = computed(() =>
+    [...new Set(rows.value.map((row) => row.module).filter(Boolean))].sort()
+);
 
 const filteredRows = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();

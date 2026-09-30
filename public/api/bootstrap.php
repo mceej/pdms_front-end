@@ -6,6 +6,11 @@
 
 require_once __DIR__ . '/../../src/FirebaseAdmin.php';
 
+// A stray warning printed into the body would corrupt the JSON and block the
+// status code, so send errors to the log instead of the response.
+ini_set('display_errors', '0');
+ini_set('log_errors', '1');
+
 header('Content-Type: application/json');
 
 /**
