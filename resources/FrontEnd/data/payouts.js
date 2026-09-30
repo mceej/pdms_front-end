@@ -70,15 +70,15 @@ export const forgetPayoutRecords = () => {
 };
 
 const levelFor = (filters) => {
-    if (filters.barangay_id) {
+    if (filters.barangayId) {
         return 'detail';
     }
 
-    if (filters.municipality_id) {
+    if (filters.municipalityId) {
         return 'barangay';
     }
 
-    return filters.province_id ? 'municipality' : 'province';
+    return filters.provinceId ? 'municipality' : 'province';
 };
 
 const groupingFor = (level) => {
@@ -96,11 +96,11 @@ const groupingFor = (level) => {
 const matchesFilters = (record, filters) => {
     const pairs = [
         ['program', filters.program],
-        ['disasterType', filters.disaster_type],
-        ['provinceId', filters.province_id],
-        ['municipalityId', filters.municipality_id],
-        ['barangayId', filters.barangay_id],
-        ['payoutSite', filters.payout_site],
+        ['disasterType', filters.disasterType],
+        ['provinceId', filters.provinceId],
+        ['municipalityId', filters.municipalityId],
+        ['barangayId', filters.barangayId],
+        ['payoutSite', filters.payoutSite],
     ];
 
     const matches = pairs.every(([field, wanted]) => {
@@ -127,9 +127,9 @@ const summarise = (rows) => {
         target: rows.length,
         paid: paid.length,
         remaining: Math.max(0, rows.length - paid.length),
-        target_amount: targetAmount,
-        amount_disbursed: amountDisbursed,
-        unpaid_amount: Math.max(0, targetAmount - amountDisbursed),
+        targetAmount: targetAmount,
+        amountDisbursed: amountDisbursed,
+        unpaidAmount: Math.max(0, targetAmount - amountDisbursed),
         progress: rows.length ? Number(((paid.length / rows.length) * 100).toFixed(2)) : 0,
     };
 };
@@ -174,10 +174,10 @@ export const fetchPayoutDashboard = async (filters = {}) => {
                 paid: summary.paid,
                 remaining: summary.remaining,
                 progress: summary.progress,
-                amount_disbursed: summary.amount_disbursed,
+                amountDisbursed: summary.amountDisbursed,
             };
         }),
-        payout_sites: [...new Set(rows.map((row) => row.payoutSite).filter(Boolean))],
-        disaster_types: disasterTypes,
+        payoutSites: [...new Set(rows.map((row) => row.payoutSite).filter(Boolean))],
+        disasterTypes: disasterTypes,
     };
 };

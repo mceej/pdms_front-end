@@ -46,7 +46,7 @@
         <template #body="{ data }">
           <div class="paid-cell">
             <span>{{ data.paid ? data.paid.toLocaleString() : '-----' }}</span>
-            <small>{{ formatPeso(data.amount_disbursed) }}</small>
+            <small>{{ formatPeso(data.amountDisbursed) }}</small>
           </div>
         </template>
       </Column>

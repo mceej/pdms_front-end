@@ -198,7 +198,10 @@ const closeDisasterMenuOnOutsideClick = (event) => {
 const apiRows = ref([]);
 const apiLoaded = ref(false);
 const loadError = ref('');
-const apiSummary = ref({ target: 0, paid: 0, remaining: 0, target_amount: 0, amount_disbursed: 0, unpaid_amount: 0, progress: 0 });
+const apiSummary = ref({
+    target: 0, paid: 0, remaining: 0, targetAmount: 0,
+    amountDisbursed: 0, unpaidAmount: 0, progress: 0,
+});
 const apiDisasterTypes = ref([]);
 const disasterOptions = computed(() => [
     ...new Set([
@@ -263,7 +266,7 @@ const activeData = computed(() => dashboardData[activeTab.value]);
 
 const totalTarget = computed(() => apiLoaded.value ? apiSummary.value.target : activeData.value.target);
 const totalDisbursed = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.amount_disbursed).toLocaleString()}`;
+    if (apiLoaded.value) return `₱${Number(apiSummary.value.amountDisbursed).toLocaleString()}`;
     const sum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
     return sum > 0 ? `₱${sum.toLocaleString()}` : '-----';
 });
@@ -277,15 +280,21 @@ const totalRemaining = computed(() => {
     return Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0);
 });
 const totalBalance = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.target_amount || 0).toLocaleString()}`;
+    if (apiLoaded.value) return `₱${Number(apiSummary.value.targetAmount || 0).toLocaleString()}`;
     return `₱${Number(totalTarget.value || 0).toLocaleString()}`;
 });
 const unpaidBalance = computed(() => {
-    if (apiLoaded.value) return `₱${Math.max(Number(apiSummary.value.target_amount || 0) - Number(apiSummary.value.amount_disbursed || 0), 0).toLocaleString()}`;
+    if (apiLoaded.value) {
+        const outstanding = Number(apiSummary.value.targetAmount || 0)
+            - Number(apiSummary.value.amountDisbursed || 0);
+
+        return `₱${Math.max(outstanding, 0).toLocaleString()}`;
+    }
+
     return formatCurrency(Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0));
 });
 const unpaidDisbursed = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.unpaid_amount || 0).toLocaleString()}`;
+    if (apiLoaded.value) return `₱${Number(apiSummary.value.unpaidAmount || 0).toLocaleString()}`;
     return formatCurrency(Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0));
 });
 const dashboardProgress = computed(() => {
@@ -413,11 +422,11 @@ const breadcrumbItems = computed(() => {
 
 const fetchDashboard = async () => {
     const filters = { program: activeTab.value };
-    if (selectedDisasterType.value) filters.disaster_type = selectedDisasterType.value;
-    if (selectedProvince.value?.id) filters.province_id = selectedProvince.value.id;
-    if (selectedMunicipality.value?.id) filters.municipality_id = selectedMunicipality.value.id;
-    if (selectedBarangay.value?.id) filters.barangay_id = selectedBarangay.value.id;
-    if (payoutSiteFilter.value) filters.payout_site = payoutSiteFilter.value;
+    if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
+    if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
+    if (selectedMunicipality.value?.id) filters.municipalityId = selectedMunicipality.value.id;
+    if (selectedBarangay.value?.id) filters.barangayId = selectedBarangay.value.id;
+    if (payoutSiteFilter.value) filters.payoutSite = payoutSiteFilter.value;
     if (appliedFrom.value) filters.from = appliedFrom.value;
     if (appliedTo.value) filters.to = appliedTo.value;
 
@@ -426,8 +435,8 @@ const fetchDashboard = async () => {
 
         apiRows.value = payload.rows || [];
         apiSummary.value = payload.summary || apiSummary.value;
-        apiDisasterTypes.value = payload.disaster_types || [];
-        apiPayoutSites.value = payload.payout_sites || [];
+        apiDisasterTypes.value = payload.disasterTypes || [];
+        apiPayoutSites.value = payload.payoutSites || [];
         loadError.value = '';
     } catch (error) {
         loadError.value = error?.code === 'PERMISSION_DENIED'
@@ -435,8 +444,8 @@ const fetchDashboard = async () => {
             : 'Could not load the payout data. Check your connection and try again.';
         apiRows.value = [];
         apiSummary.value = {
-            target: 0, paid: 0, remaining: 0, target_amount: 0,
-            amount_disbursed: 0, unpaid_amount: 0, progress: 0,
+            target: 0, paid: 0, remaining: 0, targetAmount: 0,
+            amountDisbursed: 0, unpaidAmount: 0, progress: 0,
         };
         apiDisasterTypes.value = [];
         apiPayoutSites.value = [];

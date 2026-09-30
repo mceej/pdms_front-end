@@ -98,14 +98,15 @@ The database branches are `users`, `targets`, `geographies`, `payoutRecords`, `s
 
 ## Sample data
 
-The dashboard doesn't read Firebase yet:
+The dashboard reads Firebase. A new database starts empty, so fill it with the sample set — 26 Region XI locations, 45 payout records and 10 targets per section:
 
-| File | What it holds |
-|---|---|
-| `resources/FrontEnd/mock/payoutData.json` | 26 Region XI locations and 45 payout records |
-| `resources/FrontEnd/mock/payoutDashboard.js` | Applies the filters, groups rows by location, works out totals |
+```sh
+php scripts/seed-firebase.php     # add --force to overwrite branches that already hold data
+```
 
-`fetchPayoutDashboard(filters)` returns the shape a real source should return, so filters, drill-down and charts all work. Uploading a served-list CSV is switched off until the data moves to Firebase.
+It never touches `users`, so logins and profiles are safe. The figures it loads come from `resources/FrontEnd/mock/payoutData.json`.
+
+Uploading a served-list CSV is still switched off; importing beneficiary lists needs its own endpoint.
 
 ## Useful commands
 
