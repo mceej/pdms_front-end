@@ -85,6 +85,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td colspan="6">Loading users…</td>
+                    </tr>
                     <tr v-for="user in visibleUsers" :key="user.id">
                         <td>{{ user.name }}</td>
                         <td>{{ user.email }}</td>
@@ -321,6 +324,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
 import {
     createUser,
     deleteUser,
@@ -359,16 +363,17 @@ const newUser = ref({
 });
 const editDraft = ref({});
 const users = ref([]);
+const isLoading = ref(true);
+const searchQuery = useDebounced(search, 150);
 const isSaving = ref(false);
 const serverError = ref('');
 
 let unsubscribeUsers = () => {};
 
 const filteredUsers = computed(() => {
-    const query = search.value.trim().toLowerCase();
+    const query = searchQuery.value.trim().toLowerCase();
     return users.value.filter((user) => {
-        const searchableFields = [user.name, user.email, user.section, user.role, user.status];
-        const matchesQuery = !query || searchableFields.join(' ').toLowerCase().includes(query);
+        const matchesQuery = !query || user.searchText.includes(query);
         const matchesSection =
             selectedSections.value.length === 0 || selectedSections.value.includes(user.section);
         const matchesRole =
@@ -428,11 +433,14 @@ const openAddUserDialog = () => {
     showAddUserDialog.value = true;
 };
 
-const applyFilters = () => {
+watch([draftSections, draftRoles], () => {
     selectedSections.value = [...draftSections.value];
     selectedRoles.value = [...draftRoles.value];
-    filterOpen.value = false;
     page.value = 1;
+}, { deep: true });
+
+const applyFilters = () => {
+    filterOpen.value = false;
 };
 
 const clearFilters = () => {
@@ -551,7 +559,11 @@ const closeFilterOnOutsidePointer = (event) => {
 onMounted(() => {
     document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
     unsubscribeUsers = subscribeUsers((list) => {
-        users.value = list;
+        users.value = list.map((user) => ({
+            ...user,
+            searchText: searchableText(user.name, user.email, user.section, user.role, user.status),
+        }));
+        isLoading.value = false;
     });
 });
 
@@ -1130,5 +1142,12 @@ watch(
         flex: 1 1 auto;
     }
 
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
 }
 </style>

@@ -43,6 +43,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td colspan="7">Loading activity…</td>
+                    </tr>
                     <tr v-for="row in visibleRows" :key="row.id">
                         <td>{{ row.timestamp }}</td>
                         <td>{{ row.name }}</td>
@@ -117,30 +120,55 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { subscribeAuditLog } from '../../data/auditLog.js';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
+
+const formatMoment = (milliseconds) => {
+    if (!milliseconds) {
+        return '';
+    }
+
+    const moment = new Date(milliseconds);
+    const date = moment.toLocaleDateString('en-GB').replace(/\//g, '-');
+
+    return `${date}, ${moment.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+};
 
 const search = ref('');
+const searchQuery = useDebounced(search, 150);
 const moduleFilter = ref('');
 const page = ref(1);
 const pageSize = ref(25);
-const rows = ref(
-    Array.from({ length: 10 }, (_, rowIndex) => ({
-        id: rowIndex + 1,
-        timestamp: '25-02-2026, 9:30 AM',
-        name: 'Juan Dela Cruz',
-        userType: 'Program RDV Focal',
-        module: 'Target Management',
-        action: 'Add Target',
-        activity: 'Added Target record ID #5522',
-        ipAddress: '192.168.1.45',
-    })),
-);
+const rows = ref([]);
+const isLoading = ref(true);
+
+let unsubscribeAuditLog = () => {};
+
+onMounted(() => {
+    unsubscribeAuditLog = subscribeAuditLog((entries) => {
+        rows.value = entries.map((entry) => ({
+            ...entry,
+            timestamp: formatMoment(entry.at),
+            searchText: searchableText(
+                entry.name,
+                entry.userType,
+                entry.module,
+                entry.action,
+                entry.activity,
+                entry.ipAddress
+            ),
+        }));
+        isLoading.value = false;
+    });
+});
+
+onUnmounted(() => unsubscribeAuditLog());
 
 const filteredRows = computed(() => {
-    const query = search.value.trim().toLowerCase();
+    const query = searchQuery.value.trim().toLowerCase();
     return rows.value.filter((row) => {
-        const matchesSearch =
-            !query || Object.values(row).join(' ').toLowerCase().includes(query);
+        const matchesSearch = !query || row.searchText.includes(query);
         const matchesModule = !moduleFilter.value || row.module === moduleFilter.value;
         return matchesSearch && matchesModule;
     });
@@ -412,5 +440,21 @@ watch(
     .search-control {
         flex: 1 1 auto;
     }
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+}
+
+.filter-panel {
+    animation: filter-panel-in 120ms ease-out;
+}
+
+@keyframes filter-panel-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 </style>

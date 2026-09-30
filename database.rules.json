@@ -57,11 +57,7 @@
     "auditLogs": {
       ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
       ".indexOn": ["at", "uid"],
-      "$logId": {
-        ".write": "auth != null && !data.exists() && newData.exists()",
-        ".validate": "newData.hasChildren(['at', 'uid', 'name', 'action']) && newData.child('uid').val() === auth.uid",
-        "at": { ".validate": "newData.isNumber()" }
-      }
+      ".write": false
     }
   }
 }

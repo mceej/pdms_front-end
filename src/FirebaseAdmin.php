@@ -120,6 +120,22 @@ class FirebaseAdmin
     }
 
     /**
+     * Add a record under a path and return its new key.
+     *
+     * @param array<string, mixed> $value
+     */
+    public function push(string $path, array $value): string
+    {
+        $response = $this->callDatabase('POST', $path, $value);
+
+        if ($response['status'] !== 200) {
+            throw new RuntimeException('Could not save to the database.');
+        }
+
+        return (string) ($response['body']['name'] ?? '');
+    }
+
+    /**
      * Delete a path in the database, ignoring the security rules.
      */
     public function remove(string $path): void

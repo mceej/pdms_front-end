@@ -53,13 +53,35 @@ function jsonBody(): array
 }
 
 /**
+ * Write one entry to the audit log.
+ *
+ * @param array<string, mixed> $profile the person's stored profile
+ * @param array{module: string, action: string, activity: string} $entry
+ */
+function recordAudit(FirebaseAdmin $admin, string $accountId, array $profile, array $entry): void
+{
+    $admin->push('auditLogs', [
+        'at' => (int) (microtime(true) * 1000),
+        'uid' => $accountId,
+        'name' => (string) ($profile['name'] ?? 'Unknown'),
+        'userType' => trim(($profile['role'] ?? '') . ' ' . ($profile['section'] ?? '')),
+        'module' => $entry['module'],
+        'action' => $entry['action'],
+        'activity' => $entry['activity'],
+        'ipAddress' => (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
+    ]);
+}
+
+/**
  * Make sure the request comes from a signed-in administrator.
  *
- * Returns the caller's account id, or stops with an error.
+ * Returns the caller's account id and profile, or stops with an error.
  *
  * @param array<string, mixed> $body
+ *
+ * @return array{id: string, profile: array<string, mixed>}
  */
-function requireAdmin(FirebaseAdmin $admin, array $body): string
+function requireAdmin(FirebaseAdmin $admin, array $body): array
 {
     $idToken = (string) ($body['idToken'] ?? '');
 
@@ -79,5 +101,5 @@ function requireAdmin(FirebaseAdmin $admin, array $body): string
         respond(['message' => 'Only an active administrator can do this.'], 403);
     }
 
-    return $accountId;
+    return ['id' => $accountId, 'profile' => $profile];
 }

@@ -19,7 +19,8 @@ try {
     respond(['message' => $exception->getMessage()], 500);
 }
 
-$callerId = requireAdmin($admin, $body);
+$caller = requireAdmin($admin, $body);
+$callerId = $caller['id'];
 $action = (string) ($body['action'] ?? '');
 $accountId = (string) ($body['uid'] ?? '');
 
@@ -82,6 +83,12 @@ try {
                 $admin->setDisabled($newId, true);
             }
 
+            recordAudit($admin, $callerId, $caller['profile'], [
+                'module' => 'User Management',
+                'action' => 'Add User',
+                'activity' => 'Created the account for ' . $profile['email'],
+            ]);
+
             respond(['uid' => $newId, 'user' => $profile], 201);
 
             // no break
@@ -109,6 +116,18 @@ try {
             $admin->write('users/' . $accountId, $profile);
             $admin->setDisabled($accountId, $profile['status'] === 'Inactive');
 
+            recordAudit($admin, $callerId, $caller['profile'], [
+                'module' => 'User Management',
+                'action' => 'Edit User',
+                'activity' => sprintf(
+                    'Updated %s (%s, %s, %s)',
+                    $profile['name'],
+                    $profile['section'],
+                    $profile['role'],
+                    $profile['status']
+                ),
+            ]);
+
             respond(['uid' => $accountId, 'user' => $profile]);
 
             // no break
@@ -125,6 +144,11 @@ try {
             }
 
             $admin->setPassword($accountId, $password);
+            recordAudit($admin, $callerId, $caller['profile'], [
+                'module' => 'User Management',
+                'action' => 'Reset Password',
+                'activity' => 'Set a new password for account ' . $accountId,
+            ]);
 
             respond(['uid' => $accountId]);
 
@@ -139,8 +163,15 @@ try {
                 respond(['message' => 'You cannot delete your own account.'], 409);
             }
 
+            $removed = $admin->read('users/' . $accountId);
             $admin->deleteAccount($accountId);
             $admin->remove('users/' . $accountId);
+            recordAudit($admin, $callerId, $caller['profile'], [
+                'module' => 'User Management',
+                'action' => 'Delete User',
+                'activity' => 'Removed the account for '
+                    . (is_array($removed) ? ($removed['email'] ?? $accountId) : $accountId),
+            ]);
 
             respond(['uid' => $accountId]);
 

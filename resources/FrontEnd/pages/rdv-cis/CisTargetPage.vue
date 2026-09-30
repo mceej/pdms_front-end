@@ -64,6 +64,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td :colspan="isDrmd ? 8 : 9">Loading targets…</td>
+                    </tr>
                     <tr v-for="target in visibleTargets" :key="target.id">
                         <td>{{ target.payoutType }}</td>
                         <td v-if="isDrmd">{{ target.disasterName }}</td>
@@ -165,9 +168,10 @@
                     Date End
                     <input v-model="targetDraft.dateEnd" type="date" required />
                 </label>
+                <p v-if="saveError" class="save-error">{{ saveError }}</p>
                 <div class="dialog-actions">
                     <button type="button" class="cancel-button" @click="closeTargetDialog">Cancel</button>
-                    <button type="submit" class="save-target-button">
+                    <button type="submit" class="save-target-button" :disabled="isSaving">
                         {{ editingTargetId === null ? 'Add Target' : 'Save Changes' }}
                     </button>
                 </div>
@@ -178,6 +182,9 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
+import { recordActivity } from '../../data/auditLog.js';
+import { saveTarget as persistTarget, subscribeTargets } from '../../data/targets.js';
 
 const props = defineProps({
     pageTitle: { type: String, required: true },
@@ -210,23 +217,13 @@ const selectedPrograms = ref([]);
 const showTargetDialog = ref(false);
 const editingTargetId = ref(null);
 const targetDraft = ref(createEmptyTarget());
-const targets = ref(
-    Array.from({ length: 10 }, (_, index) => ({
-        id: index + 1,
-        payoutType: isDrmd.value ? 'ECT' : 'AICS',
-        ...(isDrmd.value
-            ? { disasterName: disasterNames[index % disasterNames.length] }
-            : {
-                programType: programTypes[index % programTypes.length],
-                assistanceType: 'Cash Assistance',
-            }),
-        targetBeneficiary: 1000000 + index * 250000,
-        targetDisbursement: 1000000 + index * 250000,
-        payoutSite: ['Barangay A', 'Barangay B', 'Barangay C', 'Barangay D', 'Barangay E'][index % 5],
-        dateStart: '2026-09-30',
-        dateEnd: '2026-10-05',
-    })),
-);
+const targets = ref([]);
+const isLoading = ref(true);
+const searchQuery = useDebounced(search, 150);
+const saveError = ref('');
+const isSaving = ref(false);
+
+let unsubscribeTargets = () => {};
 
 function createEmptyTarget() {
     const target = {
@@ -272,8 +269,12 @@ const formatDate = (value) => {
     return `${month}-${day}-${year}`;
 };
 
-const applyFilters = () => {
+watch(draftPrograms, () => {
     selectedPrograms.value = [...draftPrograms.value];
+    page.value = 1;
+}, { deep: true });
+
+const applyFilters = () => {
     filterOpen.value = false;
     page.value = 1;
 };
@@ -300,14 +301,27 @@ const closeTargetDialog = () => {
     showTargetDialog.value = false;
 };
 
-const saveTarget = () => {
-    const target = { ...targetDraft.value };
-    if (editingTargetId.value === null) {
-        targets.value.unshift({ id: Date.now(), ...target });
-    } else {
-        const targetIndex = targets.value.findIndex((item) => item.id === editingTargetId.value);
-        if (targetIndex !== -1) targets.value[targetIndex] = { id: editingTargetId.value, ...target };
+const saveTarget = async () => {
+    isSaving.value = true;
+    saveError.value = '';
+
+    const section = isDrmd.value ? 'DRMD' : 'CIS';
+    const result = await persistTarget(section, { ...targetDraft.value }, editingTargetId.value);
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        saveError.value = result.message;
+        return;
     }
+
+    recordActivity(
+        'Target Management',
+        editingTargetId.value === null ? 'Add Target' : 'Edit Target',
+        `${editingTargetId.value === null ? 'Added' : 'Updated'} a ${section} target`
+            + ` for ${targetDraft.value.payoutSite}`
+    );
+
     showTargetDialog.value = false;
 };
 
@@ -317,8 +331,26 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    unsubscribeTargets = subscribeTargets(isDrmd.value ? 'DRMD' : 'CIS', (list) => {
+        targets.value = list.map((target) => ({
+            ...target,
+            searchText: searchableText(
+                target.payoutType,
+                target.programType,
+                target.disasterName,
+                target.assistanceType,
+                target.payoutSite
+            ),
+        }));
+        isLoading.value = false;
+    });
+});
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    unsubscribeTargets();
+});
 
 watch([search, pageSize], () => { page.value = 1; });
 </script>
@@ -682,6 +714,12 @@ watch([search, pageSize], () => { page.value = 1; });
     font: inherit;
 }
 
+.save-error {
+    margin: 0;
+    color: #c73535;
+    font-size: 12px;
+}
+
 .dialog-actions {
     display: flex;
     justify-content: flex-end;
@@ -757,5 +795,12 @@ watch([search, pageSize], () => { page.value = 1; });
     .target-heading h1 {
         font-size: 24px;
     }
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
 }
 </style>

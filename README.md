@@ -2,7 +2,7 @@
 
 A Vue 3 front end for tracking DSWD payouts. People sign in with a Firebase account, and the page they get depends on their role: Admin, MANCOM, RDV Focal (CIS) or RDV Focal (DRMD).
 
-Logins and the user list live in Firebase. The dashboard numbers are still sample data bundled into the front end.
+Logins, users, targets, payout figures and the audit log all live in Firebase.
 
 ## Tech stack
 
@@ -24,7 +24,7 @@ Logins and the user list live in Firebase. The dashboard numbers are still sampl
 3. `resources/FrontEnd/app.js` registers the PrimeVue components and mounts `App.vue`.
 4. Signing in goes through Firebase Authentication. The person's role comes from `users/{uid}` in the database, and `App.vue` shows the page for that role.
 5. Creating accounts, setting passwords and blocking sign-in happen in `public/api/admin-users.php`, because a browser is not allowed to manage other people's logins.
-6. The dashboard still reads `resources/FrontEnd/mock/`. See [Sample data](#sample-data).
+6. Every table reads the database through `resources/FrontEnd/data/`, so pages never touch Firebase directly.
 
 ## Requirements
 
@@ -116,6 +116,7 @@ The dashboard doesn't read Firebase yet:
 | `docker compose logs -f vite` | Shows the front-end build output |
 | `npm run build` | Builds the front end into `public/build` |
 | `npx firebase-tools deploy --only database` | Publishes the security rules |
+| `php scripts/seed-firebase.php` | Fills the database with sample data |
 
 ## Project structure
 
@@ -128,6 +129,8 @@ service-account.json                Firebase admin key — secret, never committ
 src/                                PHP classes (FirebaseAdmin, GoogleServiceAccount, HttpJson)
 public/index.php                    The page that loads the Vue app
 public/api/admin-users.php          Create accounts, set passwords, block sign-in
+public/api/audit.php                Records audit entries, with the caller’s address
+scripts/seed-firebase.php           Loads the sample data
 resources/FrontEnd/app.js           Vue entry point; registers PrimeVue
 resources/FrontEnd/firebase/        Firebase connection
 resources/FrontEnd/auth/            Sign in, sign out, role lookup
@@ -137,7 +140,7 @@ resources/FrontEnd/LoginPage.vue    Login page layout
 resources/FrontEnd/pages/           One folder per role
 resources/FrontEnd/dashboard/       Dashboard parts (table, charts, overview)
 resources/FrontEnd/components/      Shared components (sidebar, login form, dialogs)
-resources/FrontEnd/mock/            Sample dashboard data
+resources/FrontEnd/mock/            The sample figures the seed script reads
 logo/                               DSWD logos, loaded through Vite
 memory.md                           Team coding rules (code ethics)
 ```

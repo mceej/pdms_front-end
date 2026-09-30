@@ -6,6 +6,7 @@ import {
 } from 'firebase/auth';
 import { get, ref as databaseRef } from 'firebase/database';
 import { auth, database, isFirebaseConfigured } from '../firebase/app.js';
+import { forgetPayoutRecords } from '../data/payouts.js';
 
 const SIGN_IN_ERRORS = {
     'auth/invalid-email': 'Enter a valid email address.',
@@ -100,6 +101,8 @@ export const signIn = async (email, password) => {
  * Sign out. The app returns to the login page either way.
  */
 export const signOutUser = async () => {
+    forgetPayoutRecords();
+
     if (! isFirebaseConfigured) {
         return;
     }

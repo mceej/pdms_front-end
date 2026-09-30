@@ -8,7 +8,7 @@ Follow the team's code ethics in @memory.md.
 
 - **Front end:** Vue 3 single-file components with `<script setup>`, PrimeVue 4 (Aura theme), Chart.js, Tailwind CSS 4, built by Vite 8.
 - **Logins and data:** Firebase Authentication and Realtime Database, project `pdmsfoxi`.
-- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, and `public/api/admin-users.php` manages accounts.
+- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, `public/api/admin-users.php` manages accounts, and `public/api/audit.php` records audit entries.
 - **Environment:** Docker Compose runs a `php` container (port 8000) and a `vite` container (port 5173).
 
 ## Running it
@@ -31,13 +31,14 @@ Never point the user at port 5173; it only feeds front-end files to the page on 
 - `resources/FrontEnd/firebase/app.js` — the only place Firebase is initialised.
 - `resources/FrontEnd/auth/session.js` — signing in and out, and the role lookup that decides the page.
 - `resources/FrontEnd/data/` — every database read and every server call, one file per table. Pages must not import Firebase directly; that boundary is what keeps a later move to Firestore small.
-- `resources/FrontEnd/mock/` — sample dashboard data, still in use until the payout tables move to Firebase.
+- `resources/FrontEnd/mock/` — the sample figures `scripts/seed-firebase.php` loads into Firebase. The app reads the database, not this folder.
 - `src/` and `config.php` — PHP classes and settings, outside `public/` so they are never served.
 - `database.rules.json` — security rules. Changing what a role may do means changing this file and publishing it.
 
 ## Rules that matter
 
 - Accounts are created only by an admin, through the User Management page. There is no self-registration and no password reset.
+- Audit entries are written by the server only. Never write to `auditLogs` from the browser; the rules forbid it, so that nobody can rewrite what they did.
 - A browser cannot create another person's login, set someone's password, or disable an account. Those go through `public/api/admin-users.php`, which checks the caller's ID token and their `ADMIN` role first.
 - Keep components small and single-purpose. Prefer a new file in `components/` over growing a page component.
 - Use the PrimeVue components already registered in `resources/FrontEnd/app.js` before adding libraries.

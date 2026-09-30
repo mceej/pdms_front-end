@@ -1,6 +1,11 @@
 ﻿﻿<template>
     <div class="dashboard-page">
         <div class="dashboard-shell">
+            <p v-if="loadError" class="dashboard-error" role="alert">
+                <i class="pi pi-exclamation-triangle" aria-hidden="true"></i>
+                {{ loadError }}
+                <button type="button" @click="fetchDashboard">Try again</button>
+            </p>
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
@@ -78,11 +83,11 @@
 
             <DashboardOverview
                 :total-target="totalTarget"
-                :total-disbursed="totalDisbursed"
                 :total-paid-count="totalPaidCount"
-                :total-balance="totalBalance"
-                :unpaid-balance="unpaidBalance"
-                :unpaid-disbursed="unpaidDisbursed"
+                :total-remaining="totalRemaining"
+                :total-amount-to-disburse="totalBalance"
+                :total-disbursed="totalDisbursed"
+                :total-unpaid-disbursed="unpaidBalance"
             />
 
             <DashboardTable
@@ -118,9 +123,11 @@
                 :active-level="activeLevel"
                 :scope-name="scopeName"
                 :extra-stat="extraStat"
+                :has-pending-range="hasPendingRange"
                 @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
                 @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
-                @apply="applyFilters"
+                @apply="commitDateRange"
+                @clear="clearDateRange"
             />
         </div>
 
@@ -135,7 +142,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import ComparisonCharts from './ComparisonCharts.vue';
 import DashboardOverview from './DashboardOverview.vue';
 import DashboardTable from './DashboardTable.vue';
-import { fetchPayoutDashboard } from '../mock/payoutDashboard.js';
+import { fetchPayoutDashboard } from '../data/payouts.js';
 
 const activeTab = ref('AICS');
 const disasterName = ref('');
@@ -146,6 +153,8 @@ const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
 const dateTo = ref('');
+const appliedFrom = ref('');
+const appliedTo = ref('');
 const appliedDateLabel = ref('as of 9/14/2026 | 10:30:23 AM');
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
@@ -188,6 +197,7 @@ const closeDisasterMenuOnOutsideClick = (event) => {
 
 const apiRows = ref([]);
 const apiLoaded = ref(false);
+const loadError = ref('');
 const apiSummary = ref({ target: 0, paid: 0, remaining: 0, target_amount: 0, amount_disbursed: 0, unpaid_amount: 0, progress: 0 });
 const apiDisasterTypes = ref([]);
 const disasterOptions = computed(() => [
@@ -261,6 +271,10 @@ const totalPaidCount = computed(() => {
     if (apiLoaded.value) return apiSummary.value.paid;
     const sum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
     return sum > 0 ? sum.toLocaleString() : '-----';
+});
+const totalRemaining = computed(() => {
+    if (apiLoaded.value) return apiSummary.value.remaining;
+    return Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0);
 });
 const totalBalance = computed(() => {
     if (apiLoaded.value) return `₱${Number(apiSummary.value.target_amount || 0).toLocaleString()}`;
@@ -404,15 +418,32 @@ const fetchDashboard = async () => {
     if (selectedMunicipality.value?.id) filters.municipality_id = selectedMunicipality.value.id;
     if (selectedBarangay.value?.id) filters.barangay_id = selectedBarangay.value.id;
     if (payoutSiteFilter.value) filters.payout_site = payoutSiteFilter.value;
-    if (dateFrom.value) filters.from = dateFrom.value;
-    if (dateTo.value) filters.to = dateTo.value;
+    if (appliedFrom.value) filters.from = appliedFrom.value;
+    if (appliedTo.value) filters.to = appliedTo.value;
 
-    const payload = await fetchPayoutDashboard(filters);
-    apiRows.value = payload.rows || [];
-    apiSummary.value = payload.summary || apiSummary.value;
-    apiDisasterTypes.value = payload.disaster_types || [];
-    apiPayoutSites.value = payload.payout_sites || [];
-    apiLoaded.value = Boolean(apiRows.value.length);
+    try {
+        const payload = await fetchPayoutDashboard(filters);
+
+        apiRows.value = payload.rows || [];
+        apiSummary.value = payload.summary || apiSummary.value;
+        apiDisasterTypes.value = payload.disaster_types || [];
+        apiPayoutSites.value = payload.payout_sites || [];
+        loadError.value = '';
+    } catch (error) {
+        loadError.value = error?.code === 'PERMISSION_DENIED'
+            ? 'You do not have permission to read the payout data.'
+            : 'Could not load the payout data. Check your connection and try again.';
+        apiRows.value = [];
+        apiSummary.value = {
+            target: 0, paid: 0, remaining: 0, target_amount: 0,
+            amount_disbursed: 0, unpaid_amount: 0, progress: 0,
+        };
+        apiDisasterTypes.value = [];
+        apiPayoutSites.value = [];
+    }
+
+    // Either way the figures shown are the real ones, never the built-in samples.
+    apiLoaded.value = true;
 };
 
 const handleRowClick = async (row) => {
@@ -480,25 +511,41 @@ const setTab = (tab) => {
 
 const applyFilters = () => {
     fetchDashboard();
-    if (dateFrom.value && dateTo.value) {
-        appliedDateLabel.value = `from ${dateFrom.value} to ${dateTo.value}`;
+    if (appliedFrom.value && appliedTo.value) {
+        appliedDateLabel.value = `from ${appliedFrom.value} to ${appliedTo.value}`;
     } else {
-        appliedDateLabel.value = 'as of 9/14/2026 | 10:30:23 AM';
+        appliedDateLabel.value = `as of ${new Date().toLocaleString()}`;
     }
 };
 
+// Typing a date only changes what is pending; Apply is what commits it.
 const applyDateRange = (changedField) => {
     if (dateFrom.value && dateTo.value && dateTo.value < dateFrom.value) {
         if (changedField === 'from') dateTo.value = dateFrom.value;
         else dateFrom.value = dateTo.value;
     }
+};
+
+const hasPendingRange = computed(
+    () => dateFrom.value !== appliedFrom.value || dateTo.value !== appliedTo.value
+);
+
+const commitDateRange = () => {
+    appliedFrom.value = dateFrom.value;
+    appliedTo.value = dateTo.value;
     applyFilters();
+};
+
+const clearDateRange = () => {
+    dateFrom.value = '';
+    dateTo.value = '';
+    commitDateRange();
 };
 
 onMounted(() => document.addEventListener('click', closeDisasterMenuOnOutsideClick));
 onUnmounted(() => document.removeEventListener('click', closeDisasterMenuOnOutsideClick));
 
-onMounted(() => fetchDashboard().catch((error) => console.error(error)));
+onMounted(() => fetchDashboard());
 onMounted(() => {
     clockTimer = window.setInterval(() => {
         currentTime.value = new Date().toLocaleString();
@@ -901,5 +948,35 @@ button:hover { background: #2e2789; }
       margin: 36px -16px -24px;
             padding: 8px 12px;
   }
+}
+
+.dashboard-error {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 12px 16px;
+    border: 1px solid #f2b8b5;
+    border-radius: 8px;
+    background: #fdecec;
+    color: #b3261e;
+    font-size: 14px;
+}
+
+.dashboard-error button {
+    margin-left: auto;
+    padding: 6px 12px;
+    border: 1px solid #b3261e;
+    border-radius: 6px;
+    background: #fff;
+    color: #b3261e;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.dashboard-error button:hover {
+    background: #b3261e;
+    color: #fff;
 }
 </style>
