@@ -27,10 +27,26 @@
                     :served-list-message="importMessage"
                     :served-list-error="importFailed"
                     @select-served-list-file="onFileChosen"
+                    @delete-served-list="askToDeleteImport"
                     @upload-served-list="uploadServedList"
                 />
             </div>
         </main>
+
+        <div v-if="importToDelete" class="dialog-backdrop" @click.self="importToDelete = null">
+            <section class="delete-import-dialog" role="alertdialog" aria-modal="true">
+                <h2>Delete this import?</h2>
+                <p>
+                    <strong>{{ importToDelete.file_name }}</strong> and the
+                    {{ importToDelete.rows_imported }} payout records it brought in will be removed.
+                    The dashboard figures will change.
+                </p>
+                <div class="dialog-actions">
+                    <button type="button" class="cancel-button" @click="importToDelete = null">Cancel</button>
+                    <button type="button" class="delete-button" @click="confirmDeleteImport">Delete import</button>
+                </div>
+            </section>
+        </div>
 
         <LogoutConfirmDialog
             :open="logoutDialogOpen"
@@ -47,7 +63,7 @@ import LogoutConfirmDialog from '../../components/LogoutConfirmDialog.vue';
 import DashboardPage from '../../dashboard/DashboardPage.vue';
 import ServerListPage from '../../components/ServerListPage.vue';
 import { loadGeographies, placeNames } from '../../data/geographies.js';
-import { importServedList, subscribeServedLists } from '../../data/servedLists.js';
+import { deleteServedList, importServedList, subscribeServedLists } from '../../data/servedLists.js';
 import RdvTargetPage from './DbrmTargetPage.vue';
 
 const emit = defineEmits(['logout']);
@@ -120,6 +136,28 @@ const uploadServedList = async () => {
     servedListForm.value.file = null;
 };
 
+const importToDelete = ref(null);
+
+const askToDeleteImport = (row) => {
+    importToDelete.value = row;
+    importMessage.value = '';
+    importFailed.value = false;
+};
+
+const confirmDeleteImport = async () => {
+    const row = importToDelete.value;
+    importToDelete.value = null;
+    isUploading.value = true;
+
+    const result = await deleteServedList(row.id);
+
+    isUploading.value = false;
+    importFailed.value = !result.ok;
+    importMessage.value = result.ok
+        ? `Deleted "${row.file_name}" and the ${result.recordsDeleted} records it brought in.`
+        : result.message;
+};
+
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
 
@@ -127,9 +165,11 @@ onMounted(async () => {
     places.value = await loadGeographies();
     unsubscribeServedLists = subscribeServedLists((lists) => {
         importedLists.value = lists.map((list) => ({
+            id: list.id,
             file_name: list.fileName,
             imported_at: new Date(list.importedAt).toLocaleString(),
             imported_by: list.importedByName,
+            rows_imported: list.rowsImported ?? 0,
         }));
     });
 });
@@ -166,5 +206,62 @@ onUnmounted(() => window.clearInterval(clockTimer));
     .served-list-shell {
         padding: 12px 16px 24px;
     }
+}
+
+.dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(12, 20, 38, 0.45);
+}
+
+.delete-import-dialog {
+    width: min(100%, 420px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 24px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 20px 48px rgba(12, 20, 38, 0.25);
+}
+
+.delete-import-dialog h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #11203a;
+}
+
+.delete-import-dialog p {
+    margin: 0;
+    font-size: 14px;
+    color: #45597a;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.dialog-actions button {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid #d4dcea;
+    background: #fff;
+    color: #33455f;
+    cursor: pointer;
+    font: inherit;
+}
+
+.dialog-actions .delete-button {
+    border-color: #b3261e;
+    background: #b3261e;
+    color: #fff;
 }
 </style>

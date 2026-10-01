@@ -1,10 +1,13 @@
 <?php
 
 /**
- * Imports a served-list CSV into payout records.
+ * Imports a served-list CSV into payout records, and deletes an import again.
  *
  * The browser may not write payout data, so the file is parsed and stored here.
  * Every import is recorded in the audit log, including the ones that fail.
+ *
+ * Deleting an import takes its payout records with it, so the dashboard never
+ * shows figures from a file somebody has removed.
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -32,6 +35,53 @@ $role = is_array($profile) ? ($profile['role'] ?? '') : '';
 
 if (! in_array($role, ['ADMIN', 'RDV Focal'], true) || ($profile['status'] ?? '') !== 'Active') {
     respond(['message' => 'Only an active administrator or RDV Focal can import a served list.'], 403);
+}
+
+/**
+ * Delete every payout record that came from one import.
+ *
+ * @return int how many were removed
+ */
+function deleteRecordsOf(FirebaseAdmin $admin, string $servedListId): int
+{
+    $removed = 0;
+
+    foreach ($admin->findBy('payoutRecords', 'servedListId', $servedListId) as $recordId => $ignored) {
+        $admin->remove('payoutRecords/' . $recordId);
+        $removed++;
+    }
+
+    return $removed;
+}
+
+// Deleting an import is the other thing this endpoint does.
+if (($_POST['action'] ?? '') === 'delete') {
+    $servedListId = (string) ($_POST['servedListId'] ?? '');
+    $list = $servedListId === '' ? null : $admin->read('servedLists/' . $servedListId);
+
+    if (! is_array($list)) {
+        respond(['message' => 'That import no longer exists.'], 404);
+    }
+
+    // An RDV Focal may remove their own imports; an administrator may remove any.
+    if ($role !== 'ADMIN' && ($list['importedBy'] ?? '') !== $accountId) {
+        respond(['message' => 'You can only delete imports you made yourself.'], 403);
+    }
+
+    $removed = deleteRecordsOf($admin, $servedListId);
+    $admin->remove('servedLists/' . $servedListId);
+
+    recordAudit($admin, $accountId, $profile, [
+        'module' => 'Import Served List',
+        'action' => 'Delete import',
+        'activity' => sprintf(
+            'Deleted "%s" and the %d payout records it brought in',
+            (string) ($list['fileName'] ?? 'unknown file'),
+            $removed
+        ),
+    ]);
+
+    respond(['servedListId' => $servedListId, 'recordsDeleted' => $removed]);
 }
 
 /**
@@ -214,11 +264,7 @@ $listId = $admin->push('servedLists', [
 $replaced = 0;
 
 if ($earlier !== null) {
-    foreach ($admin->findBy('payoutRecords', 'servedListId', $earlier[0]) as $recordId => $ignored) {
-        $admin->remove('payoutRecords/' . $recordId);
-        $replaced++;
-    }
-
+    $replaced = deleteRecordsOf($admin, $earlier[0]);
     $admin->remove('servedLists/' . $earlier[0]);
 }
 

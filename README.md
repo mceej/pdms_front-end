@@ -126,6 +126,17 @@ The file holds one beneficiary per row. Where the payout happened comes from the
 [`scripts/sample-served-list.csv`](scripts/sample-served-list.csv) is a working example. Rows that fail a check
 are skipped and counted, and the reason is kept in the audit entry; the rest still import.
 
+
+### Every payout record belongs to an import
+
+Each import creates a record in the `servedLists` branch, and every payout row it brings in carries that
+import's id. The sample data is no different: seeding creates an import called "Region XI sample data" holding
+its 45 rows.
+
+Deleting an import on the Import Served List page therefore removes its payout records as well, and the dashboard
+figures change accordingly. The page asks first, naming the file and how many records will go. An RDV Focal may
+delete the imports they made; an administrator may delete any. Both are recorded in the audit log.
+
 The programme follows the person's section — CIS imports AICS, DRMD imports ECT — and an ECT import must name
 the disaster. Importing the same file into the same barangay twice is refused; send it again with `replace` to
 overwrite the earlier rows.

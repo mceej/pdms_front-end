@@ -32,6 +32,39 @@ export const subscribeServedLists = (onChange, howMany = 50) => {
 };
 
 /**
+ * Remove an import and every payout record that came from it.
+ *
+ * @return {Promise<object>} { ok: true, recordsDeleted } or { ok: false, message }
+ */
+export const deleteServedList = async (servedListId) => {
+    const signedInUser = auth?.currentUser;
+
+    if (! signedInUser) {
+        return { ok: false, message: 'Your session has expired. Sign in again.' };
+    }
+
+    const form = new FormData();
+
+    form.append('idToken', await signedInUser.getIdToken());
+    form.append('action', 'delete');
+    form.append('servedListId', servedListId);
+
+    let response;
+
+    try {
+        response = await fetch(ENDPOINT, { method: 'POST', body: form });
+    } catch {
+        return { ok: false, message: 'Cannot reach the server. Check that it is running.' };
+    }
+
+    const body = await response.json().catch(() => ({}));
+
+    return response.ok
+        ? { ok: true, ...body }
+        : { ok: false, message: body.message || 'The import could not be deleted.' };
+};
+
+/**
  * Send a served-list file for one barangay.
  *
  * @param {object} details file, province, municipality, barangay, disasterType, program, replace

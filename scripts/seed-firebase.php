@@ -78,8 +78,30 @@ if (guard($admin, 'payoutRecords', $force)) {
         ];
     }
 
+    // Every payout record belongs to an import, so the sample data gets one too.
+    // Deleting it from the Import Served List page removes these rows with it.
+    $seedListId = 'seed-sample-data';
+    $admin->write('servedLists/' . $seedListId, [
+        'fileName' => 'Region XI sample data',
+        'program' => 'AICS and ECT',
+        'disasterType' => '',
+        'provinceId' => '',
+        'municipalityId' => '',
+        'barangayId' => '',
+        'importedBy' => 'seed',
+        'importedByName' => 'Seed script',
+        'importedAt' => (int) (microtime(true) * 1000),
+        'rowsRead' => count($records),
+        'rowsImported' => count($records),
+        'rowsSkipped' => 0,
+    ]);
+
+    foreach ($records as $id => $record) {
+        $records[$id]['servedListId'] = $seedListId;
+    }
+
     $admin->write('payoutRecords', $records);
-    printf("%-14s %d records\n", 'payoutRecords', count($records));
+    printf("%-14s %d records (under the import \"Region XI sample data\")\n", 'payoutRecords', count($records));
 }
 
 // Targets for both sections, matching what the pages used to show.
