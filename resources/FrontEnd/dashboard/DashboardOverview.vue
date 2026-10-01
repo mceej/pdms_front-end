@@ -155,6 +155,10 @@ const stripPeso = (value) => {
   color: #063B95;
 }
 
+.metric-icon--human i {
+  font-size: 1.7rem;
+}
+
 .metric-card--amount-to-disburse,
 .metric-card--disbursed,
 .metric-card--balance {
@@ -178,11 +182,12 @@ const stripPeso = (value) => {
 .metric-icon--peso {
   background: #FFF5EE;
   color: #C2410C;
+  font-size: 1.7rem;
 }
 
 .metric-value {
   font-size: clamp(1.7rem, 2.6vw, 2.2rem);
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   color: #1B1F5C;

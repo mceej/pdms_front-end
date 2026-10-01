@@ -367,7 +367,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   width: var(--donut-size);
   height: var(--donut-size);
   border-radius: 50%;
-  background: conic-gradient(#ee1c25 0 var(--paid-angle, 0deg), #130774 var(--paid-angle, 0deg) 360deg);
+  background: conic-gradient(#D93F2F 0 var(--paid-angle, 0deg), #2E3192 var(--paid-angle, 0deg) 360deg);
 }
 
 .donut-hole { width: var(--hole-size); height: var(--hole-size); border-radius: 50%; background: #fff; }
@@ -428,7 +428,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .legend-empty { color: #a1a1a1; font-size: 0.78rem; align-self: center; }
 
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
-.paid-dot { background: #211889; }
+.paid-dot { background: #2E3192; }
 .remaining-dot { background: #ee1c25; }
 .extra-dot { background: #25a269; }
 
@@ -448,8 +448,8 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 
 .stacked-row > strong { color: #606060; font-size: 0.72rem; }
 .stacked-track { display: flex; height: 28px; overflow: hidden; background: #ee1c25; }
-.stacked-paid { background: #211889; }
-.stacked-remaining { background: #ee1c25; }
+.stacked-paid { background: #2E3192; }
+.stacked-remaining { background: #D93F2F; }
 .stacked-row > small { color: #4b4b4b; font-size: 0.62rem; line-height: 1.4; }
 .chart-state { padding: 80px 10px; color: #607897; text-align: center; font-size: 0.82rem; }
 

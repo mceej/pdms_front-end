@@ -17,7 +17,7 @@
             <div v-else class="served-list-shell">
                 <ServerListPage
                     :current-time="currentTime"
-                    :tabs="programOptions"
+                    payout-type="ECT"
                     :served-list-form="servedListForm"
                 />
                 <AppFooter variant="served-list" />
@@ -49,9 +49,8 @@ const sidebarItems = [
 ];
 const activePage = ref('dashboard');
 const logoutDialogOpen = ref(false);
-const programOptions = ['AICS', 'ECT'];
 const servedListForm = ref({
-    program: '',
+    disasterName: '',
     province: '',
     municipality: '',
     barangay: '',

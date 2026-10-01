@@ -135,10 +135,10 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { fetchPayoutDashboard } from '../mock/payoutDashboard.js';
 import ComparisonCharts from './ComparisonCharts.vue';
 import DashboardOverview from './DashboardOverview.vue';
 import DashboardTable from './DashboardTable.vue';
-import { fetchPayoutDashboard } from '../mock/payoutDashboard.js';
 
 const activeTab = ref('AICS');
 const disasterName = ref('');
@@ -571,7 +571,7 @@ button:hover { background: #2e2789; }
     min-height: 220px;
     background:
         linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
-        linear-gradient(90deg, #052f86 0%);
+        linear-gradient(90deg, #2E3192 );
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
@@ -773,7 +773,6 @@ button:hover { background: #2e2789; }
     box-shadow: 0 2px 8px rgba(5, 37, 87, 0.24);
 }
 
-/* Badge that shows the chosen disaster type beside the ECT tab; not rendered at all when N/A */
 .disaster-type-badge {
     display: inline-flex;
     align-items: center;
@@ -782,7 +781,7 @@ button:hover { background: #2e2789; }
     height: 24px;
     padding: 0 10px;
     border-radius: 6px;
-    background:#063b95;
+    background:#2e3192;
     color: #ffffff;
     font-size: 11px;
     font-weight: 700;
@@ -868,11 +867,11 @@ button:hover { background: #2e2789; }
     min-width: 98px;
     max-width: 220px;
     height: 24px;
-    padding: 18px;
+    padding: 16px;
     border-radius: 6px;
-    background: #063b95;
-    color: #ffffff;
-    font-size: 11px;
+    background: #ffffff;
+    color: #063b95;
+    font-size: 13px;
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;

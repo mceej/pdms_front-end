@@ -82,7 +82,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', collapseOnOutsideP
     height: 100vh;
     padding: 12px 7px;
     overflow: visible;
-    background: #063d94;
+    background: #2E3192;
     color: #fff;
     transition: width 180ms ease, flex-basis 180ms ease;
 }

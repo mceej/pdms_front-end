@@ -85,49 +85,34 @@
                     <tr>
                         <th>Name</th>
                         <th>Email</th>
-                        <th>Assigned Section</th>
                         <th>User Role</th>
+                        <th>Assigned Section</th>
                         <th>Status</th>
-                        <th><span class="sr-only">Actions</span></th>
+                        <th class="action-col">Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="user in visibleUsers" :key="user.id">
                         <td>{{ user.name }}</td>
                         <td>{{ user.email }}</td>
-                        <td>{{ user.section }}</td>
                         <td>{{ user.role }}</td>
+                        <td>{{ user.section }}</td>
                         <td>
                             <span :class="['status-label', user.status.toLowerCase()]">
                                 <span class="status-dot"></span>
                                 {{ user.status }}
                             </span>
                         </td>
-                        <td class="action-cell">
+                        <td class="action-col action-cell">
                             <button
                                 type="button"
-                                class="row-action"
-                                :aria-label="`More actions for ${user.name}`"
-                                title="More actions"
-                                @click="toggleUserActions(user.id)"
+                                class="edit-user-button"
+                                :aria-label="`Edit user ${user.name}`"
+                                title="Edit user"
+                                @click="beginEditUser(user)"
                             >
-                                <i class="pi pi-ellipsis-v" aria-hidden="true"></i>
+                                <i class="pi pi-pencil" aria-hidden="true"></i>
                             </button>
-                            <div v-if="openUserActions === user.id" class="user-action-menu">
-                                <button type="button" @click="beginEditUser(user)">
-                                    Edit Credentials
-                                </button>
-                                <button type="button" @click="requestStatusChange(user)">
-                                    {{ user.status === 'Active' ? 'Deactivate' : 'Activate' }}
-                                </button>
-                                <button
-                                    type="button"
-                                    class="delete-action"
-                                    @click="requestDeleteUser(user)"
-                                >
-                                    Delete
-                                </button>
-                            </div>
                         </td>
                     </tr>
                     <tr v-if="visibleUsers.length === 0">
@@ -206,21 +191,25 @@
                     Email
                     <input v-model="newUser.email" type="email" required />
                 </label>
-                <label>
-                    Assigned Section
-                    <select v-model="newUser.section">
-                        <option>CIS</option>
-                        <option>DRMD</option>
-                    </select>
-                </label>
-                <label>
-                    User Role
-                    <select v-model="newUser.role">
-                        <option>MANCOM</option>
-                        <option>RDV Focal</option>
-                        <option>ADMIN</option>
-                    </select>
-                </label>
+                <div class="form-field-row">
+                    <label>
+                        User Role
+                        <select v-model="newUser.role">
+                            <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                                {{ role.label }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        Assigned Section{{ isSectionRequired(newUser.role) ? ' *' : '' }}
+                        <select v-model="newUser.section" :required="isSectionRequired(newUser.role)">
+                            <option value="">Select assigned section</option>
+                            <option v-for="section in sectionOptions" :key="section" :value="section">
+                                {{ section }}
+                            </option>
+                        </select>
+                    </label>
+                </div>
                 <label>
                     Password
                     <input v-model="newUser.password" type="password" required />
@@ -258,35 +247,61 @@
                     Email
                     <input v-model="editDraft.email" type="email" required />
                 </label>
-                <label>
-                    Assigned Section
-                    <select v-model="editDraft.section">
-                        <option v-for="section in sectionOptions" :key="section" :value="section">
-                            {{ section }}
-                        </option>
-                    </select>
-                </label>
-                <label>
-                    User Role
-                    <select v-model="editDraft.role">
-                        <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                            {{ role.label }}
-                        </option>
-                    </select>
-                </label>
+                <div class="form-field-row">
+                    <label>
+                        User Role
+                        <select v-model="editDraft.role">
+                            <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                                {{ role.label }}
+                            </option>
+                        </select>
+                    </label>
+                    <label>
+                        Assigned Section{{ isSectionRequired(editDraft.role) ? ' *' : '' }}
+                        <select v-model="editDraft.section" :required="isSectionRequired(editDraft.role)">
+                            <option value="">Select assigned section</option>
+                            <option v-for="section in sectionOptions" :key="section" :value="section">
+                                {{ section }}
+                            </option>
+                        </select>
+                    </label>
+                </div>
                 <label>
                     Old Password
-                    <input v-model="editDraft.oldPassword" type="password" required />
+                    <input v-model="editDraft.oldPassword" type="password" />
                 </label>
                 <label>
                     New Password
-                    <input v-model="editDraft.newPassword" type="password" required />
+                    <input v-model="editDraft.newPassword" type="password" />
                 </label>
                 <label>
                     Confirm Password
-                    <input v-model="editDraft.confirmPassword" type="password" required />
+                    <input v-model="editDraft.confirmPassword" type="password" />
                 </label>
-                <p v-if="passwordMismatch" class="form-error">Passwords do not match.</p>
+                <fieldset class="status-switch">
+                    <legend>Edit Status</legend>
+                    <div class="status-choice" role="group" aria-label="Edit user status">
+                        <button
+                            type="button"
+                            class="inactive-choice"
+                            :class="{ selected: editDraft.status === 'Inactive' }"
+                            :aria-pressed="editDraft.status === 'Inactive'"
+                            @click="editDraft.status = 'Inactive'"
+                        >
+                            Inactive
+                        </button>
+                        <button
+                            type="button"
+                            class="active-choice"
+                            :class="{ selected: editDraft.status === 'Active' }"
+                            :aria-pressed="editDraft.status === 'Active'"
+                            @click="editDraft.status = 'Active'"
+                        >
+                            Active
+                        </button>
+                    </div>
+                </fieldset>
+                <p v-if="editPasswordError" class="form-error">{{ editPasswordError }}</p>
                 <div class="dialog-actions">
                     <button type="button" class="cancel-button" @click="cancelEditUser">
                         Cancel
@@ -332,7 +347,6 @@ import AppFooter from '../../components/AppFooter.vue';
 const search = ref('');
 const page = ref(1);
 const pageSize = ref(10);
-const openUserActions = ref(null);
 const filterOpen = ref(false);
 const filterControl = ref(null);
 const sectionOptions = ['CIS', 'DRMD'];
@@ -340,6 +354,8 @@ const roleOptions = [
     { value: 'MANCOM', label: 'MANCOM' },
     { value: 'RDV Focal', label: 'RDV Focal' },
     { value: 'ADMIN', label: 'Admin' },
+    { value: 'CIS', label: 'CIS' },
+    { value: 'DRMD', label: 'DRMD' },
 ];
 const draftSections = ref([]);
 const draftRoles = ref([]);
@@ -350,16 +366,18 @@ const editingUser = ref(null);
 const confirmationAction = ref(null);
 const actionNotification = ref('');
 const passwordMismatch = ref(false);
+const editPasswordError = ref('');
 let actionNotificationTimer;
 const newUser = ref({
     name: '',
     email: '',
-    section: 'CIS',
+    section: '',
     role: 'MANCOM',
     password: '',
     confirmPassword: '',
 });
 const editDraft = ref({});
+const isSectionRequired = (role) => ['CIS', 'DRMD'].includes(role);
 const users = ref([
     {
         id: 1,
@@ -477,7 +495,7 @@ const confirmationTitle = computed(() => {
 const confirmationMessage = computed(() => {
     const action = confirmationAction.value;
     if (!action) return '';
-    if (action.type === 'edit') return `Save the updated credentials for ${action.user.name}?`;
+    if (action.type === 'edit') return `Save the updated user details for ${action.user.name}?`;
     if (action.type === 'delete') return `This will permanently remove ${action.user.name} from this list.`;
     return `${action.nextStatus} ${action.user.name}'s account?`;
 });
@@ -510,7 +528,7 @@ const addUser = () => {
     newUser.value = {
         name: '',
         email: '',
-        section: 'CIS',
+        section: '',
         role: 'MANCOM',
         password: '',
         confirmPassword: '',
@@ -546,44 +564,46 @@ const beginEditUser = (user) => {
         email: user.email,
         section: user.section,
         role: user.role,
+        status: user.status,
         oldPassword: '',
         newPassword: '',
         confirmPassword: '',
     };
     passwordMismatch.value = false;
-    openUserActions.value = null;
+    editPasswordError.value = '';
 };
 
 const cancelEditUser = () => {
     editingUser.value = null;
-    passwordMismatch.value = false;
+    editPasswordError.value = '';
 };
 
 const saveUserEdit = () => {
-    if (editDraft.value.newPassword !== editDraft.value.confirmPassword) {
-        passwordMismatch.value = true;
+    const isChangingPassword = [
+        editDraft.value.oldPassword,
+        editDraft.value.newPassword,
+        editDraft.value.confirmPassword,
+    ].some(Boolean);
+
+    if (
+        isChangingPassword
+        && (!editDraft.value.oldPassword || !editDraft.value.newPassword || !editDraft.value.confirmPassword)
+    ) {
+        editPasswordError.value = 'Complete all password fields to change the password.';
         return;
     }
 
+    if (isChangingPassword && editDraft.value.newPassword !== editDraft.value.confirmPassword) {
+        editPasswordError.value = 'New password and confirmation do not match.';
+        return;
+    }
+
+    editPasswordError.value = '';
     confirmationAction.value = {
         type: 'edit',
         user: editingUser.value,
         draft: { ...editDraft.value },
     };
-};
-
-const requestDeleteUser = (user) => {
-    confirmationAction.value = { type: 'delete', user };
-    openUserActions.value = null;
-};
-
-const requestStatusChange = (user) => {
-    confirmationAction.value = {
-        type: 'status',
-        user,
-        nextStatus: user.status === 'Active' ? 'Deactivate' : 'Activate',
-    };
-    openUserActions.value = null;
 };
 
 const showActionNotification = (message) => {
@@ -604,10 +624,13 @@ const confirmAction = () => {
             email: action.draft.email,
             section: action.draft.section,
             role: action.draft.role,
-            password: action.draft.newPassword,
+            status: action.draft.status,
         });
+        if (action.draft.newPassword) {
+            action.user.password = action.draft.newPassword;
+        }
         cancelEditUser();
-        showActionNotification('User credentials updated successfully.');
+        showActionNotification('User updated successfully.');
     } else if (action.type === 'delete') {
         users.value = users.value.filter((user) => user.id !== action.user.id);
         page.value = Math.min(page.value, pageCount.value);
@@ -620,29 +643,17 @@ const confirmAction = () => {
     confirmationAction.value = null;
 };
 
-const toggleUserActions = (userId) => {
-    openUserActions.value = openUserActions.value === userId ? null : userId;
-};
-
 const closeFilterOnOutsidePointer = (event) => {
     if (filterOpen.value && !filterControl.value?.contains(event.target)) {
         filterOpen.value = false;
     }
 };
 
-const closeUserActionsOnOutsidePointer = (event) => {
-    if (openUserActions.value && !event.target.closest('.action-cell')) {
-        openUserActions.value = null;
-    }
-};
-
 onMounted(() => {
     document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
-    document.addEventListener('pointerdown', closeUserActionsOnOutsidePointer);
 });
 onUnmounted(() => {
     document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
-    document.removeEventListener('pointerdown', closeUserActionsOnOutsidePointer);
     window.clearTimeout(actionNotificationTimer);
 });
 
@@ -937,11 +948,16 @@ watch(
     background: #f9fbff;
 }
 
-.users-table th:last-child,
-.users-table td:last-child {
-    width: 38px;
+.users-table .action-col {
+    width: 80px;
     padding: 0 8px;
     text-align: center;
+}
+
+.users-table th:nth-child(4),
+.users-table td:nth-child(4) {
+    padding-left: 30px;
+    padding-right: 0;
 }
 
 .status-label {
@@ -965,61 +981,21 @@ watch(
     position: relative;
 }
 
-.row-action {
+.edit-user-button {
+    display: center;
     width: 28px;
     height: 28px;
+    place-items: center;
     border: 0;
     border-radius: 4px;
     background: transparent;
-    color: #293241;
+    color: #273b83;
     cursor: pointer;
     font-size: 14px;
 }
 
-.row-action:hover {
-    background: #edf2f8;
-}
-
-.user-action-menu {
-    position: absolute;
-    top: 30px;
-    right: 8px;
-    z-index: 20;
-    display: grid;
-    gap: 2px;
-    width: 180px;
-    padding: 6px;
-    border: 1px solid #dce3ed;
-    border-radius: 4px;
-    background: #fff;
-    box-shadow: 0 4px 12px rgb(13 28 51 / 14%);
-}
-
-.user-action-menu button {
-    display: block;
-    width: 100%;
-    min-height: 34px;
-    padding: 7px 9px;
-    border: 0;
-    border-radius: 3px;
-    background: transparent;
-    color: #293241;
-    cursor: pointer;
-    font-size: 14px;
-    text-align: left;
-    white-space: nowrap;
-}
-
-.user-action-menu button:hover {
-    background: #f1f5f9;
-}
-
-.user-action-menu .delete-action {
-    color: #c73535;
-}
-
-.user-action-menu .delete-action:hover {
-    background: #fff1f1;
+.edit-user-button:hover {
+    background: #eaf0ff;
 }
 
 .empty-row {
@@ -1124,6 +1100,127 @@ watch(
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     font: inherit;
+}
+
+.form-field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.form-field-row label {
+    min-width: 0;
+}
+
+.form-field-row select {
+    width: 100%;
+    max-width: 100%;
+    justify-self: stretch;
+    padding-right: 38px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-position: right 18px center;
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+}
+
+.status-switch {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.status-switch legend {
+    margin-bottom: 6px;
+    color: #39465a;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.status-choice {
+    display: inline-flex;
+    overflow: hidden;
+    padding: 3px;
+    border: 0;
+    border-radius: 30px;
+    background: #e1e3e7;
+    box-shadow: 0 2px 5px rgb(15 23 42 / 10%);
+    transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.status-choice:hover {
+    box-shadow: 0 4px 10px rgb(15 23 42 / 18%);
+    transform: translateY(-1px);
+}
+
+.status-choice button {
+    min-width: 106px;
+    min-height: 38px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: 25px;
+    background: transparent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    transition: background-color 180ms ease, color 180ms ease, transform 160ms ease;
+}
+
+.status-choice .inactive-choice {
+    color: #a92a2a;
+}
+
+.status-choice .active-choice {
+    color: #137238;
+}
+
+.status-choice .inactive-choice:hover:not(.selected) {
+    background: #fff0f0;
+}
+
+.status-choice .active-choice:hover:not(.selected) {
+    background: #effcf3;
+}
+
+.status-choice button:active {
+    transform: scale(0.95);
+}
+
+.status-choice .inactive-choice.selected {
+    background: #d93636;
+    color: #fff;
+    animation: status-choice-pop 220ms ease-out;
+}
+
+.status-choice .active-choice.selected {
+    background: #18a64a;
+    color: #fff;
+    animation: status-choice-pop 220ms ease-out;
+}
+
+.status-choice button:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 3px solid rgb(48 43 156 / 32%);
+    outline-offset: -3px;
+}
+
+@keyframes status-choice-pop {
+    0% { filter: brightness(1.25); }
+    100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .status-choice,
+    .status-choice button {
+        transition: none;
+    }
+
+    .status-choice .inactive-choice.selected,
+    .status-choice .active-choice.selected {
+        animation: none;
+    }
 }
 
 .dialog-actions {
@@ -1240,6 +1337,10 @@ watch(
 
     .search-control {
         flex: 1 1 auto;
+    }
+
+    .form-field-row {
+        grid-template-columns: 1fr;
     }
 
 }

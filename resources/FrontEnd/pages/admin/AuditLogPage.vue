@@ -456,7 +456,6 @@ watch(
     color: #fff;
 }
 
-/* Keep every audit-log column within the page width; only vertical scrolling is needed. */
 .table-wrap {
     display: block;
     flex: 1 1 auto;

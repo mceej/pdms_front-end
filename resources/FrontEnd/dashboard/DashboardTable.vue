@@ -173,7 +173,7 @@ const emit = defineEmits([
 .dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child .p-menuitem-text),
 .dashboard-breadcrumb :deep(.p-breadcrumb-list > li:last-child span) {
   color: #0c234d;
-  font-weight: 0;
+  font-weight: 600;
 }
 
 .dashboard-breadcrumb :deep(.p-breadcrumb-separator) {
@@ -317,11 +317,11 @@ const emit = defineEmits([
 }
 
 :deep(.compact-progress .p-progressbar-value) {
-  background: #052f86;
+  background: #2E3192;
 }
 
 .progress-remaining {
-  color: #ee1c25;
+  color: #D93F2F;
   font-size: 0.90rem;
   font-weight: 700;
 }
