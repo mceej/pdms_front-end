@@ -203,7 +203,7 @@ const emit = defineEmits([
   border-radius: 10px;
   background:
     linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
-    linear-gradient(90deg, #052f86 0%, #073f9f 50%, #075bd8 100%);
+    #2E3192;
   box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 

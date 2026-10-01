@@ -79,6 +79,7 @@
             role="region"
             aria-label="User management table"
             tabindex="0"
+            :style="{ '--visible-row-height': `${visibleUsers.length ? visibleUsers.length * 76 : 100}px` }"
         >
             <table class="admin-table users-table">
                 <thead>
@@ -169,11 +170,6 @@
                     »
                 </button>
             </div>
-            <select v-model.number="pageSize" aria-label="Users per page">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-            </select>
         </div>
 
         <div
@@ -191,25 +187,23 @@
                     Email
                     <input v-model="newUser.email" type="email" required />
                 </label>
-                <div class="form-field-row">
-                    <label>
-                        User Role
-                        <select v-model="newUser.role">
-                            <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                                {{ role.label }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        Assigned Section{{ isSectionRequired(newUser.role) ? ' *' : '' }}
-                        <select v-model="newUser.section" :required="isSectionRequired(newUser.role)">
-                            <option value="">Select assigned section</option>
-                            <option v-for="section in sectionOptions" :key="section" :value="section">
-                                {{ section }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
+                <label>
+                    User Role
+                    <select v-model="newUser.role">
+                        <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                            {{ role.label }}
+                        </option>
+                    </select>
+                </label>
+                <label v-if="isSectionRequired(newUser.role)">
+                    Assigned Section
+                    <select v-model="newUser.section" :required="isSectionRequired(newUser.role)">
+                        <option value="">Select assigned section</option>
+                        <option v-for="section in sectionOptions" :key="section" :value="section">
+                            {{ section }}
+                        </option>
+                    </select>
+                </label>
                 <label>
                     Password
                     <input v-model="newUser.password" type="password" required />
@@ -247,25 +241,23 @@
                     Email
                     <input v-model="editDraft.email" type="email" required />
                 </label>
-                <div class="form-field-row">
-                    <label>
-                        User Role
-                        <select v-model="editDraft.role">
-                            <option v-for="role in roleOptions" :key="role.value" :value="role.value">
-                                {{ role.label }}
-                            </option>
-                        </select>
-                    </label>
-                    <label>
-                        Assigned Section{{ isSectionRequired(editDraft.role) ? ' *' : '' }}
-                        <select v-model="editDraft.section" :required="isSectionRequired(editDraft.role)">
-                            <option value="">Select assigned section</option>
-                            <option v-for="section in sectionOptions" :key="section" :value="section">
-                                {{ section }}
-                            </option>
-                        </select>
-                    </label>
-                </div>
+                <label>
+                    User Role
+                    <select v-model="editDraft.role">
+                        <option v-for="role in roleOptions" :key="role.value" :value="role.value">
+                            {{ role.label }}
+                        </option>
+                    </select>
+                </label>
+                <label v-if="isSectionRequired(editDraft.role)">
+                    Assigned Section
+                    <select v-model="editDraft.section" :required="isSectionRequired(editDraft.role)">
+                        <option value="">Select assigned section</option>
+                        <option v-for="section in sectionOptions" :key="section" :value="section">
+                            {{ section }}
+                        </option>
+                    </select>
+                </label>
                 <label>
                     Old Password
                     <input v-model="editDraft.oldPassword" type="password" />
@@ -354,8 +346,6 @@ const roleOptions = [
     { value: 'MANCOM', label: 'MANCOM' },
     { value: 'RDV Focal', label: 'RDV Focal' },
     { value: 'ADMIN', label: 'Admin' },
-    { value: 'CIS', label: 'CIS' },
-    { value: 'DRMD', label: 'DRMD' },
 ];
 const draftSections = ref([]);
 const draftRoles = ref([]);
@@ -377,7 +367,7 @@ const newUser = ref({
     confirmPassword: '',
 });
 const editDraft = ref({});
-const isSectionRequired = (role) => ['CIS', 'DRMD'].includes(role);
+const isSectionRequired = (role) => role === 'RDV Focal';
 const users = ref([
     {
         id: 1,
@@ -457,6 +447,86 @@ const users = ref([
         email: 'msorgonia@gmail.com',
         section: 'CIS',
         role: 'MANCOM',
+        status: 'Active',
+    },
+    {
+        id: 11,
+        name: 'Sample User 11',
+        email: 'sample11@example.com',
+        section: 'CIS',
+        role: 'MANCOM',
+        status: 'Active',
+    },
+    {
+        id: 12,
+        name: 'Sample User 12',
+        email: 'sample12@example.com',
+        section: 'DRMD',
+        role: 'RDV Focal',
+        status: 'Active',
+    },
+    {
+        id: 13,
+        name: 'Sample User 13',
+        email: 'sample13@example.com',
+        section: 'CIS',
+        role: 'ADMIN',
+        status: 'Inactive',
+    },
+    {
+        id: 14,
+        name: 'Sample User 14',
+        email: 'sample14@example.com',
+        section: 'DRMD',
+        role: 'MANCOM',
+        status: 'Active',
+    },
+    {
+        id: 15,
+        name: 'Sample User 15',
+        email: 'sample15@example.com',
+        section: 'CIS',
+        role: 'RDV Focal',
+        status: 'Active',
+    },
+    {
+        id: 16,
+        name: 'Sample User 16',
+        email: 'sample16@example.com',
+        section: 'DRMD',
+        role: 'MANCOM',
+        status: 'Inactive',
+    },
+    {
+        id: 17,
+        name: 'Sample User 17',
+        email: 'sample17@example.com',
+        section: 'CIS',
+        role: 'ADMIN',
+        status: 'Active',
+    },
+    {
+        id: 18,
+        name: 'Sample User 18',
+        email: 'sample18@example.com',
+        section: 'DRMD',
+        role: 'RDV Focal',
+        status: 'Active',
+    },
+    {
+        id: 19,
+        name: 'Sample User 19',
+        email: 'sample19@example.com',
+        section: 'CIS',
+        role: 'MANCOM',
+        status: 'Inactive',
+    },
+    {
+        id: 20,
+        name: 'Sample User 20',
+        email: 'sample20@example.com',
+        section: 'DRMD',
+        role: 'ADMIN',
         status: 'Active',
     },
 ]);
@@ -674,6 +744,8 @@ watch(
     position: relative;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    min-width: 0;
     height: 100vh;
     padding: 22px 28px 24px;
     overflow: hidden;
@@ -681,12 +753,13 @@ watch(
 }
 
 .admin-page-header {
-    flex: 0 0 auto;
+    flex: 0 0 72px;
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
     gap: 20px;
-    min-height: 64px;
+    height: 72px;
+    min-height: 72px;
     margin-bottom: 14px;
 }
 
@@ -746,8 +819,7 @@ watch(
     font-size: 14px;
 }
 
-.filter-control select,
-.table-pagination select {
+.filter-control select {
     border: 0;
     outline: 0;
     background: transparent;
@@ -908,22 +980,63 @@ watch(
 }
 
 .table-wrap {
+    display: block;
     flex: 1 1 auto;
+    width: min(100%, 2000px);
+    max-width: 100%;
     min-height: 0;
+    min-width: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     border: 1px solid #dce3ed;
-    background: #fff;
+    background-color: #fff;
+    background-image:
+        linear-gradient(to bottom, #f8faff 0 44px, #e4e8ef 44px 45px, transparent 45px),
+        repeating-linear-gradient(to bottom, #e4e8ef 0 1px, transparent 1px 76px);
+    background-position: left top, left 45px;
+    background-size: 100% 45px, 100% var(--visible-row-height);
+    background-repeat: no-repeat;
+    scrollbar-color: #9aa6b2 transparent;
+    scrollbar-width: thin;
+}
+
+.table-wrap::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-wrap::-webkit-scrollbar-track,
+.table-wrap::-webkit-scrollbar-button {
+    background: transparent;
+}
+
+.table-wrap::-webkit-scrollbar-button {
+    display: none;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-color: #9aa6b2;
+    background-clip: content-box;
 }
 
 .admin-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
+    background: #fff;
     color: #111827;
     font-size: 14px;
     text-align: left;
     white-space: nowrap;
 }
+
+.users-table th:nth-child(1) { width: 18%; }
+.users-table th:nth-child(2) { width: 24%; }
+.users-table th:nth-child(3) { width: 15%; }
+.users-table th:nth-child(4) { width: 21%; }
+.users-table th:nth-child(5) { width: 12%; }
 
 .admin-table th {
     position: sticky;
@@ -949,7 +1062,7 @@ watch(
 }
 
 .users-table .action-col {
-    width: 80px;
+    width: 150px;
     padding: 0 8px;
     text-align: center;
 }
@@ -1145,12 +1258,6 @@ watch(
     border-radius: 30px;
     background: #e1e3e7;
     box-shadow: 0 2px 5px rgb(15 23 42 / 10%);
-    transition: box-shadow 160ms ease, transform 160ms ease;
-}
-
-.status-choice:hover {
-    box-shadow: 0 4px 10px rgb(15 23 42 / 18%);
-    transform: translateY(-1px);
 }
 
 .status-choice button {
@@ -1168,19 +1275,11 @@ watch(
 }
 
 .status-choice .inactive-choice {
-    color: #a92a2a;
+    color: #a10e0e;
 }
 
 .status-choice .active-choice {
     color: #137238;
-}
-
-.status-choice .inactive-choice:hover:not(.selected) {
-    background: #fff0f0;
-}
-
-.status-choice .active-choice:hover:not(.selected) {
-    background: #effcf3;
 }
 
 .status-choice button:active {
@@ -1188,13 +1287,13 @@ watch(
 }
 
 .status-choice .inactive-choice.selected {
-    background: #d93636;
+    background: #942020;
     color: #fff;
     animation: status-choice-pop 220ms ease-out;
 }
 
 .status-choice .active-choice.selected {
-    background: #18a64a;
+    background: #13863b;
     color: #fff;
     animation: status-choice-pop 220ms ease-out;
 }
@@ -1327,8 +1426,11 @@ watch(
     }
 
     .admin-page-header {
+        flex: 0 0 auto;
         align-items: flex-start;
         flex-direction: column;
+        height: auto;
+        min-height: 0;
     }
 
     .admin-tools {

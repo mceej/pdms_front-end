@@ -32,10 +32,36 @@
                     </div>
 
                     <div class="tab-row">
-                        <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
-                            <i class="pi pi-box"></i>
-                            AICS
-                        </button>
+                        <div class="aics-control" ref="aicsControlRef">
+                            <button
+                                type="button"
+                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' && !selectedAssistanceType }]"
+                                @click="toggleAicsTab"
+                            >
+                                <i class="pi pi-box"></i>
+                                AICS
+                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: assistanceMenuOpen }"></i>
+                            </button>
+                            <div v-if="assistanceMenuOpen" class="disaster-menu">
+                                <button
+                                    type="button"
+                                    class="disaster-menu-item disaster-menu-clear"
+                                    :disabled="!selectedAssistanceType"
+                                    @click="chooseAssistanceType('')"
+                                >
+                                    Clear selection
+                                </button>
+                                <button
+                                    v-for="option in assistanceTypeOptions"
+                                    :key="option"
+                                    type="button"
+                                    :class="['disaster-menu-item', { selected: selectedAssistanceType === option }]"
+                                    @click="chooseAssistanceType(option)"
+                                >
+                                    {{ option }}
+                                </button>
+                            </div>
+                        </div>
 
                         <div class="ect-control" ref="ectControlRef">
                             <button
@@ -71,6 +97,9 @@
 
                         <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
                             {{ selectedDisasterType }}
+                        </span>
+                        <span v-if="activeTab === 'AICS' && selectedAssistanceType" class="disaster-type-badge">
+                            {{ selectedAssistanceType }}
                         </span>
                     </div>
                 </div>
@@ -143,8 +172,11 @@ import DashboardTable from './DashboardTable.vue';
 const activeTab = ref('AICS');
 const disasterName = ref('');
 const selectedDisasterType = ref('');
+const selectedAssistanceType = ref('');
 const disasterMenuOpen = ref(false);
+const assistanceMenuOpen = ref(false);
 const ectControlRef = ref(null);
+const aicsControlRef = ref(null);
 const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
@@ -167,6 +199,16 @@ const formatUpdatedAt = (value) => {
     })}`;
 };
 
+const toggleAicsTab = () => {
+    const switchingIn = activeTab.value !== 'AICS';
+    if (switchingIn) {
+        setTab('AICS');
+        assistanceMenuOpen.value = true;
+        return;
+    }
+    assistanceMenuOpen.value = !assistanceMenuOpen.value;
+};
+
 const toggleEctTab = () => {
     const switchingIn = activeTab.value !== 'ECT';
     if (switchingIn) {
@@ -183,9 +225,18 @@ const chooseDisasterType = (value) => {
     applyFilters();
 };
 
+const chooseAssistanceType = (value) => {
+    selectedAssistanceType.value = value;
+    assistanceMenuOpen.value = false;
+    applyFilters();
+};
+
 const closeDisasterMenuOnOutsideClick = (event) => {
     if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
         disasterMenuOpen.value = false;
+    }
+    if (assistanceMenuOpen.value && aicsControlRef.value && !aicsControlRef.value.contains(event.target)) {
+        assistanceMenuOpen.value = false;
     }
 };
 
@@ -206,6 +257,7 @@ const disasterOptions = computed(() => [
         ...apiDisasterTypes.value,
     ]),
 ]);
+const assistanceTypeOptions = ['Cash Assistance', 'Medical Support'];
 const apiPayoutSites = ref([]);
 
 const regionName = ref('REGION XI');
@@ -262,8 +314,7 @@ const totalDisbursed = computed(() => {
 });
 const totalPaidCount = computed(() => {
     if (apiLoaded.value) return apiSummary.value.paid;
-    const sum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
-    return sum > 0 ? sum.toLocaleString() : '-----';
+    return activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
 });
 const totalBalance = computed(() => {
     if (apiLoaded.value) return `₱${Number(apiSummary.value.target_amount || 0).toLocaleString()}`;
@@ -411,6 +462,7 @@ const breadcrumbItems = computed(() => {
 const fetchDashboard = async () => {
     const filters = { program: activeTab.value };
     if (selectedDisasterType.value) filters.disaster_type = selectedDisasterType.value;
+    if (selectedAssistanceType.value) filters.assistance_type = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.province_id = selectedProvince.value.id;
     if (selectedMunicipality.value?.id) filters.municipality_id = selectedMunicipality.value.id;
     if (selectedBarangay.value?.id) filters.barangay_id = selectedBarangay.value.id;
@@ -486,6 +538,8 @@ const setTab = (tab) => {
   payoutSiteFilter.value = '';
   municipalitySearch.value = '';
   selectedDisasterType.value = '';
+    selectedAssistanceType.value = '';
+    assistanceMenuOpen.value = false;
   fetchDashboard();
 };
 
@@ -790,12 +844,21 @@ button:hover { background: #2e2789; }
     text-overflow: ellipsis;
 }
 
-.ect-control {
+.ect-control,
+.aics-control {
     position: relative;
 }
 
-.ect-tab {
+.ect-tab,
+.aics-tab {
     gap: 8px;
+}
+
+.aics-tab {
+    height: 36px;
+    min-width: 72px;
+    padding: 0 12px;
+    font-size: 11px;
 }
 
 .ect-chevron {

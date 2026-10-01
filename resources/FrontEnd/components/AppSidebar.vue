@@ -1,5 +1,5 @@
 <template>
-    <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]">
+    <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]" @click="toggleOnBlankArea">
         <div class="sidebar-brand">
             <img src="/logo/dswdsidebarlogo.png" alt="DSWD logo" />
             <span v-if="sidebarExpanded">DSWD Assist Track</span>
@@ -59,6 +59,11 @@ defineProps({
 const emit = defineEmits(['select', 'logout']);
 const sidebarRoot = ref(null);
 const sidebarExpanded = ref(false);
+
+const toggleOnBlankArea = (event) => {
+    if (event.target.closest('button, a, input, select, textarea, .sidebar-brand')) return;
+    sidebarExpanded.value = true;
+};
 
 const collapseOnOutsidePointer = (event) => {
     if (sidebarExpanded.value && !sidebarRoot.value?.contains(event.target)) {

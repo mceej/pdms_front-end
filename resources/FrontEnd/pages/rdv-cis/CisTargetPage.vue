@@ -50,6 +50,7 @@
             role="region"
             aria-label="Target management table"
             tabindex="0"
+            :style="{ '--visible-row-height': `${visibleTargets.length ? visibleTargets.length * 76 : 100}px` }"
         >
             <table :class="['target-table', { 'drmd-table': isDrmd }]">
                 <thead>
@@ -132,11 +133,6 @@
                 <button type="button" aria-label="Next page" :disabled="page === pageCount" @click="page++">›</button>
                 <button type="button" aria-label="Last page" :disabled="page === pageCount" @click="page = pageCount">»</button>
             </div>
-            <select v-model.number="pageSize" aria-label="Targets per page">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-            </select>
         </div>
 
         <div v-if="showTargetDialog" class="dialog-backdrop" @click.self="closeTargetDialog">
@@ -304,7 +300,7 @@ const filterLabel = computed(() => (isDrmd.value ? 'Disaster Name' : 'Program Ty
 const filterOptions = computed(() => (isDrmd.value ? disasterNames : programTypes));
 const search = ref('');
 const page = ref(1);
-const pageSize = ref(10);
+const pageSize = 10;
 const filterOpen = ref(false);
 const filterRoot = ref(null);
 const draftPrograms = ref([]);
@@ -329,7 +325,6 @@ const togglePayoutDetails = (id) => {
     expandedPayoutId.value = expandedPayoutId.value === id ? null : id;
 };
 
-// Location data from the Philippine Standard Geographic Code (PSGC) API
 const PSGC_BASE = 'https://psgc.gitlab.io/api';
 const NCR_CODE = '130000000';
 const NCR_NAME = 'Metro Manila (NCR)';
@@ -363,7 +358,6 @@ const loadProvinces = () => {
         provincesLoading.value = true;
         provincesPromise = fetchPsgc('/provinces/')
             .then((list) => {
-                // NCR has no provinces in PSGC, so it is listed as its own entry.
                 provinces.value = [...list, { code: NCR_CODE, name: NCR_NAME }].sort(byName);
             })
             .catch(() => {
@@ -448,7 +442,6 @@ const onBarangaySelect = (name) => {
     payoutError.value = '';
 };
 
-// Searchable dropdown behaviour shared by Province, City/ Municipality and Barangay
 const openField = ref(null);
 const fieldQuery = ref('');
 const activeIndex = ref(0);
@@ -548,7 +541,7 @@ const closeFieldOnOutsidePointer = (event) => {
 
 watch([payoutOpen, showTargetDialog], closeFieldList);
 const targets = ref(
-    Array.from({ length: 10 }, (_, index) => ({
+    Array.from({ length: 20 }, (_, index) => ({
         id: index + 1,
 
         ...(isDrmd.value
@@ -604,10 +597,10 @@ const filteredTargets = computed(() => {
     });
 });
 
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredTargets.value.length / pageSize.value)));
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredTargets.value.length / pageSize)));
 const visibleTargets = computed(() => {
-    const start = (page.value - 1) * pageSize.value;
-    return filteredTargets.value.slice(start, start + pageSize.value);
+    const start = (page.value - 1) * pageSize;
+    return filteredTargets.value.slice(start, start + pageSize);
 });
 
 const formatAmount = (amount) => Number(amount || 0).toLocaleString();
@@ -713,7 +706,7 @@ onUnmounted(() => {
     window.clearTimeout(actionNotificationTimer);
 });
 
-watch([search, pageSize], () => { page.value = 1; });
+watch(search, () => { page.value = 1; });
 </script>
 
 <style scoped>
@@ -916,22 +909,69 @@ watch([search, pageSize], () => { page.value = 1; });
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     border: 1px solid #dce3ed;
-    background: #fff;
+    background-color: #fff;
+    background-image:
+        linear-gradient(to bottom, #f8faff 0 44px, #e4e8ef 44px 45px, transparent 45px),
+        repeating-linear-gradient(to bottom, #e4e8ef 0 1px, transparent 1px 76px);
+    background-position: left top, left 45px;
+    background-size: 100% 45px, 100% var(--visible-row-height);
+    background-repeat: no-repeat;
+    scrollbar-color: #9aa6b2 transparent;
+    scrollbar-width: thin;
+}
+
+.target-table-scroll::-webkit-scrollbar {
+    width: 12px;
+}
+
+.target-table-scroll::-webkit-scrollbar-track,
+.target-table-scroll::-webkit-scrollbar-button {
+    background: transparent;
+}
+
+.target-table-scroll::-webkit-scrollbar-button {
+    display: none;
+}
+
+.target-table-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-color: #9aa6b2;
+    background-clip: content-box;
 }
 
 .target-table {
     width: 100%;
     min-width: 0;
-    table-layout: auto;
+    table-layout: fixed;
     border-collapse: collapse;
     border-spacing: 0;
+    background: #fff;
     color: #111827;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
     white-space: normal;
 }
+
+.target-table th:nth-child(1),
+.target-table td:nth-child(1) { width: 11%; }
+.target-table th:nth-child(2),
+.target-table td:nth-child(2) { width: 12.5%; }
+.target-table th:nth-child(3),
+.target-table td:nth-child(3) { width: 16.5%; }
+.target-table th:nth-child(4),
+.target-table td:nth-child(4) { width: 17.5%; }
+.target-table th:nth-child(5),
+.target-table td:nth-child(5) { width: 18%; }
+.target-table th:nth-child(6),
+.target-table td:nth-child(6) { width: 10%; }
+.target-table th:nth-child(7),
+.target-table td:nth-child(7) { width: 10%; }
+.target-table th:nth-child(8),
+.target-table td:nth-child(8) { width: 4.5%; }
 
 .target-table td {
     height: 76px;
@@ -1181,7 +1221,7 @@ watch([search, pageSize], () => { page.value = 1; });
 
 .payout-field {
     display: grid;
-    gap: 5px;
+    gap: 12px;
 }
 
 .payout-field-label {
@@ -1250,16 +1290,6 @@ watch([search, pageSize], () => { page.value = 1; });
 .page-controls button:disabled {
     cursor: default;
     opacity: 0.4;
-}
-
-.target-pagination select {
-    padding: 4px 8px;
-    border: 1px solid #dce3ed;
-    border-radius: 4px;
-    background: #fff;
-    color: #516074;
-    font: inherit;
-    font-size: 11px;
 }
 
 .target-footer {

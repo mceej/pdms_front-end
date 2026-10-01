@@ -2,7 +2,15 @@
 // Replace this module with real HTTP calls once the PHP backend exists.
 import payoutData from './payoutData.json';
 
-const { geographies, records } = payoutData;
+const { geographies } = payoutData;
+const records = payoutData.records.map((record) => (
+    record.program === 'AICS'
+        ? {
+            ...record,
+            assistance_type: record.id % 2 === 0 ? 'Medical Support' : 'Cash Assistance',
+        }
+        : record
+));
 
 const geographyById = new Map(geographies.map((geography) => [geography.id, geography]));
 
@@ -33,7 +41,7 @@ const groupFieldFor = (level) => {
 };
 
 const matchesFilters = (record, filters) => {
-    const fields = ['program', 'disaster_type', 'province_id', 'municipality_id', 'barangay_id', 'payout_site'];
+    const fields = ['program', 'disaster_type', 'assistance_type', 'province_id', 'municipality_id', 'barangay_id', 'payout_site'];
 
     const matchesFields = fields.every((field) => {
         const value = filters[field];
