@@ -16,7 +16,8 @@ const ENTRY = 'resources/FrontEnd/app.js';
  */
 function assetTags(): string
 {
-    $devServer = rtrim((string) getenv('VITE_DEV_SERVER'), '/');
+    $config = require __DIR__ . '/../config.php';
+    $devServer = rtrim((string) $config['viteDevServer'], '/');
 
     if ($devServer !== '') {
         return sprintf('<script type="module" src="%s/@vite/client"></script>', $devServer)

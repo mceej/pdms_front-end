@@ -90,9 +90,24 @@
       </div>
 
       <DataTable :value="servedListRows" class="dashboard-table served-list-table">
-        <Column field="file_name" header="File Name" style="width: 42%" />
-        <Column field="imported_at" header="Date Imported" style="width: 28%" />
-        <Column field="imported_by" header="Imported By" style="width: 30%" />
+        <Column field="file_name" header="File Name" style="width: 34%" />
+        <Column field="imported_at" header="Date Imported" style="width: 23%" />
+        <Column field="imported_by" header="Imported By" style="width: 25%" />
+        <Column field="rows_imported" header="Rows" style="width: 8%" />
+        <Column header="Action" style="width: 10%">
+          <template #body="{ data }">
+            <button
+              v-if="data.id"
+              type="button"
+              class="delete-import"
+              :title="`Delete ${data.file_name} and its ${data.rows_imported} records`"
+              @click="emit('delete-served-list', data)"
+            >
+              <i class="pi pi-trash" aria-hidden="true"></i>
+              <span class="sr-only">Delete import</span>
+            </button>
+          </template>
+        </Column>
         <template #empty>
           <div class="served-list-empty">No served lists have been imported yet.</div>
         </template>
@@ -178,6 +193,7 @@ function addDisasterName() {
 
 const emit = defineEmits([
   'upload-served-list',
+  'delete-served-list',
   'select-served-list-file',
   'update:servedListDateFrom',
   'update:servedListDateTo',
@@ -404,6 +420,35 @@ const emit = defineEmits([
 .served-list-empty {
   padding: 18px;
   color: #607897;
+}
+
+.delete-import {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #e3c7c7;
+  border-radius: 6px;
+  background: #fff;
+  color: #b3261e;
+  cursor: pointer;
+}
+
+.delete-import:hover {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 @media (max-width: 768px) {

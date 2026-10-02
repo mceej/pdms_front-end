@@ -69,6 +69,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td colspan="7">Loading activity…</td>
+                    </tr>
                     <tr v-for="row in visibleRows" :key="row.id">
                         <td>{{ row.timestamp }}</td>
                         <td>{{ row.name }}</td>
@@ -141,85 +144,63 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
+import { subscribeAuditLog } from '../../data/auditLog.js';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
+
+const formatMoment = (milliseconds) => {
+    if (!milliseconds) {
+        return '';
+    }
+
+    const moment = new Date(milliseconds);
+    const date = moment.toLocaleDateString('en-GB').replace(/\//g, '-');
+
+    return `${date}, ${moment.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+};
 
 const search = ref('');
+const searchQuery = useDebounced(search, 150);
 const filterOpen = ref(false);
 const filterControl = ref(null);
-const moduleOptions = ['Target Management', 'Dashboard', 'Import Served List'];
 const draftModules = ref([]);
 const selectedModules = ref([]);
 const page = ref(1);
 const pageSize = ref(10);
-const rows = ref(
-    [
-        ...Array.from({ length: 10 }, (_, rowIndex) => ({
-            id: rowIndex + 1,
-            timestamp: '25-02-2026, 9:30 AM',
-            name: 'Juan Dela Cruz',
-            userType: 'Program RDV Focal',
-            module: 'Target Management',
-            action: 'Add Target',
-            activity: 'Added Target record ID #5522',
-            ipAddress: '192.168.1.45',
-        })),
-        {
-            id: 11,
-            timestamp: '25-02-2026, 10:05 AM',
-            name: 'Maria Santos',
-            userType: 'Administrator',
-            module: 'Dashboard',
-            action: 'View Dashboard',
-            activity: 'Viewed payout dashboard summary',
-            ipAddress: '192.168.1.52',
-        },
-        {
-            id: 12,
-            timestamp: '25-02-2026, 10:18 AM',
-            name: 'Carlos Reyes',
-            userType: 'Program RDV Focal',
-            module: 'Import Served List',
-            action: 'Import File',
-            activity: 'Imported served-list-february.csv',
-            ipAddress: '192.168.1.63',
-        },
-        {
-            id: 13,
-            timestamp: '25-02-2026, 10:42 AM',
-            name: 'Ana Garcia',
-            userType: 'Regional Focal',
-            module: 'Target Management',
-            action: 'Update Target',
-            activity: 'Updated target record ID #5522',
-            ipAddress: '192.168.1.71',
-        },
-        {
-            id: 14,
-            timestamp: '25-02-2026, 11:10 AM',
-            name: 'Ramon Cruz',
-            userType: 'Administrator',
-            module: 'Dashboard',
-            action: 'Export Report',
-            activity: 'Exported monthly payout report',
-            ipAddress: '192.168.1.88',
-        },
-        {
-            id: 15,
-            timestamp: '25-02-2026, 11:35 AM',
-            name: 'Liza Mendoza',
-            userType: 'Program RDV Focal',
-            module: 'Import Served List',
-            action: 'Validate File',
-            activity: 'Validated served-list-march.csv',
-            ipAddress: '192.168.1.96',
-        },
-    ],
+const rows = ref([]);
+const isLoading = ref(true);
+
+let unsubscribeAuditLog = () => {};
+
+onMounted(() => {
+    unsubscribeAuditLog = subscribeAuditLog((entries) => {
+        rows.value = entries.map((entry) => ({
+            ...entry,
+            timestamp: formatMoment(entry.at),
+            searchText: searchableText(
+                entry.name,
+                entry.userType,
+                entry.module,
+                entry.action,
+                entry.activity,
+                entry.ipAddress
+            ),
+        }));
+        isLoading.value = false;
+    });
+});
+
+onUnmounted(() => unsubscribeAuditLog());
+
+// Built from the entries themselves, so the filter always offers exactly the
+// modules that appear in the log and never drifts from what is recorded.
+const moduleOptions = computed(() =>
+    [...new Set(rows.value.map((row) => row.module).filter(Boolean))].sort()
 );
 
 const filteredRows = computed(() => {
-    const query = search.value.trim().toLowerCase();
+    const query = searchQuery.value.trim().toLowerCase();
     return rows.value.filter((row) => {
-        const matchesSearch =
-            !query || Object.values(row).join(' ').toLowerCase().includes(query);
+        const matchesSearch = !query || row.searchText.includes(query);
         const matchesModule =
             selectedModules.value.length === 0 || selectedModules.value.includes(row.module);
         return matchesSearch && matchesModule;
@@ -636,5 +617,21 @@ watch(
     .page-controls {
         justify-self: center;
     }
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+}
+
+.filter-panel {
+    animation: filter-panel-in 120ms ease-out;
+}
+
+@keyframes filter-panel-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 </style>

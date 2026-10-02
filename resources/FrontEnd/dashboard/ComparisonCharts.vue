@@ -28,7 +28,23 @@
           <span class="date-placeholder">To</span>
           <input :value="dateTo" type="date" aria-label="Progress end date" @change="onManualDate('update:dateTo', $event.target.value)" />
         </div>
-        <button type="button" class="apply-filter" @click="emit('apply')">Apply</button>
+        <button
+          type="button"
+          :class="['apply-filter', { pending: hasPendingRange }]"
+          :title="hasPendingRange ? 'Apply the dates you picked' : 'Dates are already applied'"
+          @click="emit('apply')"
+        >
+          Apply
+        </button>
+        <button
+          v-if="dateFrom || dateTo"
+          type="button"
+          class="clear-range"
+          title="Show every date again"
+          @click="emit('clear')"
+        >
+          Clear
+        </button>
       </div>
     </div>
 
@@ -97,6 +113,7 @@ import { computed, ref, watch } from 'vue';
 
 const props = defineProps({
   comparisonRows: { type: Array, default: () => [] },
+  hasPendingRange: { type: Boolean, default: false },
   dateFrom: { type: String, default: '' },
   dateTo: { type: String, default: '' },
   dashboardProgress: { type: Number, default: 0 },
@@ -108,9 +125,11 @@ const props = defineProps({
   scopeName: { type: String, default: '' },
   extraStat: { type: Object, default: null },
 });
-const emit = defineEmits(['update:dateFrom', 'update:dateTo', 'apply']);
+const emit = defineEmits(['update:dateFrom', 'update:dateTo', 'apply', 'clear']);
 
-const activeQuickFilter = ref(7);
+/* ---------- Quick filter (Last 7 / 30 Days) ---------- */
+// Nothing is filtered when the page opens, so no quick range is active.
+const activeQuickFilter = ref(null);
 let settingViaQuickFilter = false;
 
 const toISODate = (d) => d.toISOString().slice(0, 10);
@@ -123,6 +142,7 @@ const applyQuickFilter = (days) => {
   from.setDate(to.getDate() - (days - 1));
   emit('update:dateFrom', toISODate(from));
   emit('update:dateTo', toISODate(to));
+  emit('apply');
 };
 
 const onManualDate = (eventName, value) => {
@@ -133,6 +153,12 @@ const onManualDate = (eventName, value) => {
 watch([() => props.dateFrom, () => props.dateTo], () => {
   if (settingViaQuickFilter) {
     settingViaQuickFilter = false;
+    return;
+  }
+
+  // Dates cleared means no quick range is in force either.
+  if (!props.dateFrom && !props.dateTo) {
+    activeQuickFilter.value = null;
   }
 });
 
@@ -463,5 +489,27 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   .donut-content { gap: 12px; }
   .donut { --donut-size: 180px; --hole-size: 102px; }
   .donut-label { font-size: 0.7rem; }
+}
+
+.apply-filter.pending {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.18);
+}
+
+.clear-range {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.clear-range:hover {
+  background: #f3f4f6;
 }
 </style>

@@ -1,5 +1,8 @@
 <template>
     <section class="admin-workspace">
+        <p v-if="serverError && !showAddUserDialog && !editingUser && !confirmationAction" class="form-error page-error">
+            {{ serverError }}
+        </p>
         <header class="admin-page-header user-page-header">
             <div class="user-heading">
                 <h1>User Management</h1>
@@ -93,6 +96,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td colspan="6">Loading users…</td>
+                    </tr>
                     <tr v-for="user in visibleUsers" :key="user.id">
                         <td>{{ user.name }}</td>
                         <td>{{ user.email }}</td>
@@ -213,6 +219,7 @@
                     <input v-model="newUser.confirmPassword" type="password" required />
                 </label>
                 <p v-if="passwordMismatch" class="form-error">Passwords do not match.</p>
+                <p v-if="serverError" class="form-error">{{ serverError }}</p>
                 <div class="dialog-actions">
                     <button
                         type="button"
@@ -221,7 +228,7 @@
                     >
                         Cancel
                     </button>
-                    <button type="submit" class="submit-button">Add User</button>
+                    <button type="submit" class="submit-button" :disabled="isSaving">Add User</button>
                 </div>
             </form>
         </div>
@@ -239,7 +246,7 @@
                 </label>
                 <label>
                     Email
-                    <input v-model="editDraft.email" type="email" required />
+                    <input v-model="editDraft.email" type="email" disabled />
                 </label>
                 <label>
                     User Role
@@ -259,16 +266,12 @@
                     </select>
                 </label>
                 <label>
-                    Old Password
-                    <input v-model="editDraft.oldPassword" type="password" />
-                </label>
-                <label>
-                    New Password
-                    <input v-model="editDraft.newPassword" type="password" />
+                    New Password <span class="field-note">leave blank to keep the current one</span>
+                    <input v-model="editDraft.newPassword" type="password" autocomplete="new-password" />
                 </label>
                 <label>
                     Confirm Password
-                    <input v-model="editDraft.confirmPassword" type="password" />
+                    <input v-model="editDraft.confirmPassword" type="password" autocomplete="new-password" />
                 </label>
                 <fieldset class="status-switch">
                     <legend>Edit Status</legend>
@@ -294,11 +297,12 @@
                     </div>
                 </fieldset>
                 <p v-if="editPasswordError" class="form-error">{{ editPasswordError }}</p>
+                <p v-if="serverError" class="form-error">{{ serverError }}</p>
                 <div class="dialog-actions">
                     <button type="button" class="cancel-button" @click="cancelEditUser">
                         Cancel
                     </button>
-                    <button type="submit" class="submit-button">Save Changes</button>
+                    <button type="submit" class="submit-button" :disabled="isSaving">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -321,6 +325,7 @@
                     <button
                         type="button"
                         :class="confirmationAction.type === 'delete' ? 'delete-button' : 'submit-button'"
+                        :disabled="isSaving"
                         @click="confirmAction"
                     >
                         {{ confirmationButtonLabel }}
@@ -335,6 +340,14 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
+import {
+    createUser,
+    deleteUser,
+    setUserPassword,
+    subscribeUsers,
+    updateUser,
+} from '../../data/users.js';
 
 const search = ref('');
 const page = ref(1);
@@ -368,174 +381,18 @@ const newUser = ref({
 });
 const editDraft = ref({});
 const isSectionRequired = (role) => role === 'RDV Focal';
-const users = ref([
-    {
-        id: 1,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 2,
-        name: 'Oliver Orano',
-        email: 'oorano@gmail.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Inactive',
-    },
-    {
-        id: 3,
-        name: 'Michael John',
-        email: 'mjohn@gmail.com',
-        section: 'DRMD',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 4,
-        name: 'Benedict Solo',
-        email: 'solob@gmail.com',
-        section: 'CIS',
-        role: 'ADMIN',
-        status: 'Active',
-    },
-    {
-        id: 5,
-        name: 'John Carlo',
-        email: 'hellomorre@gmail.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Active',
-    },
-    {
-        id: 6,
-        name: 'Raymund Rai',
-        email: 'rrgo@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 7,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 8,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 9,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 10,
-        name: 'Mikaella Summer',
-        email: 'msorgonia@gmail.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 11,
-        name: 'Sample User 11',
-        email: 'sample11@example.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 12,
-        name: 'Sample User 12',
-        email: 'sample12@example.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Active',
-    },
-    {
-        id: 13,
-        name: 'Sample User 13',
-        email: 'sample13@example.com',
-        section: 'CIS',
-        role: 'ADMIN',
-        status: 'Inactive',
-    },
-    {
-        id: 14,
-        name: 'Sample User 14',
-        email: 'sample14@example.com',
-        section: 'DRMD',
-        role: 'MANCOM',
-        status: 'Active',
-    },
-    {
-        id: 15,
-        name: 'Sample User 15',
-        email: 'sample15@example.com',
-        section: 'CIS',
-        role: 'RDV Focal',
-        status: 'Active',
-    },
-    {
-        id: 16,
-        name: 'Sample User 16',
-        email: 'sample16@example.com',
-        section: 'DRMD',
-        role: 'MANCOM',
-        status: 'Inactive',
-    },
-    {
-        id: 17,
-        name: 'Sample User 17',
-        email: 'sample17@example.com',
-        section: 'CIS',
-        role: 'ADMIN',
-        status: 'Active',
-    },
-    {
-        id: 18,
-        name: 'Sample User 18',
-        email: 'sample18@example.com',
-        section: 'DRMD',
-        role: 'RDV Focal',
-        status: 'Active',
-    },
-    {
-        id: 19,
-        name: 'Sample User 19',
-        email: 'sample19@example.com',
-        section: 'CIS',
-        role: 'MANCOM',
-        status: 'Inactive',
-    },
-    {
-        id: 20,
-        name: 'Sample User 20',
-        email: 'sample20@example.com',
-        section: 'DRMD',
-        role: 'ADMIN',
-        status: 'Active',
-    },
-]);
+const users = ref([]);
+const isLoading = ref(true);
+const isSaving = ref(false);
+const serverError = ref('');
+const searchQuery = useDebounced(search, 150);
+
+let unsubscribeUsers = () => {};
 
 const filteredUsers = computed(() => {
-    const query = search.value.trim().toLowerCase();
+    const query = searchQuery.value.trim().toLowerCase();
     return users.value.filter((user) => {
-        const searchableFields = [user.name, user.email, user.section, user.role, user.status];
-        const matchesQuery = !query || searchableFields.join(' ').toLowerCase().includes(query);
+        const matchesQuery = !query || user.searchText.includes(query);
         const matchesSection =
             selectedSections.value.length === 0 || selectedSections.value.includes(user.section);
         const matchesRole =
@@ -580,14 +437,16 @@ const confirmationIcon = computed(() =>
     confirmationAction.value?.type === 'delete' ? 'pi pi-trash' : 'pi pi-exclamation-circle',
 );
 
-const addUser = () => {
+const addUser = async () => {
     if (newUser.value.password !== newUser.value.confirmPassword) {
         passwordMismatch.value = true;
         return;
     }
 
-    users.value.unshift({
-        id: Date.now(),
+    isSaving.value = true;
+    serverError.value = '';
+
+    const result = await createUser({
         name: newUser.value.name,
         email: newUser.value.email,
         section: newUser.value.section,
@@ -595,6 +454,14 @@ const addUser = () => {
         status: 'Active',
         password: newUser.value.password,
     });
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        return;
+    }
+
     newUser.value = {
         name: '',
         email: '',
@@ -609,14 +476,18 @@ const addUser = () => {
 
 const openAddUserDialog = () => {
     passwordMismatch.value = false;
+    serverError.value = '';
     showAddUserDialog.value = true;
 };
 
-const applyFilters = () => {
+watch([draftSections, draftRoles], () => {
     selectedSections.value = [...draftSections.value];
     selectedRoles.value = [...draftRoles.value];
-    filterOpen.value = false;
     page.value = 1;
+}, { deep: true });
+
+const applyFilters = () => {
+    filterOpen.value = false;
 };
 
 const clearFilters = () => {
@@ -635,12 +506,13 @@ const beginEditUser = (user) => {
         section: user.section,
         role: user.role,
         status: user.status,
-        oldPassword: '',
         newPassword: '',
         confirmPassword: '',
     };
     passwordMismatch.value = false;
     editPasswordError.value = '';
+    serverError.value = '';
+    openUserActions.value = null;
 };
 
 const cancelEditUser = () => {
@@ -650,18 +522,9 @@ const cancelEditUser = () => {
 
 const saveUserEdit = () => {
     const isChangingPassword = [
-        editDraft.value.oldPassword,
         editDraft.value.newPassword,
         editDraft.value.confirmPassword,
     ].some(Boolean);
-
-    if (
-        isChangingPassword
-        && (!editDraft.value.oldPassword || !editDraft.value.newPassword || !editDraft.value.confirmPassword)
-    ) {
-        editPasswordError.value = 'Complete all password fields to change the password.';
-        return;
-    }
 
     if (isChangingPassword && editDraft.value.newPassword !== editDraft.value.confirmPassword) {
         editPasswordError.value = 'New password and confirmation do not match.';
@@ -669,6 +532,7 @@ const saveUserEdit = () => {
     }
 
     editPasswordError.value = '';
+    serverError.value = '';
     confirmationAction.value = {
         type: 'edit',
         user: editingUser.value,
@@ -684,30 +548,54 @@ const showActionNotification = (message) => {
     }, 3500);
 };
 
-const confirmAction = () => {
+const confirmAction = async () => {
     const action = confirmationAction.value;
     if (!action) return;
 
+    isSaving.value = true;
+    serverError.value = '';
+    let result;
+
     if (action.type === 'edit') {
-        Object.assign(action.user, {
+        result = await updateUser(action.user.uid, {
             name: action.draft.name,
-            email: action.draft.email,
             section: action.draft.section,
             role: action.draft.role,
             status: action.draft.status,
         });
-        if (action.draft.newPassword) {
-            action.user.password = action.draft.newPassword;
+
+        if (result.ok && action.draft.newPassword) {
+            result = await setUserPassword(action.user.uid, action.draft.newPassword);
         }
+    } else if (action.type === 'delete') {
+        result = await deleteUser(action.user.uid);
+    } else {
+        result = await updateUser(action.user.uid, {
+            name: action.user.name,
+            section: action.user.section,
+            role: action.user.role,
+            status: action.nextStatus === 'Deactivate' ? 'Inactive' : 'Active',
+        });
+    }
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        confirmationAction.value = null;
+        return;
+    }
+
+    if (action.type === 'edit') {
         cancelEditUser();
         showActionNotification('User updated successfully.');
     } else if (action.type === 'delete') {
-        users.value = users.value.filter((user) => user.id !== action.user.id);
         page.value = Math.min(page.value, pageCount.value);
         showActionNotification('User deleted successfully.');
     } else {
-        action.user.status = action.nextStatus === 'Deactivate' ? 'Inactive' : 'Active';
-        showActionNotification(`User ${action.user.status.toLowerCase()} successfully.`);
+        showActionNotification(
+            `User ${action.nextStatus === 'Deactivate' ? 'deactivated' : 'activated'} successfully.`
+        );
     }
 
     confirmationAction.value = null;
@@ -721,10 +609,18 @@ const closeFilterOnOutsidePointer = (event) => {
 
 onMounted(() => {
     document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    unsubscribeUsers = subscribeUsers((list) => {
+        users.value = list.map((user) => ({
+            ...user,
+            searchText: searchableText(user.name, user.email, user.section, user.role, user.status),
+        }));
+        isLoading.value = false;
+    });
 });
 onUnmounted(() => {
     document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
     window.clearTimeout(actionNotificationTimer);
+    unsubscribeUsers();
 });
 
 watch(
@@ -1355,6 +1251,20 @@ watch(
     font-size: 12px;
 }
 
+.page-error {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #fdecec;
+    font-size: 13px;
+}
+
+.field-note {
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 400;
+}
+
 .confirmation-dialog {
     display: grid;
     justify-items: center;
@@ -1445,5 +1355,12 @@ watch(
         grid-template-columns: 1fr;
     }
 
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
 }
 </style>

@@ -46,7 +46,7 @@
         <template #body="{ data }">
           <div class="paid-cell">
             <span>{{ data.paid ? data.paid.toLocaleString() : '-----' }}</span>
-            <small>₱0.00</small>
+            <small>{{ formatPeso(data.amountDisbursed) }}</small>
           </div>
         </template>
       </Column>
@@ -103,6 +103,12 @@ const props = defineProps({
   totalTablePaid: { type: Number, default: 0 },
   totalProgress: { type: Number, default: 0 },
 });
+
+const formatPeso = (amount) => {
+  const value = Number(amount || 0);
+
+  return `₱${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const emit = defineEmits([
   'update:municipalitySearch',

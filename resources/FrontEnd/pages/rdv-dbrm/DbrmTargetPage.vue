@@ -70,6 +70,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="isLoading" class="table-note">
+                        <td :colspan="isDrmd ? 8 : 9">Loading targets…</td>
+                    </tr>
                     <tr v-for="target in visibleTargets" :key="target.id">
                         <td>{{ target.payoutType }}</td>
                         <td v-if="isDrmd">{{ target.disasterName }}</td>
@@ -271,9 +274,10 @@
                     Date End
                     <input v-model="targetDraft.dateEnd" type="date" required />
                 </label>
+                <p v-if="saveError" class="save-error">{{ saveError }}</p>
                 <div class="dialog-actions">
                     <button type="button" class="cancel-button" @click="closeTargetDialog">Cancel</button>
-                    <button type="submit" class="save-target-button">
+                    <button type="submit" class="save-target-button" :disabled="isSaving">
                         {{ editingTargetId === null ? 'Add Target' : 'Save Changes' }}
                     </button>
                 </div>
@@ -312,6 +316,9 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
+import { recordActivity } from '../../data/auditLog.js';
+import { saveTarget as persistTarget, subscribeTargets } from '../../data/targets.js';
 
 const props = defineProps({
     pageTitle: { type: String, required: true },
@@ -352,25 +359,13 @@ const payoutOpen = ref(false);
 const payoutError = ref('');
 const disasterError = ref('');
 const expandedPayoutId = ref(null);
-const targets = ref(
-    Array.from({ length: 20 }, (_, index) => ({
-        id: index + 1,
-        payoutType: isDrmd.value ? 'ECT' : 'AICS',
-        ...(isDrmd.value
-            ? { disasterName: disasterNames[index % disasterNames.length] }
-            : {
-                programType: programTypes[index % programTypes.length],
-                assistanceType: 'Cash Assistance',
-            }),
-        targetBeneficiary: 1000000 + index * 250000,
-        targetDisbursement: 1000000 + index * 250000,
-        province: 'Davao del Sur',
-        city: 'City of Davao',
-        barangay: `Barangay ${index + 1}`,
-        dateStart: '2026-09-30',
-        dateEnd: '2026-10-05',
-    })),
-);
+const targets = ref([]);
+const isLoading = ref(true);
+const searchQuery = useDebounced(search, 150);
+const saveError = ref('');
+const isSaving = ref(false);
+
+let unsubscribeTargets = () => {};
 
 function createEmptyTarget() {
     const target = {
@@ -663,8 +658,12 @@ const formatDate = (value) => {
     return `${month}-${day}-${year}`;
 };
 
-const applyFilters = () => {
+watch(draftPrograms, () => {
     selectedPrograms.value = [...draftPrograms.value];
+    page.value = 1;
+}, { deep: true });
+
+const applyFilters = () => {
     filterOpen.value = false;
     page.value = 1;
 };
@@ -703,25 +702,19 @@ const closeTargetDialog = () => {
 };
 
 const saveTarget = () => {
-    const draft = targetDraft.value;
-    let valid = true;
-
-    if (isDrmd.value && !(draft.disasterName || '').trim()) {
-        disasterError.value = 'Select a disaster type.';
-        valid = false;
+    if (!isDrmd.value) {
+        const { province, city, barangay } = targetDraft.value;
+        if (![province, city, barangay].every((part) => (part || '').trim())) {
+            payoutError.value = 'Fill in Province, City/ Municipality and Barangay.';
+            payoutOpen.value = true;
+            return;
+        }
     }
-    if (![draft.province, draft.city, draft.barangay].every((part) => (part || '').trim())) {
-        payoutError.value = 'Fill in Province, City/ Municipality and Barangay.';
-        payoutOpen.value = true;
-        valid = false;
-    }
-    if (!valid) return;
-
-    disasterError.value = '';
     payoutError.value = '';
+    saveError.value = '';
     pendingTargetSave.value = {
         isNew: editingTargetId.value === null,
-        target: { ...draft },
+        target: { ...targetDraft.value },
         targetId: editingTargetId.value,
     };
 };
@@ -734,18 +727,33 @@ const showActionNotification = (message) => {
     }, 3500);
 };
 
-const confirmTargetSave = () => {
+const confirmTargetSave = async () => {
     const pendingSave = pendingTargetSave.value;
     if (!pendingSave) return;
 
-    if (pendingSave.isNew) {
-        targets.value.unshift({ id: Date.now(), ...pendingSave.target });
-    } else {
-        const targetIndex = targets.value.findIndex((item) => item.id === pendingSave.targetId);
-        if (targetIndex !== -1) {
-            targets.value[targetIndex] = { id: pendingSave.targetId, ...pendingSave.target };
-        }
+    isSaving.value = true;
+    saveError.value = '';
+
+    const section = isDrmd.value ? 'DRMD' : 'CIS';
+    const result = await persistTarget(section, pendingSave.target, pendingSave.targetId);
+
+    isSaving.value = false;
+
+    if (!result.ok) {
+        saveError.value = result.message;
+        pendingTargetSave.value = null;
+        return;
     }
+
+    const where = [pendingSave.target.province, pendingSave.target.city, pendingSave.target.barangay]
+        .filter(Boolean)
+        .join(' / ') || pendingSave.target.payoutSite || 'no payout site';
+
+    recordActivity(
+        'Target Management',
+        pendingSave.isNew ? 'Add Target' : 'Edit Target',
+        `${pendingSave.isNew ? 'Added' : 'Updated'} a ${section} target for ${where}`
+    );
 
     showActionNotification(pendingSave.isNew ? 'Target added successfully.' : 'Target updated successfully.');
     pendingTargetSave.value = null;
@@ -761,11 +769,28 @@ const closeFilterOnOutsidePointer = (event) => {
 onMounted(() => {
     document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
     document.addEventListener('pointerdown', closeFieldOnOutsidePointer);
+    unsubscribeTargets = subscribeTargets(isDrmd.value ? 'DRMD' : 'CIS', (list) => {
+        targets.value = list.map((target) => ({
+            ...target,
+            searchText: searchableText(
+                target.payoutType,
+                target.programType,
+                target.disasterName,
+                target.assistanceType,
+                target.payoutSite,
+                target.province,
+                target.city,
+                target.barangay
+            ),
+        }));
+        isLoading.value = false;
+    });
 });
 onUnmounted(() => {
     document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
     document.removeEventListener('pointerdown', closeFieldOnOutsidePointer);
     window.clearTimeout(actionNotificationTimer);
+    unsubscribeTargets();
 });
 
 watch(search, () => { page.value = 1; });
@@ -1424,6 +1449,12 @@ watch(search, () => { page.value = 1; });
     text-decoration: underline;
 }
 
+.save-error {
+    margin: 0;
+    color: #c73535;
+    font-size: 12px;
+}
+
 .dialog-actions {
     display: flex;
     justify-content: flex-end;
@@ -1522,5 +1553,12 @@ watch(search, () => { page.value = 1; });
     .target-heading h1 {
         font-size: 24px;
     }
+}
+
+.table-note td {
+    padding: 22px 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
 }
 </style>

@@ -1,6 +1,8 @@
 *.log
+*-firebase-adminsdk-*.json
 .DS_Store
 .env
+service-account.json
 .env.backup
 .env.production
 /.codex

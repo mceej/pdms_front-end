@@ -1,0 +1,81 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "users": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+        ".validate": "newData.hasChildren(['name', 'role', 'status']) && (newData.child('role').val() !== 'RDV Focal' || newData.hasChild('section'))",
+        "name": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "email": { ".validate": "newData.isString()" },
+        "section": { ".validate": "newData.val().matches(/^(CIS|DRMD)$/)" },
+        "role": { ".validate": "newData.val().matches(/^(ADMIN|MANCOM|RDV Focal)$/)" },
+        "status": { ".validate": "newData.val().matches(/^(Active|Inactive)$/)" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" },
+        "$other": { ".validate": false }
+      }
+    },
+
+    "targets": {
+      ".read": "auth != null",
+      ".indexOn": ["section", "payoutType", "programType", "dateStart"],
+      "$targetId": {
+        ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || (root.child('users').child(auth.uid).child('role').val() === 'RDV Focal' && root.child('users').child(auth.uid).child('section').val() === (newData.exists() ? newData.child('section').val() : data.child('section').val())))",
+        ".validate": "newData.hasChildren(['section', 'targetBeneficiary', 'targetDisbursement', 'dateStart', 'dateEnd']) && (newData.hasChildren(['provinceName', 'municipalityName', 'barangayName']) || newData.hasChild('payoutSite'))",
+        "section": { ".validate": "newData.val().matches(/^(CIS|DRMD)$/)" },
+        "payoutType": { ".validate": "newData.val().matches(/^(AICS|ECT|CCAM|Cash Assistance)$/)" },
+        "programType": { ".validate": "newData.val().matches(/^(AICS|AICS-Uplift|AKAP|ECT)$/)" },
+        "assistanceType": { ".validate": "newData.isString()" },
+        "disasterType": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "disasterName": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "targetBeneficiary": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "targetDisbursement": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "provinceId": { ".validate": "newData.isString() && root.child('geographies').child(newData.val()).exists()" },
+        "provinceName": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "municipalityId": { ".validate": "newData.isString() && root.child('geographies').child(newData.val()).exists()" },
+        "municipalityName": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "barangayId": { ".validate": "newData.isString() && root.child('geographies').child(newData.val()).exists()" },
+        "barangayName": { ".validate": "newData.isString() && newData.val().length > 0" },
+        "payoutSite": { ".validate": "newData.isString()" },
+        "dateStart": { ".validate": "newData.isString()" },
+        "dateEnd": { ".validate": "newData.isString()" },
+        "createdBy": { ".validate": "newData.isString()" },
+        "createdAt": { ".validate": "newData.isNumber()" },
+        "updatedAt": { ".validate": "newData.isNumber()" }
+      }
+    },
+
+    "geographies": {
+      ".read": "auth != null",
+      ".indexOn": ["level", "parentId"],
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "payoutRecords": {
+      ".read": "auth != null",
+      ".indexOn": ["program", "provinceId", "municipalityId", "barangayId", "servedDate", "servedListId"],
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "servedLists": {
+      ".read": "auth != null",
+      ".indexOn": ["importedAt", "barangayId", "fileName"],
+      ".write": false
+    },
+
+    "summaries": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+    },
+
+    "auditLogs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      ".indexOn": ["at", "uid"],
+      ".write": false
+    }
+  }
+}

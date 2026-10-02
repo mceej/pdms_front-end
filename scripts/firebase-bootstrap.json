@@ -1,0 +1,11 @@
+{
+  "users": {
+    "43VGdnS12EXpGu4Jg9PUQFuOk4Z2": {
+      "name": "Administrator",
+      "section": "CIS",
+      "role": "ADMIN",
+      "status": "Active",
+      "createdAt": 1790715734010
+    }
+  }
+}

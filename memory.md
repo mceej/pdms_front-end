@@ -19,7 +19,7 @@ Rules everyone working on this project follows. The project is a Vue 3 front end
 
 ## Best Practices
 
-- **Single responsibility:** each class, function and component does one job. Keep data loading out of page components — put it in its own module (today `resources/FrontEnd/mock/payoutDashboard.js`, later a real API module). In PHP, keep the request handling separate from the queries.
+- **Single responsibility:** each class, function and component does one job. Keep data loading out of page components — put it in its own module under `resources/FrontEnd/data/` (one file per table: `users.js`, `targets.js`, `payouts.js`, `auditLog.js`). Those are the only files that talk to Firebase, which is what keeps a later move to another database small. In PHP, keep the request handling separate from the queries.
 - **One query, not many:** never run a query inside a loop. Fetch what you need up front, joining or grouping in the query, then match the rows in code.
 
   ```php
