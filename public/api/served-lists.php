@@ -45,10 +45,22 @@ if (! in_array($role, ['ADMIN', 'RDV Focal'], true) || ($profile['status'] ?? ''
 function deleteRecordsOf(FirebaseAdmin $admin, string $servedListId): int
 {
     $removed = 0;
+    $batch = [];
 
+    // Removed in batches rather than one request per record, so deleting a
+    // large import is a handful of calls instead of thousands.
     foreach ($admin->findBy('payoutRecords', 'servedListId', $servedListId) as $recordId => $ignored) {
-        $admin->remove('payoutRecords/' . $recordId);
+        $batch[$recordId] = null;
         $removed++;
+
+        if (count($batch) === BATCH_SIZE) {
+            $admin->patch('payoutRecords', $batch);
+            $batch = [];
+        }
+    }
+
+    if ($batch !== []) {
+        $admin->patch('payoutRecords', $batch);
     }
 
     return $removed;

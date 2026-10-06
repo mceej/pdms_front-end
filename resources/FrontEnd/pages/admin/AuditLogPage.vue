@@ -489,8 +489,8 @@ watch(
 .admin-table th:nth-child(3) { width: 17%; }
 .admin-table th:nth-child(4) { width: 13%; }
 .admin-table th:nth-child(5) { width: 13%; }
-.admin-table th:nth-child(6) { width: 19%; }
-.admin-table th:nth-child(7) { width: 8%; }
+.admin-table th:nth-child(6) { width: 17%; }
+.admin-table th:nth-child(7) { width: 18%; }
 
 .admin-table th {
     position: sticky;
