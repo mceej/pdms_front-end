@@ -1,5 +1,10 @@
+<<<<<<< HEAD
     <template>
     <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]">
+=======
+<template>
+    <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]" @click="toggleOnBlankArea">
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
         <div class="sidebar-brand">
             <img src="/logo/dswdsidebarlogo.png" alt="DSWD logo" />
             <span v-if="sidebarExpanded">DSWD Assist Track</span>
@@ -60,6 +65,11 @@ const emit = defineEmits(['select', 'logout']);
 const sidebarRoot = ref(null);
 const sidebarExpanded = ref(false);
 
+const toggleOnBlankArea = (event) => {
+    if (event.target.closest('button, a, input, select, textarea, .sidebar-brand')) return;
+    sidebarExpanded.value = true;
+};
+
 const collapseOnOutsidePointer = (event) => {
     if (sidebarExpanded.value && !sidebarRoot.value?.contains(event.target)) {
         sidebarExpanded.value = false;
@@ -82,7 +92,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', collapseOnOutsideP
     height: 100vh;
     padding: 12px 7px;
     overflow: visible;
+<<<<<<< HEAD
     background: #2e3192;
+=======
+    background: #2E3192;
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     color: #fff;
     transition: width 180ms ease, flex-basis 180ms ease;
 }

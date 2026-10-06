@@ -50,6 +50,7 @@
             role="region"
             aria-label="Target management table"
             tabindex="0"
+            :style="{ '--visible-row-height': `${visibleTargets.length ? visibleTargets.length * 76 : 100}px` }"
         >
             <table :class="['target-table', { 'drmd-table': isDrmd }]">
                 <thead>
@@ -133,11 +134,6 @@
                 <button type="button" aria-label="Next page" :disabled="page === pageCount" @click="page++">›</button>
                 <button type="button" aria-label="Last page" :disabled="page === pageCount" @click="page = pageCount">»</button>
             </div>
-            <select v-model.number="pageSize" aria-label="Targets per page">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-            </select>
         </div>
 
         <div v-if="showTargetDialog" class="dialog-backdrop" @click.self="closeTargetDialog">
@@ -145,14 +141,18 @@
                 <h2>{{ editingTargetId === null ? 'Add New Target' : 'Edit Target' }}</h2>
                 <label>
                     Payout Type
+<<<<<<< HEAD
                     <select v-model="targetDraft.payoutType">
+=======
+                    <select v-model="targetDraft.payoutType" class="payout-type-select">
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                         <option>CCAM</option>
                         <option>Cash Assistance</option>
                     </select>
                 </label>
                 <label v-if="!isDrmd">
                     Program Type
-                    <select v-model="targetDraft.programType">
+                    <select v-model="targetDraft.programType" class="program-type-select">
                         <option v-for="program in programTypes" :key="program">{{ program }}</option>
                     </select>
                 </label>
@@ -211,12 +211,22 @@
                     <span class="dropdown-field-label">Payout Site</span>
                     <button
                         type="button"
+<<<<<<< HEAD
                         :class="['payout-trigger', { 'ss-invalid': payoutError }]"
+=======
+                        :class="[
+                            'payout-trigger',
+                            { 'ss-invalid': payoutError, 'payout-open': payoutOpen },
+                        ]"
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                         :aria-expanded="payoutOpen"
                         @click="payoutOpen = !payoutOpen"
                     >
                         <span :class="{ 'payout-placeholder': !draftPayoutSummary }">{{ draftPayoutSummary || 'Select payout site' }}</span>
+<<<<<<< HEAD
                         <i :class="['pi', payoutOpen ? 'pi-chevron-up' : 'pi-chevron-down']" aria-hidden="true"></i>
+=======
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                     </button>
                     <p v-if="payoutError" class="field-error" role="alert">{{ payoutError }}</p>
                     <div v-if="payoutOpen" class="payout-fields">
@@ -338,7 +348,7 @@ const filterLabel = computed(() => (isDrmd.value ? 'Disaster Type' : 'Program Ty
 const filterOptions = computed(() => (isDrmd.value ? disasterNames : programTypes));
 const search = ref('');
 const page = ref(1);
-const pageSize = ref(10);
+const pageSize = 10;
 const filterOpen = ref(false);
 const filterRoot = ref(null);
 const draftPrograms = ref([]);
@@ -355,7 +365,7 @@ const payoutError = ref('');
 const disasterError = ref('');
 const expandedPayoutId = ref(null);
 const targets = ref(
-    Array.from({ length: 10 }, (_, index) => ({
+    Array.from({ length: 20 }, (_, index) => ({
         id: index + 1,
         payoutType: isDrmd.value ? 'ECT' : 'AICS',
         ...(isDrmd.value
@@ -652,10 +662,10 @@ const filteredTargets = computed(() => {
     });
 });
 
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredTargets.value.length / pageSize.value)));
+const pageCount = computed(() => Math.max(1, Math.ceil(filteredTargets.value.length / pageSize)));
 const visibleTargets = computed(() => {
-    const start = (page.value - 1) * pageSize.value;
-    return filteredTargets.value.slice(start, start + pageSize.value);
+    const start = (page.value - 1) * pageSize;
+    return filteredTargets.value.slice(start, start + pageSize);
 });
 
 const formatAmount = (amount) => Number(amount || 0).toLocaleString();
@@ -770,7 +780,7 @@ onUnmounted(() => {
     window.clearTimeout(actionNotificationTimer);
 });
 
-watch([search, pageSize], () => { page.value = 1; });
+watch(search, () => { page.value = 1; });
 </script>
 
 <style scoped>
@@ -974,22 +984,69 @@ watch([search, pageSize], () => { page.value = 1; });
     margin: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     border: 1px solid #dce3ed;
-    background: #fff;
+    background-color: #fff;
+    background-image:
+        linear-gradient(to bottom, #f8faff 0 44px, #e4e8ef 44px 45px, transparent 45px),
+        repeating-linear-gradient(to bottom, #e4e8ef 0 1px, transparent 1px 76px);
+    background-position: left top, left 45px;
+    background-size: 100% 45px, 100% var(--visible-row-height);
+    background-repeat: no-repeat;
+    scrollbar-color: #9aa6b2 transparent;
+    scrollbar-width: thin;
+}
+
+.target-table-scroll::-webkit-scrollbar {
+    width: 12px;
+}
+
+.target-table-scroll::-webkit-scrollbar-track,
+.target-table-scroll::-webkit-scrollbar-button {
+    background: transparent;
+}
+
+.target-table-scroll::-webkit-scrollbar-button {
+    display: none;
+}
+
+.target-table-scroll::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-color: #9aa6b2;
+    background-clip: content-box;
 }
 
 .target-table {
     width: 100%;
     min-width: 0;
-    table-layout: auto;
+    table-layout: fixed;
     border-collapse: collapse;
     border-spacing: 0;
+    background: #fff;
     color: #111827;
     font-size: 14px;
     font-weight: 500;
     text-align: left;
     white-space: normal;
 }
+
+.target-table th:nth-child(1),
+.target-table td:nth-child(1) { width: 11%; }
+.target-table th:nth-child(2),
+.target-table td:nth-child(2) { width: 12.5%; }
+.target-table th:nth-child(3),
+.target-table td:nth-child(3) { width: 16.5%; }
+.target-table th:nth-child(4),
+.target-table td:nth-child(4) { width: 17.5%; }
+.target-table th:nth-child(5),
+.target-table td:nth-child(5) { width: 18%; }
+.target-table th:nth-child(6),
+.target-table td:nth-child(6) { width: 10%; }
+.target-table th:nth-child(7),
+.target-table td:nth-child(7) { width: 10%; }
+.target-table th:nth-child(8),
+.target-table td:nth-child(8) { width: 4.5%; }
 
 .target-table td {
     height: 76px;
@@ -1138,16 +1195,6 @@ watch([search, pageSize], () => { page.value = 1; });
     opacity: 0.4;
 }
 
-.target-pagination select {
-    padding: 4px 8px;
-    border: 1px solid #dce3ed;
-    border-radius: 4px;
-    background: #fff;
-    color: #516074;
-    font: inherit;
-    font-size: 11px;
-}
-
 .dialog-backdrop {
     position: fixed;
     inset: 0;
@@ -1205,6 +1252,27 @@ watch([search, pageSize], () => { page.value = 1; });
     opacity: 1;
 }
 
+<<<<<<< HEAD
+=======
+.target-dialog .program-type-select {
+    padding-right: 38px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-position: right 18px center;
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+}
+
+.target-dialog .payout-type-select {
+    padding-right: 38px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-position: right 18px center;
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+}
+
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 /* Searchable dropdowns (Disaster Type, Province, City/ Municipality, Barangay) */
 .dropdown-field {
     display: grid;
@@ -1246,9 +1314,20 @@ watch([search, pageSize], () => { page.value = 1; });
 
 .ss-chevron {
     position: absolute;
+<<<<<<< HEAD
     right: 10px;
     color: #718096;
     font-size: 10px;
+=======
+    right: 18px;
+    width: 10px;
+    height: 7px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+    color: #718096;
+    font-size: 0;
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     pointer-events: none;
     transition: transform 0.15s ease;
 }
@@ -1293,13 +1372,21 @@ watch([search, pageSize], () => { page.value = 1; });
 
 /* Payout Site trigger and its ordered fields */
 .payout-trigger {
+<<<<<<< HEAD
+=======
+    position: relative;
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     width: 100%;
     min-height: 34px;
+<<<<<<< HEAD
     padding: 6px 8px;
+=======
+    padding: 6px 38px 6px 9px;
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     background: #fff;
@@ -1315,14 +1402,39 @@ watch([search, pageSize], () => { page.value = 1; });
     color: #a0aab8;
 }
 
+<<<<<<< HEAD
 .payout-trigger i {
     font-size: 10px;
 }
 
+=======
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 .payout-trigger.ss-invalid {
     border-color: #d64545;
 }
 
+<<<<<<< HEAD
+=======
+.payout-trigger::after {
+    position: absolute;
+    top: 50%;
+    right: 18px;
+    width: 10px;
+    height: 7px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+    content: '';
+    pointer-events: none;
+    transform: translateY(-50%);
+    transition: transform 150ms ease;
+}
+
+.payout-trigger.payout-open::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 .payout-fields {
     display: grid;
     gap: 10px;

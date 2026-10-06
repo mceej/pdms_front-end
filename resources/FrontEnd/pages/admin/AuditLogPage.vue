@@ -49,7 +49,13 @@
             </div>
         </header>
 
-        <div class="table-wrap" role="region" aria-label="Audit log table" tabindex="0">
+        <div
+            class="table-wrap"
+            role="region"
+            aria-label="Audit log table"
+            tabindex="0"
+            :style="{ '--visible-row-height': `${visibleRows.length ? visibleRows.length * 76 : 100}px` }"
+        >
             <table class="admin-table">
                 <thead>
                     <tr>
@@ -126,11 +132,6 @@
                     »
                 </button>
             </div>
-            <select v-model.number="pageSize" aria-label="Audit log rows per page">
-                <option :value="10">10</option>
-                <option :value="25">25</option>
-                <option :value="50">50</option>
-            </select>
         </div>
 
         <AppFooter />
@@ -148,7 +149,7 @@ const moduleOptions = ['Target Management', 'Dashboard', 'Import Served List'];
 const draftModules = ref([]);
 const selectedModules = ref([]);
 const page = ref(1);
-const pageSize = ref(25);
+const pageSize = ref(10);
 const rows = ref(
     [
         ...Array.from({ length: 10 }, (_, rowIndex) => ({
@@ -279,12 +280,13 @@ watch(
 }
 
 .admin-page-header {
-    flex: 0 0 auto;
+    flex: 0 0 72px;
     position: relative;
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 20px;
+    height: 72px;
     min-height: 72px;
     margin-bottom: 14px;
 }
@@ -338,15 +340,6 @@ watch(
 
 .search-control i,
 .filter-control i {
-    font-size: 14px;
-}
-
-.table-pagination select {
-    border: 0;
-    outline: 0;
-    background: transparent;
-    color: #516074;
-    font: inherit;
     font-size: 14px;
 }
 
@@ -456,7 +449,6 @@ watch(
     color: #fff;
 }
 
-/* Keep every audit-log column within the page width; only vertical scrolling is needed. */
 .table-wrap {
     display: block;
     flex: 1 1 auto;
@@ -466,20 +458,58 @@ watch(
     min-width: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     border: 1px solid #dce3ed;
-    background: #fff;
+    background-color: #fff;
+    background-image:
+        linear-gradient(to bottom, #f8faff 0 44px, #e4e8ef 44px 45px, transparent 45px),
+        repeating-linear-gradient(to bottom, #e4e8ef 0 1px, transparent 1px 76px);
+    background-position: left top, left 45px;
+    background-size: 100% 45px, 100% var(--visible-row-height);
+    background-repeat: no-repeat;
+    scrollbar-color: #9aa6b2 transparent;
+    scrollbar-width: thin;
+}
+
+.table-wrap::-webkit-scrollbar {
+    width: 12px;
+}
+
+.table-wrap::-webkit-scrollbar-track,
+.table-wrap::-webkit-scrollbar-button {
+    background: transparent;
+}
+
+.table-wrap::-webkit-scrollbar-button {
+    display: none;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 8px;
+    background-color: #9aa6b2;
+    background-clip: content-box;
 }
 
 .admin-table {
     width: 100%;
     min-width: 0;
-    table-layout: auto;
+    table-layout: fixed;
     border-collapse: collapse;
+    background: #fff;
     color: #111827;
     font-size: 14px;
     text-align: left;
     white-space: normal;
 }
+
+.admin-table th:nth-child(1) { width: 17%; }
+.admin-table th:nth-child(2) { width: 13%; }
+.admin-table th:nth-child(3) { width: 17%; }
+.admin-table th:nth-child(4) { width: 13%; }
+.admin-table th:nth-child(5) { width: 13%; }
+.admin-table th:nth-child(6) { width: 19%; }
+.admin-table th:nth-child(7) { width: 8%; }
 
 .admin-table th {
     position: sticky;
@@ -523,10 +553,9 @@ watch(
 
 .table-pagination {
     flex: 0 0 auto;
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    justify-content: center;
-    gap: 24px;
     min-height: 44px;
     margin-bottom: 16px;
     border: 1px solid #dce3ed;
@@ -537,6 +566,7 @@ watch(
 .page-controls {
     display: flex;
     align-items: center;
+    grid-column: 2;
     gap: 5px;
 }
 
@@ -576,8 +606,11 @@ watch(
     }
 
     .admin-page-header {
+        flex: 0 0 auto;
         align-items: flex-start;
         flex-direction: column;
+        height: auto;
+        min-height: 0;
     }
 
     .admin-tools {
@@ -588,6 +621,20 @@ watch(
 
     .search-control {
         flex: 1 1 auto;
+    }
+
+    .table-pagination {
+        grid-template-columns: 1fr;
+        gap: 4px;
+        padding: 6px;
+    }
+
+    .page-controls {
+        grid-column: 1;
+    }
+
+    .page-controls {
+        justify-self: center;
     }
 }
 </style>
