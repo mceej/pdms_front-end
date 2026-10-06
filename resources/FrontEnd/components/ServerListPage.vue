@@ -204,6 +204,8 @@ const emit = defineEmits([
 <style scoped>
 .server-list-view {
   display: grid;
+  width: 100%;
+  min-width: 0;
   gap: 24px;
 }
 

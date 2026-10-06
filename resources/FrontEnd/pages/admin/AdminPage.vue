@@ -47,6 +47,7 @@ const logoutDialogOpen = ref(false);
 }
 
 .admin-content {
+    display: flex;
     flex: 1 1 auto;
     min-width: 0;
 }

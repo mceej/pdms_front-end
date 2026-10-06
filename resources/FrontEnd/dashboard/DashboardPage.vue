@@ -40,28 +40,39 @@
                         <div class="aics-control" ref="aicsControlRef">
                             <button
                                 type="button"
-                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' && !selectedAssistanceType }]"
+                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' }]"
                                 @click="toggleAicsTab"
                             >
                                 <i class="pi pi-box"></i>
                                 AICS
                                 <i class="pi pi-chevron-down ect-chevron" :class="{ open: assistanceMenuOpen }"></i>
                             </button>
-                            <div v-if="assistanceMenuOpen" class="disaster-menu">
+                            <div v-if="assistanceMenuOpen" class="disaster-menu aics-menu">
                                 <button
                                     type="button"
                                     class="disaster-menu-item disaster-menu-clear"
-                                    :disabled="!selectedAssistanceType"
-                                    @click="chooseAssistanceType('')"
+                                    :disabled="!selectedProgramType && !selectedAssistanceType"
+                                    @click="clearAicsFilters"
                                 >
                                     Clear selection
                                 </button>
+                                <span class="disaster-menu-label">Type of Program</span>
+                                <button
+                                    v-for="option in programTypeOptions"
+                                    :key="option"
+                                    type="button"
+                                    :class="['disaster-menu-item', { selected: selectedProgramType === option }]"
+                                    @click="selectProgramType(option)"
+                                >
+                                    {{ option }}
+                                </button>
+                                <span class="disaster-menu-label assistance-label">Type of Assistance</span>
                                 <button
                                     v-for="option in assistanceTypeOptions"
                                     :key="option"
                                     type="button"
                                     :class="['disaster-menu-item', { selected: selectedAssistanceType === option }]"
-                                    @click="chooseAssistanceType(option)"
+                                    @click="selectAssistanceType(option)"
                                 >
                                     {{ option }}
                                 </button>
@@ -71,29 +82,29 @@
                         <div class="ect-control" ref="ectControlRef">
                             <button
                                 type="button"
-                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
+                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' }]"
                                 @click="toggleEctTab"
                             >
                                 <i class="pi pi-file"></i>
                                 ECT
                                 <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
                             </button>
-
                             <div v-if="disasterMenuOpen" class="disaster-menu">
                                 <button
                                     type="button"
                                     class="disaster-menu-item disaster-menu-clear"
                                     :disabled="!selectedDisasterType"
-                                    @click="chooseDisasterType('')"
+                                    @click="selectDisasterType('')"
                                 >
                                     Clear selection
                                 </button>
+                                <span class="disaster-menu-label">Name of the Disaster</span>
                                 <button
                                     v-for="option in disasterOptions"
                                     :key="option"
                                     type="button"
                                     :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
-                                    @click="chooseDisasterType(option)"
+                                    @click="selectDisasterType(option)"
                                 >
                                     {{ option }}
                                 </button>
@@ -103,13 +114,27 @@
                         <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
                             {{ selectedDisasterType }}
                         </span>
-                        <span v-if="activeTab === 'AICS' && selectedAssistanceType" class="disaster-type-badge">
-                            {{ selectedAssistanceType }}
+                        <span
+                            v-if="activeTab === 'AICS' && aicsFilterSummary"
+                            class="disaster-type-badge filter-summary"
+                        >
+                            {{ aicsFilterSummary }}
                         </span>
                     </div>
                 </div>
             </header>
 
+            <div v-if="isLoading" class="dashboard-loading" role="status" aria-live="polite">
+                <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
+                Loading payout data…
+            </div>
+
+            <DashboardEmptyState
+                v-else-if="!loadError && !hasPayoutData"
+                :program="activeTab"
+            />
+
+            <template v-else-if="!loadError">
             <DashboardOverview
                 :total-target="totalTarget"
                 :total-paid-count="totalPaidCount"
@@ -161,6 +186,7 @@
                     @clear="clearDateRange"
                 />
             </div>
+            </template>
         </div>
 
         <footer class="dashboard-footer">
@@ -171,14 +197,15 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { fetchPayoutDashboard } from '../data/payouts.js';
 import ComparisonCharts from './ComparisonCharts.vue';
+import DashboardEmptyState from './DashboardEmptyState.vue';
 import DashboardOverview from './DashboardOverview.vue';
 import DashboardTable from './DashboardTable.vue';
-import { fetchPayoutDashboard } from '../data/payouts.js';
 
 const activeTab = ref('AICS');
-const disasterName = ref('');
 const selectedDisasterType = ref('');
+const selectedProgramType = ref('');
 const selectedAssistanceType = ref('');
 const disasterMenuOpen = ref(false);
 const assistanceMenuOpen = ref(false);
@@ -209,8 +236,7 @@ const formatUpdatedAt = (value) => {
 };
 
 const toggleAicsTab = () => {
-    const switchingIn = activeTab.value !== 'AICS';
-    if (switchingIn) {
+    if (activeTab.value !== 'AICS') {
         setTab('AICS');
         assistanceMenuOpen.value = true;
         return;
@@ -219,8 +245,7 @@ const toggleAicsTab = () => {
 };
 
 const toggleEctTab = () => {
-    const switchingIn = activeTab.value !== 'ECT';
-    if (switchingIn) {
+    if (activeTab.value !== 'ECT') {
         setTab('ECT');
         disasterMenuOpen.value = true;
         return;
@@ -228,19 +253,30 @@ const toggleEctTab = () => {
     disasterMenuOpen.value = !disasterMenuOpen.value;
 };
 
-const chooseDisasterType = (value) => {
+const selectDisasterType = (value) => {
     selectedDisasterType.value = value;
     disasterMenuOpen.value = false;
     applyFilters();
 };
 
-const chooseAssistanceType = (value) => {
+const selectAssistanceType = (value) => {
     selectedAssistanceType.value = value;
     assistanceMenuOpen.value = false;
     applyFilters();
 };
 
-const closeDisasterMenuOnOutsideClick = (event) => {
+const selectProgramType = (value) => {
+    selectedProgramType.value = value;
+    applyFilters();
+};
+
+const clearAicsFilters = () => {
+    selectedProgramType.value = '';
+    selectedAssistanceType.value = '';
+    applyFilters();
+};
+
+const closeFilterMenusOnOutsideClick = (event) => {
     if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
         disasterMenuOpen.value = false;
     }
@@ -251,6 +287,7 @@ const closeDisasterMenuOnOutsideClick = (event) => {
 
 const apiRows = ref([]);
 const apiLoaded = ref(false);
+const isLoading = ref(true);
 const loadError = ref('');
 const apiSummary = ref({
     target: 0, paid: 0, remaining: 0, targetAmount: 0,
@@ -270,7 +307,13 @@ const disasterOptions = computed(() => [
         ...apiDisasterTypes.value,
     ]),
 ]);
+const programTypeOptions = ['AICS', 'AKAP', 'Uplift'];
 const assistanceTypeOptions = ['Cash Assistance', 'Medical Support'];
+const aicsFilterSummary = computed(() =>
+    [selectedProgramType.value, selectedAssistanceType.value]
+        .filter(Boolean)
+        .join(' / ')
+);
 const apiPayoutSites = ref([]);
 
 const regionName = ref('REGION XI');
@@ -278,87 +321,19 @@ const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
 
-const createDummyProvinces = () => {
-        const letters = ['A', 'B', 'C', 'D', 'E'];
-        const provinceTargets = [5890, 5000, 5700, 5000, 5890];
-        const provincePaid = [2500, 3750, 3980, 3750, 2500];
-
-        return letters.map((provinceLetter, provinceIndex) => ({
-                name: `Province ${provinceLetter}`,
-                target: provinceTargets[provinceIndex],
-                paid: provincePaid[provinceIndex],
-                municipalities: letters.map((municipalityLetter, municipalityIndex) => {
-                        const target = 900 + (municipalityIndex * 120) + (provinceIndex * 80);
-                        const paid = Math.round(target * ([0.42, 0.55, 0.68, 0.75, 0.84][municipalityIndex]));
-
-                        return {
-                                name: `Municipality ${municipalityLetter}`,
-                                target,
-                                paid,
-                                payoutSite: `Site ${(municipalityIndex % 3) + 1}`,
-                                barangays: letters.map((barangayLetter, barangayIndex) => {
-                                        const barangayTarget = 180 + (barangayIndex * 55) + (municipalityIndex * 30);
-                                        const barangayPaid = Math.round(barangayTarget * ([0.38, 0.5, 0.62, 0.74, 0.86][barangayIndex]));
-
-                                        return {
-                                                name: `Barangay ${barangayLetter}`,
-                                                target: barangayTarget,
-                                                paid: barangayPaid,
-                                                beneficiaries: barangayPaid,
-                                        };
-                                }),
-                        };
-                }),
-        }));
-};
-
-const dashboardData = {
-        AICS: { target: 27480, provinces: createDummyProvinces() },
-        ECT: { target: 27480, provinces: createDummyProvinces() },
-};
-
-const activeData = computed(() => dashboardData[activeTab.value]);
-
-const totalTarget = computed(() => apiLoaded.value ? apiSummary.value.target : activeData.value.target);
-const totalDisbursed = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.amountDisbursed).toLocaleString()}`;
-    const sum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
-    return sum > 0 ? `₱${sum.toLocaleString()}` : '-----';
-});
-const totalPaidCount = computed(() => {
-    if (apiLoaded.value) return apiSummary.value.paid;
-    return activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
-});
-const totalRemaining = computed(() => {
-    if (apiLoaded.value) return apiSummary.value.remaining;
-    return Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0);
-});
-const totalBalance = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.targetAmount || 0).toLocaleString()}`;
-    return `₱${Number(totalTarget.value || 0).toLocaleString()}`;
-});
+const totalTarget = computed(() => apiSummary.value.target);
+const hasPayoutData = computed(() => Number(apiSummary.value.target || 0) > 0);
+const totalDisbursed = computed(() => `₱${Number(apiSummary.value.amountDisbursed).toLocaleString()}`);
+const totalPaidCount = computed(() => apiSummary.value.paid);
+const totalRemaining = computed(() => apiSummary.value.remaining);
+const totalBalance = computed(() => `₱${Number(apiSummary.value.targetAmount || 0).toLocaleString()}`);
 const unpaidBalance = computed(() => {
-    if (apiLoaded.value) {
-        const outstanding = Number(apiSummary.value.targetAmount || 0)
-            - Number(apiSummary.value.amountDisbursed || 0);
+    const outstanding = Number(apiSummary.value.targetAmount || 0)
+        - Number(apiSummary.value.amountDisbursed || 0);
 
-        return `₱${Math.max(outstanding, 0).toLocaleString()}`;
-    }
-
-    return formatCurrency(Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0));
+    return `₱${Math.max(outstanding, 0).toLocaleString()}`;
 });
-const unpaidDisbursed = computed(() => {
-    if (apiLoaded.value) return `₱${Number(apiSummary.value.unpaidAmount || 0).toLocaleString()}`;
-    return formatCurrency(Math.max(Number(totalTarget.value || 0) - Number(totalPaidCount.value || 0), 0));
-});
-const dashboardProgress = computed(() => {
-    if (apiLoaded.value) return apiSummary.value.progress;
-    const target = totalTarget.value || 0;
-    const paidSum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
-    return target ? Math.round((paidSum / target) * 100) : 0;
-});
-
-const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
+const dashboardProgress = computed(() => apiSummary.value.progress);
 
 const activeLevel = computed(() => {
   if (selectedBarangay.value) return 'detail';
@@ -368,26 +343,11 @@ const activeLevel = computed(() => {
 });
 
 const currentTableRows = computed(() => {
-    if (apiLoaded.value) {
-        const search = municipalitySearch.value.trim().toLowerCase();
-        return activeLevel.value === 'municipality' && search
-            ? apiRows.value.filter((row) => row.name.toLowerCase().includes(search))
-            : apiRows.value;
-    }
+    const search = municipalitySearch.value.trim().toLowerCase();
 
-    if (activeLevel.value === 'province') return activeData.value.provinces;
-    if (activeLevel.value === 'municipality') {
-        const munis = selectedProvince.value?.municipalities || [];
-        const filteredBySite = payoutSiteFilter.value
-            ? munis.filter((m) => m.payoutSite === payoutSiteFilter.value)
-            : munis;
-        const search = municipalitySearch.value.trim().toLowerCase();
-        return search
-            ? filteredBySite.filter((municipality) => municipality.name.toLowerCase().includes(search))
-            : filteredBySite;
-    }
-    if (activeLevel.value === 'barangay') return selectedMunicipality.value?.barangays || [];
-    return [];
+    return activeLevel.value === 'municipality' && search
+        ? apiRows.value.filter((row) => row.name.toLowerCase().includes(search))
+        : apiRows.value;
 });
 
 const rowsWithProgress = computed(() =>
@@ -483,7 +443,14 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
+    isLoading.value = true;
+    apiRows.value = [];
+    apiSummary.value = {
+        target: 0, paid: 0, remaining: 0, targetAmount: 0,
+        amountDisbursed: 0, unpaidAmount: 0, progress: 0,
+    };
     const filters = { program: activeTab.value };
+    if (selectedProgramType.value) filters.programType = selectedProgramType.value;
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
@@ -516,6 +483,7 @@ const fetchDashboard = async () => {
 
     // Either way the figures shown are the real ones, never the built-in samples.
     apiLoaded.value = true;
+    isLoading.value = false;
 };
 
 const handleRowClick = async (row) => {
@@ -570,15 +538,17 @@ const goToLevel = async (level) => {
 };
 
 const setTab = (tab) => {
+  if (activeTab.value === tab) return;
   activeTab.value = tab;
-  disasterName.value = '';
   selectedProvince.value = null;
   selectedMunicipality.value = null;
   selectedBarangay.value = null;
   payoutSiteFilter.value = '';
   municipalitySearch.value = '';
   selectedDisasterType.value = '';
+    selectedProgramType.value = '';
     selectedAssistanceType.value = '';
+    disasterMenuOpen.value = false;
     assistanceMenuOpen.value = false;
   fetchDashboard();
 };
@@ -616,8 +586,8 @@ const clearDateRange = () => {
     commitDateRange();
 };
 
-onMounted(() => document.addEventListener('click', closeDisasterMenuOnOutsideClick));
-onUnmounted(() => document.removeEventListener('click', closeDisasterMenuOnOutsideClick));
+onMounted(() => document.addEventListener('click', closeFilterMenusOnOutsideClick));
+onUnmounted(() => document.removeEventListener('click', closeFilterMenusOnOutsideClick));
 
 onMounted(() => fetchDashboard());
 onMounted(() => {
@@ -646,13 +616,16 @@ button {
 button:hover { background: #2e2789; }
 
 .dashboard-page {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 100vh;
+    min-height: 0;
     padding: 18px 30px 36px;
 }
 
 .dashboard-shell {
+    flex: 1 1 auto;
     width: 100%;
     max-width: none;
     margin: 0 auto;
@@ -670,6 +643,21 @@ button:hover { background: #2e2789; }
     border-radius: 10px;
     background: #fff;
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
+}
+
+.dashboard-loading {
+    display: flex;
+    min-height: 390px;
+    border: 1px solid #d5e0ea;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
+    color: #475569;
+    font-size: 16px;
+    font-weight: 600;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 .dashboard-header {
@@ -978,6 +966,23 @@ button:hover { background: #2e2789; }
     cursor: default;
 }
 
+.disaster-menu-label {
+    padding: 7px 10px 4px;
+    color: #b9c8f5;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.assistance-label {
+    margin-top: 5px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.aics-menu { min-width: 220px; }
+
 .disaster-type-badge {
     display: inline-flex;
     align-items: center;
@@ -997,7 +1002,12 @@ button:hover { background: #2e2789; }
     text-overflow: ellipsis;
 }
 
+.filter-summary {
+    max-width: 320px;
+}
+
 .dashboard-footer {
+    flex: 0 0 auto;
     width: calc(100% + 60px);
     margin: 36px -30px -36px;
     padding: 8px 18px;

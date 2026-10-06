@@ -91,6 +91,7 @@
 <script setup>
 import ColumnGroup from 'primevue/columngroup';
 import Row from 'primevue/row';
+import { defineEmits, defineProps, } from 'vue';
 
 const props = defineProps({
   breadcrumbItems: { type: Array, required: true },

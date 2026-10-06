@@ -93,18 +93,49 @@ const groupingFor = (level) => {
     }
 };
 
+const programFor = (record) => String(record.programType || record.program || '').toUpperCase();
+
+const belongsToProgram = (record, program) => {
+    const recordProgram = programFor(record);
+
+    if (program === 'AICS') {
+        return ['AICS', 'AKAP', 'UPLIFT', 'AICS-UPLIFT'].includes(recordProgram);
+    }
+
+    return program === 'ECT' ? recordProgram === 'ECT' : true;
+};
+
 const matchesFilters = (record, filters) => {
     const pairs = [
-        ['program', filters.program],
         ['disasterType', filters.disasterType],
-        // Imported records do not carry an assistance type yet, so choosing one
-        // matches nothing until the import starts storing it.
-        ['assistanceType', filters.assistanceType],
         ['provinceId', filters.provinceId],
         ['municipalityId', filters.municipalityId],
         ['barangayId', filters.barangayId],
         ['payoutSite', filters.payoutSite],
     ];
+
+    const recordProgram = programFor(record);
+
+    if (! belongsToProgram(record, filters.program)) {
+        return false;
+    }
+
+    if (filters.programType) {
+        const wantedProgram = filters.programType.toUpperCase();
+        const matchesProgramType = wantedProgram === 'UPLIFT'
+            ? ['UPLIFT', 'AICS-UPLIFT'].includes(recordProgram)
+            : recordProgram === wantedProgram;
+
+        if (! matchesProgramType) {
+            return false;
+        }
+    }
+
+    // Records imported before assistance types were stored remain visible.
+    if (filters.assistanceType && record.assistanceType
+        && record.assistanceType !== filters.assistanceType) {
+        return false;
+    }
 
     const matches = pairs.every(([field, wanted]) => {
         return wanted === undefined || wanted === null || wanted === '' || String(record[field]) === String(wanted);
@@ -159,8 +190,9 @@ export const fetchPayoutDashboard = async (filters = {}) => {
 
     const disasterTypes = [...new Set(
         records
-            .filter((record) => ! filters.program || record.program === filters.program)
+            .filter((record) => belongsToProgram(record, filters.program))
             .map((record) => record.disasterType)
+            .filter(Boolean)
     )].sort();
 
     return {
