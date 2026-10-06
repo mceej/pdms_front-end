@@ -53,6 +53,27 @@
             :style="{ '--visible-row-height': `${visibleTargets.length ? visibleTargets.length * 76 : 100}px` }"
         >
             <table :class="['target-table', { 'drmd-table': isDrmd }]">
+                <colgroup v-if="isDrmd">
+                    <col class="payout-type-column" />
+                    <col class="type-column" />
+                    <col class="beneficiary-column" />
+                    <col class="disbursement-column" />
+                    <col class="payout-column" />
+                    <col class="date-column" />
+                    <col class="date-column" />
+                    <col class="action-column" />
+                </colgroup>
+                <colgroup v-else>
+                    <col class="payout-type-column" />
+                    <col class="program-column" />
+                    <col class="assistance-column" />
+                    <col class="beneficiary-column" />
+                    <col class="disbursement-column" />
+                    <col class="payout-column" />
+                    <col class="date-column" />
+                    <col class="date-column" />
+                    <col class="action-column" />
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Payout Type</th>
@@ -1044,22 +1065,22 @@ watch(search, () => { page.value = 1; });
     white-space: normal;
 }
 
-.target-table th:nth-child(1),
-.target-table td:nth-child(1) { width: 11%; }
-.target-table th:nth-child(2),
-.target-table td:nth-child(2) { width: 12.5%; }
-.target-table th:nth-child(3),
-.target-table td:nth-child(3) { width: 16.5%; }
-.target-table th:nth-child(4),
-.target-table td:nth-child(4) { width: 17.5%; }
-.target-table th:nth-child(5),
-.target-table td:nth-child(5) { width: 18%; }
-.target-table th:nth-child(6),
-.target-table td:nth-child(6) { width: 10%; }
-.target-table th:nth-child(7),
-.target-table td:nth-child(7) { width: 10%; }
-.target-table th:nth-child(8),
-.target-table td:nth-child(8) { width: 4.5%; }
+.target-table.drmd-table .payout-type-column { width: 11%; }
+.target-table.drmd-table .type-column { width: 14%; }
+.target-table.drmd-table .beneficiary-column { width: 15%; }
+.target-table.drmd-table .disbursement-column { width: 16%; }
+.target-table.drmd-table .payout-column { width: 17%; }
+.target-table.drmd-table .date-column { width: 10.5%; }
+.target-table.drmd-table .action-column { width: 6%; }
+
+.target-table:not(.drmd-table) .payout-type-column { width: 9%; }
+.target-table:not(.drmd-table) .program-column { width: 10%; }
+.target-table:not(.drmd-table) .assistance-column { width: 12%; }
+.target-table:not(.drmd-table) .beneficiary-column { width: 14%; }
+.target-table:not(.drmd-table) .disbursement-column { width: 15%; }
+.target-table:not(.drmd-table) .payout-column { width: 16%; }
+.target-table:not(.drmd-table) .date-column { width: 9%; }
+.target-table:not(.drmd-table) .action-column { width: 6%; }
 
 .target-table td {
     height: 76px;
@@ -1078,11 +1099,15 @@ watch(search, () => { page.value = 1; });
     color: #354768;
     font-size: 14px;
     font-weight: 700;
+    line-height: 1.25;
+    text-align: left;
     text-transform: uppercase;
+    vertical-align: middle;
 }
 
 .target-table .action-col {
-    width: auto;
+    padding-right: 8px;
+    padding-left: 8px;
     text-align: center;
     background: #fff;
 }
