@@ -311,12 +311,22 @@ class FirebaseAdmin
     {
         $reason = (string) ($response['body']['error']['message'] ?? 'UNKNOWN');
 
-        return match (true) {
+        $known = match (true) {
             str_contains($reason, 'EMAIL_EXISTS') => 'That email already has an account.',
             str_contains($reason, 'INVALID_EMAIL') => 'That email address is not valid.',
-            str_contains($reason, 'WEAK_PASSWORD') => 'The password must be at least 6 characters.',
+            str_contains($reason, 'WEAK_PASSWORD') => 'That password is too weak.',
             str_contains($reason, 'USER_NOT_FOUND') => 'That account no longer exists.',
-            default => 'Firebase refused the request: ' . $reason,
+            default => null,
         };
+
+        if ($known !== null) {
+            return $known;
+        }
+
+        // Anything unrecognised is Google talking to us, not to the person at
+        // the screen, and repeating it back would describe the server to them.
+        error_log('DATS: Firebase refused the request: ' . $reason);
+
+        return 'Firebase would not accept that. Try again, or ask an administrator.';
     }
 }

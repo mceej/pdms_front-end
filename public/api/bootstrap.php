@@ -12,6 +12,22 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 header('Content-Type: application/json');
+// The body is always JSON; never let a browser decide otherwise and run it.
+header('X-Content-Type-Options: nosniff');
+
+/**
+ * Stop on something the caller can do nothing about.
+ *
+ * The reason goes to the log rather than the reply. Messages from this layer
+ * name server files and quote Google's answers back, and neither is any of a
+ * caller's business — least of all a caller who is guessing.
+ */
+function cannotContinue(Throwable $problem): never
+{
+    error_log('DATS: ' . $problem->getMessage());
+
+    respond(['message' => 'The server is not set up correctly. Ask an administrator.'], 500);
+}
 
 /**
  * Load the application configuration.

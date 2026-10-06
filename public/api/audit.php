@@ -17,7 +17,7 @@ $body = jsonBody();
 try {
     $admin = new FirebaseAdmin(config()['firebase']);
 } catch (RuntimeException $exception) {
-    respond(['message' => $exception->getMessage()], 500);
+    cannotContinue($exception);
 }
 
 $accountId = $admin->accountIdForToken((string) ($body['idToken'] ?? ''));

@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/FileCache.php';
 require_once __DIR__ . '/HttpJson.php';
 
 /**
@@ -73,17 +74,14 @@ class GoogleServiceAccount
     }
 
     /**
-     * Where the token waits between requests.
+     * Which cache entry belongs to this key.
      *
-     * Not in public/, and named after a hash of the key rather than the account,
-     * so the file says nothing about whose it is. It holds a token, never the
-     * key that signs them.
+     * Named after the key it came from, so two projects never share a token,
+     * and hashed, so the file name says nothing about whose it is.
      */
-    private function tokenPath(): string
+    private function cacheKey(): string
     {
-        $identity = ($this->key['client_email'] ?? '') . '|' . ($this->key['private_key_id'] ?? '');
-
-        return sys_get_temp_dir() . '/dswd-dats-token-' . substr(hash('sha256', $identity), 0, 32) . '.json';
+        return ($this->key['client_email'] ?? '') . '|' . ($this->key['private_key_id'] ?? '');
     }
 
     /**
@@ -93,15 +91,9 @@ class GoogleServiceAccount
      */
     private function savedToken(): ?array
     {
-        $path = $this->tokenPath();
+        $saved = (new FileCache('google-access-token'))->get($this->cacheKey());
 
-        if (! is_file($path) || ! is_readable($path)) {
-            return null;
-        }
-
-        $saved = json_decode((string) @file_get_contents($path), true);
-
-        if (! is_array($saved) || ! isset($saved['access_token'], $saved['expires_at'])) {
+        if ($saved === null || ! isset($saved['access_token'], $saved['expires_at'])) {
             return null;
         }
 
@@ -117,29 +109,17 @@ class GoogleServiceAccount
     /**
      * Keep the token for the next request.
      *
-     * Written to a new file first and then moved into place, so a request can
-     * never read half of one. Readable only by the user the server runs as:
-     * for the hour it lives, this token can do everything the key can.
+     * For the hour it lives, this token can do everything the key can, so it is
+     * held the way the key is: outside public/, and readable only by the user
+     * the server runs as.
      */
     private function saveToken(): void
     {
-        $path = $this->tokenPath();
-        $temporary = $path . '.' . getmypid();
-
-        $written = @file_put_contents($temporary, json_encode([
-            'access_token' => $this->accessToken,
-            'expires_at' => $this->expiresAt,
-        ]));
-
-        if ($written === false) {
-            return;
-        }
-
-        @chmod($temporary, 0600);
-
-        if (! @rename($temporary, $path)) {
-            @unlink($temporary);
-        }
+        (new FileCache('google-access-token'))->put(
+            $this->cacheKey(),
+            ['access_token' => $this->accessToken, 'expires_at' => $this->expiresAt],
+            $this->expiresAt
+        );
     }
 
     /**

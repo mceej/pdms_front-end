@@ -56,9 +56,9 @@
     },
 
     "payoutRecords": {
-      ".read": "auth != null",
+      ".read": false,
       ".indexOn": ["program", "provinceId", "municipalityId", "barangayId", "servedDate", "servedListId"],
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+      ".write": false
     },
 
     "servedLists": {

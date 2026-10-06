@@ -9,6 +9,13 @@
 
 require_once __DIR__ . '/bootstrap.php';
 
+/**
+ * Firebase will accept six characters. This system moves public money and has
+ * no password reset, so an account's password is set once by an administrator
+ * and then lives a long time. Twelve is the floor here.
+ */
+const MINIMUM_PASSWORD = 12;
+
 requireMethod('POST');
 
 $body = jsonBody();
@@ -16,7 +23,7 @@ $body = jsonBody();
 try {
     $admin = new FirebaseAdmin(config()['firebase']);
 } catch (RuntimeException $exception) {
-    respond(['message' => $exception->getMessage()], 500);
+    cannotContinue($exception);
 }
 
 $caller = requireAdmin($admin, $body);
@@ -87,8 +94,8 @@ try {
             requireValidProfile($profile);
             $password = (string) ($body['password'] ?? '');
 
-            if (strlen($password) < 6) {
-                respond(['message' => 'The password must be at least 6 characters.'], 422);
+            if (strlen($password) < MINIMUM_PASSWORD) {
+                respond(['message' => 'The password must be at least ' . MINIMUM_PASSWORD . ' characters.'], 422);
             }
 
             $newId = $admin->createAccount($profile['email'], $password, $profile['name']);
@@ -155,8 +162,8 @@ try {
 
             $password = (string) ($body['password'] ?? '');
 
-            if (strlen($password) < 6) {
-                respond(['message' => 'The password must be at least 6 characters.'], 422);
+            if (strlen($password) < MINIMUM_PASSWORD) {
+                respond(['message' => 'The password must be at least ' . MINIMUM_PASSWORD . ' characters.'], 422);
             }
 
             $admin->setPassword($accountId, $password);

@@ -1,8 +1,9 @@
 // The dashboard's figures, worked out by the server in one request.
 //
-// payouts.js reads every payout record and groups them in the browser. This
-// asks the server for the finished figures instead, so the page carries one
-// response rather than the whole branch.
+// The browser used to read every payout record and group them here. It asks the
+// server for the finished figures instead, so the page carries one response
+// rather than the whole branch — and the browser no longer needs to be allowed
+// to read payoutRecords at all.
 import { limitToLast, onValue, orderByChild, query, ref as databaseRef } from 'firebase/database';
 import { auth, database } from '../firebase/app.js';
 

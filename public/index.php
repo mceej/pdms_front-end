@@ -9,6 +9,12 @@
 
 const ENTRY = 'resources/FrontEnd/app.js';
 
+// A payout dashboard has no business being framed by another site, guessed at
+// by a browser, or naming itself in the address it sends somewhere else.
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: DENY');
+header('Referrer-Policy: same-origin');
+
 /**
  * Build the <script>/<link> tags for the Vue app.
  *

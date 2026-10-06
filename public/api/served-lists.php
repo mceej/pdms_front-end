@@ -15,12 +15,16 @@ require_once __DIR__ . '/../../src/ServedListReader.php';
 
 const BATCH_SIZE = 500;
 
+// A served list is one row per beneficiary; even a very long one is far under
+// this. Anything bigger is a mistake or an attempt to tie the server up.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+
 requireMethod('POST');
 
 try {
     $admin = new FirebaseAdmin(config()['firebase']);
 } catch (RuntimeException $exception) {
-    respond(['message' => $exception->getMessage()], 500);
+    cannotContinue($exception);
 }
 
 // The file arrives as a form upload, so the fields come from $_POST.
@@ -128,10 +132,31 @@ function refuse(
     respond(['message' => $reason], $status);
 }
 
-$fileName = (string) ($_FILES['file']['name'] ?? '');
+// A long name serves nobody and ends up in the audit log and the database.
+$fileName = substr(trim((string) ($_FILES['file']['name'] ?? '')), 0, 200);
 
 if (($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
     refuse($admin, $accountId, $profile, $fileName, 'Choose a CSV file to import.');
+}
+
+if (strtolower((string) pathinfo($fileName, PATHINFO_EXTENSION)) !== 'csv') {
+    refuse($admin, $accountId, $profile, $fileName, 'The file must be a .csv.');
+}
+
+if ((int) ($_FILES['file']['size'] ?? 0) > MAX_UPLOAD_BYTES) {
+    refuse(
+        $admin,
+        $accountId,
+        $profile,
+        $fileName,
+        'That file is larger than ' . (MAX_UPLOAD_BYTES / 1048576) . ' MB. Split it and import the parts.'
+    );
+}
+
+// The file is only ever read as text, never moved anywhere a server would run
+// it, so where it landed matters more than what it is called.
+if (! is_uploaded_file((string) ($_FILES['file']['tmp_name'] ?? ''))) {
+    refuse($admin, $accountId, $profile, $fileName, 'That upload did not arrive properly. Try again.');
 }
 
 // AICS belongs to CIS and ECT to DRMD, so the programme follows the person's
