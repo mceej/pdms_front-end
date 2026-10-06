@@ -1,4 +1,4 @@
-<template>
+    <template>
     <aside ref="sidebarRoot" :class="['role-sidebar', { expanded: sidebarExpanded }]">
         <div class="sidebar-brand">
             <img src="/logo/dswdsidebarlogo.png" alt="DSWD logo" />
@@ -82,7 +82,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', collapseOnOutsideP
     height: 100vh;
     padding: 12px 7px;
     overflow: visible;
-    background: #063d94;
+    background: #2e3192;
     color: #fff;
     transition: width 180ms ease, flex-basis 180ms ease;
 }

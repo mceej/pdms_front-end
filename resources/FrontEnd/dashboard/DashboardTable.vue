@@ -305,7 +305,7 @@ const emit = defineEmits([
 }
 
 .progress-pct {
-  color: #313b83;
+  color: #2e3192;
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -317,11 +317,11 @@ const emit = defineEmits([
 }
 
 :deep(.compact-progress .p-progressbar-value) {
-  background: #052f86;
+  background: #2e3192;
 }
 
 .progress-remaining {
-  color: #ee1c25;
+  color: #d93f2f;
   font-size: 0.90rem;
   font-weight: 700;
 }

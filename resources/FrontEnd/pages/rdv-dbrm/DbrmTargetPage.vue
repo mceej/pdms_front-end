@@ -55,7 +55,7 @@
                 <thead>
                     <tr>
                         <th>Payout Type</th>
-                        <th v-if="isDrmd">Disaster Name</th>
+                        <th v-if="isDrmd">Disaster Type</th>
                         <template v-else>
                             <th>Program Type</th>
                             <th>Type of Assistance</th>
@@ -78,7 +78,25 @@
                         </template>
                         <td>{{ formatAmount(target.targetBeneficiary) }}</td>
                         <td>{{ formatAmount(target.targetDisbursement) }}</td>
-                        <td>{{ target.payoutSite }}</td>
+                        <td class="payout-cell">
+                            <button
+                                type="button"
+                                class="payout-toggle"
+                                :aria-expanded="expandedPayoutId === target.id"
+                                @click="togglePayoutDetails(target.id)"
+                            >
+                                Payout Site
+                                <i
+                                    :class="['pi', expandedPayoutId === target.id ? 'pi-chevron-up' : 'pi-chevron-down']"
+                                    aria-hidden="true"
+                                ></i>
+                            </button>
+                            <ol v-if="expandedPayoutId === target.id" class="payout-details">
+                                <li><span>Province</span>{{ target.province }}</li>
+                                <li><span>City/ Municipality</span>{{ target.city }}</li>
+                                <li><span>Barangay</span>{{ target.barangay }}</li>
+                            </ol>
+                        </td>
                         <td>{{ formatDate(target.dateStart) }}</td>
                         <td>{{ formatDate(target.dateEnd) }}</td>
                         <td class="action-col">
@@ -128,8 +146,8 @@
                 <label>
                     Payout Type
                     <select v-model="targetDraft.payoutType">
-                        <option>AICS</option>
-                        <option>ECT</option>
+                        <option>CCAM</option>
+                        <option>Cash Assistance</option>
                     </select>
                 </label>
                 <label v-if="!isDrmd">
@@ -138,14 +156,44 @@
                         <option v-for="program in programTypes" :key="program">{{ program }}</option>
                     </select>
                 </label>
-                <label v-else>
-                    Disaster Name
-                    <select v-model="targetDraft.disasterName">
-                        <option v-for="disaster in disasterNames" :key="disaster">
-                            {{ disaster }}
-                        </option>
-                    </select>
-                </label>
+                <div v-else class="dropdown-field">
+                    <span class="dropdown-field-label">Disaster Type</span>
+                    <div :class="['ss-control', { 'ss-open': openField === disasterField.key }]">
+                        <input
+                            class="ss-input"
+                            :class="{ 'ss-invalid': disasterError }"
+                            type="text"
+                            role="combobox"
+                            autocomplete="off"
+                            aria-autocomplete="list"
+                            :aria-label="disasterField.label"
+                            :aria-expanded="openField === disasterField.key"
+                            :value="openField === disasterField.key ? fieldQuery : targetDraft.disasterName"
+                            :placeholder="disasterField.placeholder"
+                            @focus="openFieldList(disasterField)"
+                            @click="openFieldList(disasterField)"
+                            @input="onFieldInput"
+                            @keydown="onFieldKeydown($event, disasterField)"
+                        />
+                        <i class="pi pi-chevron-down ss-chevron" aria-hidden="true"></i>
+                    </div>
+                    <ul v-if="openField === disasterField.key" class="ss-list" role="listbox">
+                        <li v-if="activeOptions.length === 0" class="ss-empty">No matches found.</li>
+                        <li
+                            v-for="(option, index) in activeOptions"
+                            :key="`${option}-${index}`"
+                            role="option"
+                            :aria-selected="option === targetDraft.disasterName"
+                            :class="{
+                                'ss-active': index === activeIndex,
+                                'ss-selected': option === targetDraft.disasterName,
+                            }"
+                            @mousedown.prevent="pickOption(disasterField, option)"
+                            @mousemove="activeIndex = index"
+                        >{{ option }}</li>
+                    </ul>
+                    <p v-if="disasterError" class="field-error" role="alert">{{ disasterError }}</p>
+                </div>
                 <label v-if="!isDrmd">
                     Type of Assistance
                     <input v-model="targetDraft.assistanceType" required />
@@ -158,10 +206,65 @@
                     Target Disbursement
                     <input v-model.number="targetDraft.targetDisbursement" type="number" min="0" required />
                 </label>
-                <label>
-                    Payout Site
-                    <input v-model="targetDraft.payoutSite" required />
-                </label>
+
+                <div class="dropdown-field">
+                    <span class="dropdown-field-label">Payout Site</span>
+                    <button
+                        type="button"
+                        :class="['payout-trigger', { 'ss-invalid': payoutError }]"
+                        :aria-expanded="payoutOpen"
+                        @click="payoutOpen = !payoutOpen"
+                    >
+                        <span :class="{ 'payout-placeholder': !draftPayoutSummary }">{{ draftPayoutSummary || 'Select payout site' }}</span>
+                        <i :class="['pi', payoutOpen ? 'pi-chevron-up' : 'pi-chevron-down']" aria-hidden="true"></i>
+                    </button>
+                    <p v-if="payoutError" class="field-error" role="alert">{{ payoutError }}</p>
+                    <div v-if="payoutOpen" class="payout-fields">
+                        <div v-for="(field, fieldIndex) in payoutFields" :key="field.key" class="dropdown-field">
+                            <span class="dropdown-field-label">{{ fieldIndex + 1 }}. {{ field.label }}</span>
+                            <div :class="['ss-control', { 'ss-open': openField === field.key }]">
+                                <input
+                                    class="ss-input"
+                                    type="text"
+                                    role="combobox"
+                                    autocomplete="off"
+                                    aria-autocomplete="list"
+                                    :aria-label="field.label"
+                                    :aria-expanded="openField === field.key"
+                                    :disabled="field.disabled"
+                                    :value="openField === field.key ? fieldQuery : targetDraft[field.key]"
+                                    :placeholder="field.loading ? 'Loading…' : field.placeholder"
+                                    @focus="openFieldList(field)"
+                                    @click="openFieldList(field)"
+                                    @input="onFieldInput"
+                                    @keydown="onFieldKeydown($event, field)"
+                                />
+                                <i class="pi pi-chevron-down ss-chevron" aria-hidden="true"></i>
+                            </div>
+                            <ul v-if="openField === field.key" class="ss-list" role="listbox">
+                                <li v-if="field.loading" class="ss-empty">Loading…</li>
+                                <li v-else-if="activeOptions.length === 0" class="ss-empty">No matches found.</li>
+                                <li
+                                    v-for="(option, index) in activeOptions"
+                                    :key="`${option}-${index}`"
+                                    role="option"
+                                    :aria-selected="option === targetDraft[field.key]"
+                                    :class="{
+                                        'ss-active': index === activeIndex,
+                                        'ss-selected': option === targetDraft[field.key],
+                                    }"
+                                    @mousedown.prevent="pickOption(field, option)"
+                                    @mousemove="activeIndex = index"
+                                >{{ option }}</li>
+                            </ul>
+                        </div>
+                        <p v-if="payoutLoadError" class="field-error" role="alert">
+                            {{ payoutLoadError }}
+                            <button type="button" class="payout-retry" @click="retryPayoutLoad">Retry</button>
+                        </p>
+                    </div>
+                </div>
+
                 <label>
                     Date Start
                     <input v-model="targetDraft.dateStart" type="date" required />
@@ -209,7 +312,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
 
 const props = defineProps({
@@ -217,7 +320,7 @@ const props = defineProps({
     variant: { type: String, default: 'cis' },
 });
 
-const programTypes = ['AICS', 'CRA', 'Uplift', 'Akap'];
+const programTypes = ['AICS', 'AICS-Uplift', 'AKAP', 'ECT'];
 const disasterNames = [
     'Earthquake',
     'Flood',
@@ -231,7 +334,7 @@ const disasterNames = [
     'Tropical Storm',
 ];
 const isDrmd = computed(() => props.variant === 'drmd');
-const filterLabel = computed(() => (isDrmd.value ? 'Disaster Name' : 'Program Type'));
+const filterLabel = computed(() => (isDrmd.value ? 'Disaster Type' : 'Program Type'));
 const filterOptions = computed(() => (isDrmd.value ? disasterNames : programTypes));
 const search = ref('');
 const page = ref(1);
@@ -247,6 +350,10 @@ const pendingTargetSave = ref(null);
 const actionNotification = ref('');
 let actionNotificationTimer;
 const targetDraft = ref(createEmptyTarget());
+const payoutOpen = ref(false);
+const payoutError = ref('');
+const disasterError = ref('');
+const expandedPayoutId = ref(null);
 const targets = ref(
     Array.from({ length: 10 }, (_, index) => ({
         id: index + 1,
@@ -259,7 +366,9 @@ const targets = ref(
             }),
         targetBeneficiary: 1000000 + index * 250000,
         targetDisbursement: 1000000 + index * 250000,
-        payoutSite: ['Barangay A', 'Barangay B', 'Barangay C', 'Barangay D', 'Barangay E'][index % 5],
+        province: 'Davao del Sur',
+        city: 'City of Davao',
+        barangay: `Barangay ${index + 1}`,
         dateStart: '2026-09-30',
         dateEnd: '2026-10-05',
     })),
@@ -270,13 +379,15 @@ function createEmptyTarget() {
         payoutType: isDrmd.value ? 'ECT' : 'AICS',
         targetBeneficiary: 0,
         targetDisbursement: 0,
-        payoutSite: '',
+        province: '',
+        city: '',
+        barangay: '',
         dateStart: '',
         dateEnd: '',
     };
 
     if (isDrmd.value) {
-        target.disasterName = disasterNames[0];
+        target.disasterName = '';
     } else {
         target.programType = programTypes[0];
         target.assistanceType = 'Cash Assistance';
@@ -284,6 +395,251 @@ function createEmptyTarget() {
 
     return target;
 }
+
+const draftPayoutSummary = computed(() =>
+    [targetDraft.value.province, targetDraft.value.city, targetDraft.value.barangay]
+        .map((part) => (part || '').trim())
+        .filter(Boolean)
+        .join(' › '),
+);
+
+const togglePayoutDetails = (id) => {
+    expandedPayoutId.value = expandedPayoutId.value === id ? null : id;
+};
+
+// Location data from the Philippine Standard Geographic Code (PSGC) API
+const PSGC_BASE = 'https://psgc.gitlab.io/api';
+const NCR_CODE = '130000000';
+const NCR_NAME = 'Metro Manila (NCR)';
+const provinces = ref([]);
+const cities = ref([]);
+const barangays = ref([]);
+const provincesLoading = ref(false);
+const citiesLoading = ref(false);
+const barangaysLoading = ref(false);
+const payoutLoadError = ref('');
+const loadErrorMessage = 'Could not load locations. Check your connection and try again.';
+let provincesPromise = null;
+let cityRequestId = 0;
+let barangayRequestId = 0;
+
+const provinceNames = computed(() => provinces.value.map((item) => item.name));
+const cityNames = computed(() => cities.value.map((item) => item.name));
+const barangayNames = computed(() => barangays.value.map((item) => item.name));
+const codeFor = (list, name) => list.find((item) => item.name === name)?.code;
+const byName = (a, b) => a.name.localeCompare(b.name);
+
+const fetchPsgc = async (path) => {
+    const response = await fetch(`${PSGC_BASE}${path}`);
+    if (!response.ok) throw new Error(`PSGC request failed (${response.status})`);
+    const data = await response.json();
+    return data.map(({ code, name }) => ({ code, name })).sort(byName);
+};
+
+const loadProvinces = () => {
+    if (!provincesPromise) {
+        provincesLoading.value = true;
+        provincesPromise = fetchPsgc('/provinces/')
+            .then((list) => {
+                // NCR has no provinces in PSGC, so it is listed as its own entry.
+                provinces.value = [...list, { code: NCR_CODE, name: NCR_NAME }].sort(byName);
+            })
+            .catch(() => {
+                provincesPromise = null;
+                payoutLoadError.value = loadErrorMessage;
+            })
+            .finally(() => {
+                provincesLoading.value = false;
+            });
+    }
+    return provincesPromise;
+};
+
+const loadCities = async (provinceName) => {
+    const requestId = ++cityRequestId;
+    cities.value = [];
+    const code = codeFor(provinces.value, provinceName);
+    if (!code) return;
+
+    const path =
+        code === NCR_CODE
+            ? `/regions/${code}/cities-municipalities/`
+            : `/provinces/${code}/cities-municipalities/`;
+    citiesLoading.value = true;
+    try {
+        const list = await fetchPsgc(path);
+        if (requestId === cityRequestId) cities.value = list;
+    } catch {
+        if (requestId === cityRequestId) payoutLoadError.value = loadErrorMessage;
+    } finally {
+        if (requestId === cityRequestId) citiesLoading.value = false;
+    }
+};
+
+const loadBarangays = async (cityName) => {
+    const requestId = ++barangayRequestId;
+    barangays.value = [];
+    const code = codeFor(cities.value, cityName);
+    if (!code) return;
+
+    barangaysLoading.value = true;
+    try {
+        const list = await fetchPsgc(`/cities-municipalities/${code}/barangays/`);
+        if (requestId === barangayRequestId) barangays.value = list;
+    } catch {
+        if (requestId === barangayRequestId) payoutLoadError.value = loadErrorMessage;
+    } finally {
+        if (requestId === barangayRequestId) barangaysLoading.value = false;
+    }
+};
+
+const hydratePayoutOptions = async (target) => {
+    payoutLoadError.value = '';
+    cities.value = [];
+    barangays.value = [];
+    await loadProvinces();
+    if (target.province) await loadCities(target.province);
+    if (target.city) await loadBarangays(target.city);
+};
+
+const retryPayoutLoad = () => hydratePayoutOptions(targetDraft.value);
+
+const onProvinceSelect = (name) => {
+    targetDraft.value.province = name;
+    targetDraft.value.city = '';
+    targetDraft.value.barangay = '';
+    payoutError.value = '';
+    barangayRequestId++;
+    barangays.value = [];
+    loadCities(name);
+};
+
+const onCitySelect = (name) => {
+    targetDraft.value.city = name;
+    targetDraft.value.barangay = '';
+    payoutError.value = '';
+    loadBarangays(name);
+};
+
+const onBarangaySelect = (name) => {
+    targetDraft.value.barangay = name;
+    payoutError.value = '';
+};
+
+const onDisasterSelect = (name) => {
+    targetDraft.value.disasterName = name;
+    disasterError.value = '';
+};
+
+// Searchable dropdown behaviour shared by Disaster Type, Province, City/ Municipality and Barangay
+const openField = ref(null);
+const fieldQuery = ref('');
+const activeIndex = ref(0);
+
+const disasterField = computed(() => ({
+    key: 'disasterName',
+    label: 'Disaster Type',
+    placeholder: 'Search disaster type',
+    options: disasterNames,
+    loading: false,
+    disabled: false,
+    select: onDisasterSelect,
+}));
+
+const payoutFields = computed(() => [
+    {
+        key: 'province',
+        label: 'Province',
+        placeholder: 'Search province',
+        options: provinceNames.value,
+        loading: provincesLoading.value,
+        disabled: false,
+        select: onProvinceSelect,
+    },
+    {
+        key: 'city',
+        label: 'City/ Municipality',
+        placeholder: 'Search city or municipality',
+        options: cityNames.value,
+        loading: citiesLoading.value,
+        disabled: !targetDraft.value.province,
+        select: onCitySelect,
+    },
+    {
+        key: 'barangay',
+        label: 'Barangay',
+        placeholder: 'Search barangay',
+        options: barangayNames.value,
+        loading: barangaysLoading.value,
+        disabled: !targetDraft.value.city,
+        select: onBarangaySelect,
+    },
+]);
+
+const activeOptions = computed(() => {
+    const field = [disasterField.value, ...payoutFields.value].find((item) => item.key === openField.value);
+    if (!field) return [];
+    const term = fieldQuery.value.trim().toLowerCase();
+    return term ? field.options.filter((option) => option.toLowerCase().includes(term)) : field.options;
+});
+
+const scrollActiveIntoView = () => {
+    nextTick(() => {
+        document.querySelector('.target-dialog .ss-list li.ss-active')?.scrollIntoView({ block: 'nearest' });
+    });
+};
+
+const closeFieldList = () => {
+    openField.value = null;
+    fieldQuery.value = '';
+};
+
+const openFieldList = (field) => {
+    if (field.disabled || openField.value === field.key) return;
+    openField.value = field.key;
+    fieldQuery.value = '';
+    activeIndex.value = Math.max(0, field.options.indexOf(targetDraft.value[field.key]));
+    scrollActiveIntoView();
+};
+
+const pickOption = (field, option) => {
+    field.select(option);
+    closeFieldList();
+    document.activeElement?.blur();
+};
+
+const onFieldInput = (event) => {
+    fieldQuery.value = event.target.value;
+    activeIndex.value = 0;
+};
+
+const onFieldKeydown = (event, field) => {
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        if (openField.value !== field.key) return openFieldList(field);
+        activeIndex.value = Math.min(activeIndex.value + 1, activeOptions.value.length - 1);
+        scrollActiveIntoView();
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        activeIndex.value = Math.max(activeIndex.value - 1, 0);
+        scrollActiveIntoView();
+    } else if (event.key === 'Enter' && openField.value === field.key) {
+        event.preventDefault();
+        const option = activeOptions.value[activeIndex.value];
+        if (option !== undefined) pickOption(field, option);
+    } else if (event.key === 'Escape' && openField.value === field.key) {
+        event.preventDefault();
+        closeFieldList();
+    } else if (event.key === 'Tab') {
+        closeFieldList();
+    }
+};
+
+const closeFieldOnOutsidePointer = (event) => {
+    if (openField.value && !event.target.closest?.('.dropdown-field')) closeFieldList();
+};
+
+watch([payoutOpen, showTargetDialog], closeFieldList);
 
 const filteredTargets = computed(() => {
     const query = search.value.trim().toLowerCase();
@@ -324,13 +680,24 @@ const clearFilters = () => {
 const openAddTarget = () => {
     editingTargetId.value = null;
     targetDraft.value = createEmptyTarget();
+    payoutOpen.value = false;
+    payoutError.value = '';
+    disasterError.value = '';
+    payoutLoadError.value = '';
+    cities.value = [];
+    barangays.value = [];
     showTargetDialog.value = true;
+    loadProvinces();
 };
 
 const openEditTarget = (target) => {
     editingTargetId.value = target.id;
     targetDraft.value = { ...target };
+    payoutOpen.value = false;
+    payoutError.value = '';
+    disasterError.value = '';
     showTargetDialog.value = true;
+    hydratePayoutOptions(target);
 };
 
 const closeTargetDialog = () => {
@@ -338,9 +705,25 @@ const closeTargetDialog = () => {
 };
 
 const saveTarget = () => {
+    const draft = targetDraft.value;
+    let valid = true;
+
+    if (isDrmd.value && !(draft.disasterName || '').trim()) {
+        disasterError.value = 'Select a disaster type.';
+        valid = false;
+    }
+    if (![draft.province, draft.city, draft.barangay].every((part) => (part || '').trim())) {
+        payoutError.value = 'Fill in Province, City/ Municipality and Barangay.';
+        payoutOpen.value = true;
+        valid = false;
+    }
+    if (!valid) return;
+
+    disasterError.value = '';
+    payoutError.value = '';
     pendingTargetSave.value = {
         isNew: editingTargetId.value === null,
-        target: { ...targetDraft.value },
+        target: { ...draft },
         targetId: editingTargetId.value,
     };
 };
@@ -377,9 +760,13 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    document.addEventListener('pointerdown', closeFieldOnOutsidePointer);
+});
 onUnmounted(() => {
     document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    document.removeEventListener('pointerdown', closeFieldOnOutsidePointer);
     window.clearTimeout(actionNotificationTimer);
 });
 
@@ -642,10 +1029,53 @@ watch([search, pageSize], () => { page.value = 1; });
     background: #f8faff;
 }
 
+.payout-cell {
+    vertical-align: middle;
+}
+
+.payout-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    color: #302b9c;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.payout-toggle i {
+    font-size: 10px;
+}
+
+.payout-details {
+    display: grid;
+    gap: 4px;
+    margin: 4px 0 8px;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+}
+
+.payout-details li {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 8px;
+}
+
+.payout-details li span {
+    color: #718096;
+    font-weight: 600;
+}
+
 .edit-target-button {
-    display: center;
+    display: grid;
     width: 28px;
     height: 28px;
+    margin: 0 auto;
     place-items: center;
     border: 0;
     border-radius: 4px;
@@ -755,6 +1185,7 @@ watch([search, pageSize], () => { page.value = 1; });
     font-weight: 600;
 }
 
+/* Input fields: light gray, regular weight */
 .target-dialog input,
 .target-dialog select {
     width: 100%;
@@ -763,7 +1194,160 @@ watch([search, pageSize], () => { page.value = 1; });
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     background: #fff;
+    color: #8a94a6;
     font: inherit;
+    font-weight: 400;
+}
+
+.target-dialog input::placeholder {
+    color: #a0aab8;
+    font-weight: 400;
+    opacity: 1;
+}
+
+/* Searchable dropdowns (Disaster Type, Province, City/ Municipality, Barangay) */
+.dropdown-field {
+    display: grid;
+    gap: 5px;
+}
+
+.dropdown-field-label {
+    color: #39465a;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.ss-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.target-dialog .ss-input {
+    padding-right: 28px;
+    color: #8a94a6;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.target-dialog .ss-input:focus {
+    outline: 2px solid #c9c6f2;
+    border-color: #302b9c;
+}
+
+.target-dialog .ss-input:disabled {
+    background: #edf1f6;
+    cursor: not-allowed;
+}
+
+.target-dialog .ss-input.ss-invalid {
+    border-color: #d64545;
+}
+
+.ss-chevron {
+    position: absolute;
+    right: 10px;
+    color: #718096;
+    font-size: 10px;
+    pointer-events: none;
+    transition: transform 0.15s ease;
+}
+
+.ss-open .ss-chevron {
+    transform: rotate(180deg);
+}
+
+.ss-list {
+    max-height: 180px;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    border: 1px solid #dce3ed;
+    border-radius: 4px;
+    background: #fff;
+    list-style: none;
+}
+
+.ss-list li {
+    padding: 7px 9px;
+    border-radius: 3px;
+    color: #6b7686;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+.ss-list li.ss-active {
+    background: #eeedff;
+}
+
+.ss-list li.ss-selected {
+    color: #302b9c;
+    font-weight: 700;
+}
+
+.ss-list li.ss-empty {
+    color: #718096;
+    cursor: default;
+}
+
+/* Payout Site trigger and its ordered fields */
+.payout-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    min-height: 34px;
+    padding: 6px 8px;
+    border: 1px solid #cfd8e5;
+    border-radius: 4px;
+    background: #fff;
+    color: #8a94a6;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    text-align: left;
+}
+
+.payout-placeholder {
+    color: #a0aab8;
+}
+
+.payout-trigger i {
+    font-size: 10px;
+}
+
+.payout-trigger.ss-invalid {
+    border-color: #d64545;
+}
+
+.payout-fields {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #e4e8ef;
+    border-radius: 4px;
+    background: #f8faff;
+}
+
+.field-error {
+    margin: 0;
+    color: #c53030;
+    font-size: 12px;
+}
+
+.payout-retry {
+    margin-left: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #302b9c;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
 }
 
 .dialog-actions {

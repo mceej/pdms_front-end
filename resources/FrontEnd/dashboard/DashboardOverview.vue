@@ -133,7 +133,7 @@ const stripPeso = (value) => {
 .metric-card--target,
 .metric-card--paid,
 .metric-card--unpaid {
-  background: #E0ECFF;
+  background: #dee8ff;
 }
 
 .metric-card--target .metric-card-label,
@@ -185,7 +185,7 @@ const stripPeso = (value) => {
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  color: #1B1F5C;
+  color: #2e3192;
   line-height: 1;
 }
 
