@@ -172,22 +172,11 @@
                     <span class="payout-site-label">Payout Site</span>
                     <button
                         type="button"
-<<<<<<< HEAD
-                        :class="['payout-trigger', { 'payout-invalid': payoutError }]"
-=======
-                        :class="[
-                            'payout-trigger',
-                            { 'payout-invalid': payoutError, 'payout-open': payoutOpen },
-                        ]"
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
+
                         :aria-expanded="payoutOpen"
                         @click="payoutOpen = !payoutOpen"
                     >
                         <span :class="{ 'payout-placeholder': !draftPayoutSummary }">{{ draftPayoutSummary || 'Select payout site' }}</span>
-<<<<<<< HEAD
-                        <i :class="['pi', payoutOpen ? 'pi-chevron-up' : 'pi-chevron-down']" aria-hidden="true"></i>
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                     </button>
                     <p v-if="payoutError" class="payout-error" role="alert">{{ payoutError }}</p>
                     <div v-if="payoutOpen" class="payout-fields">
@@ -333,10 +322,6 @@ const togglePayoutDetails = (id) => {
     expandedPayoutId.value = expandedPayoutId.value === id ? null : id;
 };
 
-<<<<<<< HEAD
-// Location data from the Philippine Standard Geographic Code (PSGC) API
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 const PSGC_BASE = 'https://psgc.gitlab.io/api';
 const NCR_CODE = '130000000';
 const NCR_NAME = 'Metro Manila (NCR)';
@@ -370,10 +355,6 @@ const loadProvinces = () => {
         provincesLoading.value = true;
         provincesPromise = fetchPsgc('/provinces/')
             .then((list) => {
-<<<<<<< HEAD
-                // NCR has no provinces in PSGC, so it is listed as its own entry.
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                 provinces.value = [...list, { code: NCR_CODE, name: NCR_NAME }].sort(byName);
             })
             .catch(() => {
@@ -458,10 +439,6 @@ const onBarangaySelect = (name) => {
     payoutError.value = '';
 };
 
-<<<<<<< HEAD
-// Searchable dropdown behaviour shared by Province, City/ Municipality and Barangay
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 const openField = ref(null);
 const fieldQuery = ref('');
 const activeIndex = ref(0);
@@ -1102,21 +1079,14 @@ watch(search, () => { page.value = 1; });
 }
 
 .payout-trigger {
-<<<<<<< HEAD
-=======
     position: relative;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     width: 100%;
     min-height: 34px;
-<<<<<<< HEAD
-    padding: 6px 9px;
-=======
     padding: 6px 38px 6px 9px;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     background: #fff;
@@ -1132,10 +1102,6 @@ watch(search, () => { page.value = 1; });
     color: #a0aab8;
 }
 
-<<<<<<< HEAD
-.payout-trigger i {
-    font-size: 10px;
-=======
 .payout-trigger::after {
     position: absolute;
     top: 50%;
@@ -1153,7 +1119,6 @@ watch(search, () => { page.value = 1; });
 
 .payout-trigger.payout-open::after {
     transform: translateY(-50%) rotate(180deg);
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 }
 
 .payout-trigger.payout-invalid {
@@ -1206,11 +1171,7 @@ watch(search, () => { page.value = 1; });
 
 .ss-chevron {
     position: absolute;
-<<<<<<< HEAD
-    right: 10px;
-=======
     right: 18px;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     color: #718096;
     font-size: 10px;
     pointer-events: none;
@@ -1257,11 +1218,7 @@ watch(search, () => { page.value = 1; });
 
 .payout-field {
     display: grid;
-<<<<<<< HEAD
-    gap: 5px;
-=======
     gap: 12px;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 }
 
 .payout-field-label {
@@ -1390,8 +1347,6 @@ watch(search, () => { page.value = 1; });
     color: #a0aab8;
     font-weight: 400;
     opacity: 1;
-<<<<<<< HEAD
-=======
 }
 
 .target-dialog select {
@@ -1410,7 +1365,6 @@ watch(search, () => { page.value = 1; });
     background-position: right 18px center;
     background-repeat: no-repeat;
     background-size: 10px 7px;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 }
 
 .dialog-actions {

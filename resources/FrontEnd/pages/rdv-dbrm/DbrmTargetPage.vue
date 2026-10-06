@@ -141,11 +141,7 @@
                 <h2>{{ editingTargetId === null ? 'Add New Target' : 'Edit Target' }}</h2>
                 <label>
                     Payout Type
-<<<<<<< HEAD
-                    <select v-model="targetDraft.payoutType">
-=======
                     <select v-model="targetDraft.payoutType" class="payout-type-select">
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                         <option>CCAM</option>
                         <option>Cash Assistance</option>
                     </select>
@@ -211,22 +207,14 @@
                     <span class="dropdown-field-label">Payout Site</span>
                     <button
                         type="button"
-<<<<<<< HEAD
-                        :class="['payout-trigger', { 'ss-invalid': payoutError }]"
-=======
                         :class="[
                             'payout-trigger',
                             { 'ss-invalid': payoutError, 'payout-open': payoutOpen },
                         ]"
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                         :aria-expanded="payoutOpen"
                         @click="payoutOpen = !payoutOpen"
                     >
                         <span :class="{ 'payout-placeholder': !draftPayoutSummary }">{{ draftPayoutSummary || 'Select payout site' }}</span>
-<<<<<<< HEAD
-                        <i :class="['pi', payoutOpen ? 'pi-chevron-up' : 'pi-chevron-down']" aria-hidden="true"></i>
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
                     </button>
                     <p v-if="payoutError" class="field-error" role="alert">{{ payoutError }}</p>
                     <div v-if="payoutOpen" class="payout-fields">
@@ -1252,8 +1240,6 @@ watch(search, () => { page.value = 1; });
     opacity: 1;
 }
 
-<<<<<<< HEAD
-=======
 .target-dialog .program-type-select {
     padding-right: 38px;
     appearance: none;
@@ -1272,7 +1258,6 @@ watch(search, () => { page.value = 1; });
     background-size: 10px 7px;
 }
 
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 /* Searchable dropdowns (Disaster Type, Province, City/ Municipality, Barangay) */
 .dropdown-field {
     display: grid;
@@ -1314,11 +1299,6 @@ watch(search, () => { page.value = 1; });
 
 .ss-chevron {
     position: absolute;
-<<<<<<< HEAD
-    right: 10px;
-    color: #718096;
-    font-size: 10px;
-=======
     right: 18px;
     width: 10px;
     height: 7px;
@@ -1327,7 +1307,6 @@ watch(search, () => { page.value = 1; });
     background-size: 10px 7px;
     color: #718096;
     font-size: 0;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     pointer-events: none;
     transition: transform 0.15s ease;
 }
@@ -1372,21 +1351,14 @@ watch(search, () => { page.value = 1; });
 
 /* Payout Site trigger and its ordered fields */
 .payout-trigger {
-<<<<<<< HEAD
-=======
     position: relative;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
     width: 100%;
     min-height: 34px;
-<<<<<<< HEAD
-    padding: 6px 8px;
-=======
     padding: 6px 38px 6px 9px;
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     background: #fff;
@@ -1402,19 +1374,10 @@ watch(search, () => { page.value = 1; });
     color: #a0aab8;
 }
 
-<<<<<<< HEAD
-.payout-trigger i {
-    font-size: 10px;
-}
-
-=======
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 .payout-trigger.ss-invalid {
     border-color: #d64545;
 }
 
-<<<<<<< HEAD
-=======
 .payout-trigger::after {
     position: absolute;
     top: 50%;
@@ -1434,7 +1397,6 @@ watch(search, () => { page.value = 1; });
     transform: translateY(-50%) rotate(180deg);
 }
 
->>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
 .payout-fields {
     display: grid;
     gap: 10px;
