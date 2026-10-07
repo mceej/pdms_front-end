@@ -6,6 +6,10 @@
                 {{ loadError }}
                 <button type="button" @click="fetchDashboard">Try again</button>
             </p>
+            <p v-for="warning in loadWarnings" :key="warning" class="dashboard-note">
+                <i class="pi pi-info-circle" aria-hidden="true"></i>
+                {{ warning }}
+            </p>
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
@@ -31,161 +35,82 @@
                             </div>
                             <div class="header-updated">
                                 <span><i class="pi pi-clock"></i> Last Updated</span>
-                                <strong>{{ formatUpdatedAt(currentTime) }}</strong>
+                                <strong>{{ formatUpdatedAt(lastUpdated) }}</strong>
                             </div>
                         </div>
                     </div>
 
                     <div class="tab-row">
-                        <div class="aics-control" ref="aicsControlRef">
-                            <button
-                                type="button"
-                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' }]"
-                                @click="toggleAicsTab"
-                            >
-                                <i class="pi pi-box"></i>
-                                AICS
-                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: assistanceMenuOpen }"></i>
-                            </button>
-                            <div v-if="assistanceMenuOpen" class="disaster-menu aics-menu">
-                                <button
-                                    type="button"
-                                    class="disaster-menu-item disaster-menu-clear"
-                                    :disabled="!selectedProgramType && !selectedAssistanceType"
-                                    @click="clearAicsFilters"
-                                >
-                                    Clear selection
-                                </button>
-                                <span class="disaster-menu-label">Type of Program</span>
-                                <button
-                                    v-for="option in programTypeOptions"
-                                    :key="option"
-                                    type="button"
-                                    :class="['disaster-menu-item', { selected: selectedProgramType === option }]"
-                                    @click="selectProgramType(option)"
-                                >
-                                    {{ option }}
-                                </button>
-                                <span class="disaster-menu-label assistance-label">Type of Assistance</span>
-                                <button
-                                    v-for="option in assistanceTypeOptions"
-                                    :key="option"
-                                    type="button"
-                                    :class="['disaster-menu-item', { selected: selectedAssistanceType === option }]"
-                                    @click="selectAssistanceType(option)"
-                                >
-                                    {{ option }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="ect-control" ref="ectControlRef">
-                            <button
-                                type="button"
-                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' }]"
-                                @click="toggleEctTab"
-                            >
-                                <i class="pi pi-file"></i>
-                                ECT
-                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
-                            </button>
-                            <div v-if="disasterMenuOpen" class="disaster-menu">
-                                <button
-                                    type="button"
-                                    class="disaster-menu-item disaster-menu-clear"
-                                    :disabled="!selectedDisasterType"
-                                    @click="selectDisasterType('')"
-                                >
-                                    Clear selection
-                                </button>
-                                <span class="disaster-menu-label">Name of the Disaster</span>
-                                <button
-                                    v-for="option in disasterOptions"
-                                    :key="option"
-                                    type="button"
-                                    :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
-                                    @click="selectDisasterType(option)"
-                                >
-                                    {{ option }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
-                            {{ selectedDisasterType }}
-                        </span>
-                        <span
-                            v-if="activeTab === 'AICS' && aicsFilterSummary"
-                            class="disaster-type-badge filter-summary"
-                        >
-                            {{ aicsFilterSummary }}
-                        </span>
+                        <DashboardProgramFilters
+                            :program="activeTab"
+                            :program-type="selectedProgramType"
+                            :assistance-type="selectedAssistanceType"
+                            :disaster-name="selectedDisasterType"
+                            :disaster-options="disasterOptions"
+                            @update:program="setProgram"
+                            @update:program-type="setProgramType"
+                            @update:assistance-type="setAssistanceType"
+                            @update:disaster-name="setDisasterType"
+                            @clear:aics="clearAicsFilters"
+                        />
                     </div>
                 </div>
             </header>
 
-            <div v-if="isLoading" class="dashboard-loading" role="status" aria-live="polite">
-                <i class="pi pi-spin pi-spinner" aria-hidden="true"></i>
-                Loading payout data…
-            </div>
+            <DashboardEmptyState v-if="showEmptyState" :program="activeTab" />
 
-            <DashboardEmptyState
-                v-else-if="!loadError && !hasPayoutData"
-                :program="activeTab"
-            />
-
-            <template v-else-if="!loadError">
-            <DashboardOverview
-                :total-target="totalTarget"
-                :total-paid-count="totalPaidCount"
-                :total-remaining="totalRemaining"
-                :total-amount-to-disburse="totalBalance"
-                :total-disbursed="totalDisbursed"
-                :total-unpaid-disbursed="unpaidBalance"
-            />
-
-            <!-- Table (with Total row) + Progress Overview merged into one container -->
-            <div class="summary-panel">
-                <DashboardTable
-                    :breadcrumb-items="breadcrumbItems"
-                    :active-level="activeLevel"
-                    :municipality-search="municipalitySearch"
-                    :payout-site-filter="payoutSiteFilter"
-                    :payout-site-options="payoutSiteOptions"
-                    :rows-with-progress="rowsWithProgress"
-                    :total-table-target="summaryTarget"
-                    :total-table-paid="summaryPaid"
-                    :total-progress="summaryProgress"
-                    @update:municipalitySearch="municipalitySearch = $event"
-                    @update:payoutSiteFilter="payoutSiteFilter = $event"
-                    @apply-filters="applyFilters"
-                    @row-click="handleRowClick"
-                    @home-click="goToLevel('province')"
+            <template v-else>
+                <DashboardOverview
+                    :total-target="totalTarget"
+                    :total-paid-count="totalPaidCount"
+                    :total-remaining="totalRemaining"
+                    :total-amount-to-disburse="totalBalance"
+                    :total-disbursed="totalDisbursed"
+                    :total-unpaid-disbursed="unpaidBalance"
                 />
 
-                <ComparisonCharts
-                    :selected-barangay="selectedBarangay"
-                    :chart-markers="chartMarkers"
-                    :comparison-rows="chartRowsWithProgress"
-                    :api-loaded="apiLoaded"
-                    :api-rows="apiRows"
-                    :applied-date-label="appliedDateLabel"
-                    :date-from="dateFrom"
-                    :date-to="dateTo"
-                    :dashboard-progress="chartProgress"
-                    :total-paid-count="chartTotalPaid"
-                    :total-target="chartTotalTarget"
-                    :comparison-color="comparisonColor"
-                    :active-level="activeLevel"
-                    :scope-name="scopeName"
-                    :extra-stat="extraStat"
-                    :has-pending-range="hasPendingRange"
-                    @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
-                    @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
-                    @apply="commitDateRange"
-                    @clear="clearDateRange"
-                />
-            </div>
+                <!-- Table (with Total row) + Progress Overview merged into one container -->
+                <div class="summary-panel">
+                    <DashboardTable
+                        :breadcrumb-items="breadcrumbItems"
+                        :active-level="activeLevel"
+                        :municipality-search="municipalitySearch"
+                        :payout-site-filter="payoutSiteFilter"
+                        :payout-site-options="payoutSiteOptions"
+                        :rows-with-progress="rowsWithProgress"
+                        :total-table-target="summaryTarget"
+                        :total-table-paid="summaryPaid"
+                        :total-progress="summaryProgress"
+                        @update:municipalitySearch="municipalitySearch = $event"
+                        @update:payoutSiteFilter="payoutSiteFilter = $event"
+                        @apply-filters="applyFilters"
+                        @row-click="handleRowClick"
+                        @home-click="goToLevel('province')"
+                    />
+
+                    <ComparisonCharts
+                        :selected-barangay="selectedBarangay"
+                        :chart-markers="chartMarkers"
+                        :comparison-rows="chartRowsWithProgress"
+                        :api-loaded="apiLoaded"
+                        :api-rows="apiRows"
+                        :applied-date-label="appliedDateLabel"
+                        :date-from="dateFrom"
+                        :date-to="dateTo"
+                        :dashboard-progress="chartProgress"
+                        :total-paid-count="chartTotalPaid"
+                        :total-target="chartTotalTarget"
+                        :comparison-color="comparisonColor"
+                        :active-level="activeLevel"
+                        :scope-name="scopeName"
+                        :extra-stat="extraStat"
+                        :has-pending-range="hasPendingRange"
+                        @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
+                        @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
+                        @apply="commitDateRange"
+                        @clear="clearDateRange"
+                    />
+                </div>
             </template>
         </div>
 
@@ -197,20 +122,18 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import { fetchPayoutDashboard } from '../data/payouts.js';
 import ComparisonCharts from './ComparisonCharts.vue';
-import DashboardEmptyState from './DashboardEmptyState.vue';
 import DashboardOverview from './DashboardOverview.vue';
 import DashboardTable from './DashboardTable.vue';
+import DashboardEmptyState from './DashboardEmptyState.vue';
+import DashboardProgramFilters from './DashboardProgramFilters.vue';
+import { fetchDashboardMetrics, subscribeToChanges } from '../data/metrics.js';
+import { subscribeServedListAvailability } from '../data/servedLists.js';
 
 const activeTab = ref('AICS');
-const selectedDisasterType = ref('');
 const selectedProgramType = ref('');
+const selectedDisasterType = ref('');
 const selectedAssistanceType = ref('');
-const disasterMenuOpen = ref(false);
-const assistanceMenuOpen = ref(false);
-const ectControlRef = ref(null);
-const aicsControlRef = ref(null);
 const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
@@ -218,81 +141,43 @@ const dateTo = ref('');
 const appliedFrom = ref('');
 const appliedTo = ref('');
 const appliedDateLabel = ref('as of 9/14/2026 | 10:30:23 AM');
-const currentTime = ref(new Date().toLocaleString());
-let clockTimer;
 
 const formatCount = (value) => {
     if (value === null || value === undefined || value === '' || value === '-----') return '0';
     return Number(value).toLocaleString();
 };
 
+// When the figures last changed, which is the newest import or target edit —
+// not the time right now, which says nothing about how fresh the data is.
 const formatUpdatedAt = (value) => {
+    if (value === null || value === undefined || value === '') return 'never';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
+    if (Number.isNaN(date.getTime())) return String(value);
     return `${date.toLocaleDateString('en-US')} | ${date.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
     })}`;
 };
 
-const toggleAicsTab = () => {
-    if (activeTab.value !== 'AICS') {
-        setTab('AICS');
-        assistanceMenuOpen.value = true;
-        return;
-    }
-    assistanceMenuOpen.value = !assistanceMenuOpen.value;
-};
-
-const toggleEctTab = () => {
-    if (activeTab.value !== 'ECT') {
-        setTab('ECT');
-        disasterMenuOpen.value = true;
-        return;
-    }
-    disasterMenuOpen.value = !disasterMenuOpen.value;
-};
-
-const selectDisasterType = (value) => {
-    selectedDisasterType.value = value;
-    disasterMenuOpen.value = false;
-    applyFilters();
-};
-
-const selectAssistanceType = (value) => {
-    selectedAssistanceType.value = value;
-    assistanceMenuOpen.value = false;
-    applyFilters();
-};
-
-const selectProgramType = (value) => {
-    selectedProgramType.value = value;
-    applyFilters();
-};
-
-const clearAicsFilters = () => {
-    selectedProgramType.value = '';
-    selectedAssistanceType.value = '';
-    applyFilters();
-};
-
-const closeFilterMenusOnOutsideClick = (event) => {
-    if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
-        disasterMenuOpen.value = false;
-    }
-    if (assistanceMenuOpen.value && aicsControlRef.value && !aicsControlRef.value.contains(event.target)) {
-        assistanceMenuOpen.value = false;
-    }
-};
+const emptyKpi = () => ({
+    totalBalance: 0,
+    targetBeneficiaries: 0,
+    totalPaid: 0,
+    totalDisbursed: 0,
+    unpaidBalance: 0,
+    unpaidBeneficiaries: 0,
+    progress: 0,
+});
 
 const apiRows = ref([]);
+// The Total row the server worked out for exactly the rows it sent.
+const apiTotal = ref(null);
+const apiKpi = ref(emptyKpi());
 const apiLoaded = ref(false);
-const isLoading = ref(true);
 const loadError = ref('');
-const apiSummary = ref({
-    target: 0, paid: 0, remaining: 0, targetAmount: 0,
-    amountDisbursed: 0, unpaidAmount: 0, progress: 0,
-});
+// Things the figures cannot say for themselves, such as targets left out.
+const loadWarnings = ref([]);
+const lastUpdated = ref(null);
 const apiDisasterTypes = ref([]);
 const disasterOptions = computed(() => [
     ...new Set([
@@ -307,33 +192,44 @@ const disasterOptions = computed(() => [
         ...apiDisasterTypes.value,
     ]),
 ]);
-const programTypeOptions = ['AICS', 'AKAP', 'Uplift'];
-const assistanceTypeOptions = ['Cash Assistance', 'Medical Support'];
-const aicsFilterSummary = computed(() =>
-    [selectedProgramType.value, selectedAssistanceType.value]
-        .filter(Boolean)
-        .join(' / ')
-);
 const apiPayoutSites = ref([]);
+const programAvailability = ref({ AICS: null, ECT: null });
 
 const regionName = ref('REGION XI');
 const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
+const metricsAreEmpty = computed(() => (
+    apiRows.value.length === 0
+    && Number(apiTotal.value?.target || 0) === 0
+    && Number(apiTotal.value?.paid || 0) === 0
+    && Number(apiKpi.value.targetBeneficiaries || 0) === 0
+    && Number(apiKpi.value.totalPaid || 0) === 0
+    && Number(apiKpi.value.totalDisbursed || 0) === 0
+));
+const showEmptyState = computed(() => (
+    apiLoaded.value
+    && loadError.value === ''
+    && (
+        programAvailability.value[activeTab.value] === false
+        || metricsAreEmpty.value
+    )
+));
 
-const totalTarget = computed(() => apiSummary.value.target);
-const hasPayoutData = computed(() => Number(apiSummary.value.target || 0) > 0);
-const totalDisbursed = computed(() => `₱${Number(apiSummary.value.amountDisbursed).toLocaleString()}`);
-const totalPaidCount = computed(() => apiSummary.value.paid);
-const totalRemaining = computed(() => apiSummary.value.remaining);
-const totalBalance = computed(() => `₱${Number(apiSummary.value.targetAmount || 0).toLocaleString()}`);
-const unpaidBalance = computed(() => {
-    const outstanding = Number(apiSummary.value.targetAmount || 0)
-        - Number(apiSummary.value.amountDisbursed || 0);
+/* ---------- The six cards at the top ----------
+   Every one of them comes from the server, worked out for the place being
+   looked at. The three counting people and the three counting pesos are
+   deliberately separate figures: how many are still to be paid and how much is
+   still to be moved are different questions. */
+const totalTarget = computed(() => apiKpi.value.targetBeneficiaries);
+const totalPaidCount = computed(() => apiKpi.value.totalPaid);
+const totalRemaining = computed(() => apiKpi.value.unpaidBeneficiaries);
+const totalBalance = computed(() => formatCurrency(apiKpi.value.totalBalance));
+const totalDisbursed = computed(() => formatCurrency(apiKpi.value.totalDisbursed));
+const unpaidBalance = computed(() => formatCurrency(apiKpi.value.unpaidBalance));
+const dashboardProgress = computed(() => Math.round(apiKpi.value.progress));
 
-    return `₱${Math.max(outstanding, 0).toLocaleString()}`;
-});
-const dashboardProgress = computed(() => apiSummary.value.progress);
+const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
 
 const activeLevel = computed(() => {
   if (selectedBarangay.value) return 'detail';
@@ -342,27 +238,44 @@ const activeLevel = computed(() => {
   return 'province';
 });
 
-const currentTableRows = computed(() => {
-    const search = municipalitySearch.value.trim().toLowerCase();
+// Searching for a municipality narrows the rows here rather than asking the
+// server again, so typing stays instant.
+const municipalityFilter = computed(
+    () => activeLevel.value === 'municipality' ? municipalitySearch.value.trim().toLowerCase() : ''
+);
 
-    return activeLevel.value === 'municipality' && search
-        ? apiRows.value.filter((row) => row.name.toLowerCase().includes(search))
-        : apiRows.value;
+const currentTableRows = computed(() => {
+    const search = municipalityFilter.value;
+
+    return search === ''
+        ? apiRows.value
+        : apiRows.value.filter((row) => row.name.toLowerCase().includes(search));
 });
 
 const rowsWithProgress = computed(() =>
   currentTableRows.value.map((row) => ({
     ...row,
-    progress: row.target ? Math.round((row.paid / row.target) * 100) : 0,
+    progress: Math.round(row.progress || 0),
   }))
 );
 
-const totalTableTarget = computed(() =>
-  currentTableRows.value.reduce((sum, r) => sum + (r.target || 0), 0)
-);
-const totalTablePaid = computed(() =>
-  currentTableRows.value.reduce((sum, r) => sum + (r.paid || 0), 0)
-);
+/* ---------- Total row ----------
+   The server sends the Total for the rows it sent. A municipality search hides
+   some of them in the browser, so while one is in use the footer has to add up
+   what is actually on screen instead. */
+const tableTotal = computed(() => {
+    if (apiTotal.value !== null && municipalityFilter.value === '') {
+        return { target: apiTotal.value.target, paid: apiTotal.value.paid };
+    }
+
+    return {
+        target: currentTableRows.value.reduce((sum, row) => sum + (row.target || 0), 0),
+        paid: currentTableRows.value.reduce((sum, row) => sum + (row.paid || 0), 0),
+    };
+});
+
+const totalTableTarget = computed(() => tableTotal.value.target);
+const totalTablePaid = computed(() => tableTotal.value.paid);
 const totalProgress = computed(() =>
   totalTableTarget.value ? Math.round((totalTablePaid.value / totalTableTarget.value) * 100) : 0
 );
@@ -416,12 +329,7 @@ const extraStat = computed(() => {
   return null;
 });
 
-const payoutSiteOptions = computed(() => {
-    if (apiLoaded.value) return apiPayoutSites.value;
-    if (!selectedProvince.value) return [];
-    const sites = new Set(selectedProvince.value.municipalities.map((m) => m.payoutSite));
-    return Array.from(sites);
-});
+const payoutSiteOptions = computed(() => apiPayoutSites.value);
 
 const chartMarkers = [200, 150, 100, 50, 0];
 const comparisonPalette = ['#2588d2', '#f08a24', '#25a269', '#8a63d2', '#d14d72'];
@@ -443,14 +351,11 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
-    isLoading.value = true;
-    apiRows.value = [];
-    apiSummary.value = {
-        target: 0, paid: 0, remaining: 0, targetAmount: 0,
-        amountDisbursed: 0, unpaidAmount: 0, progress: 0,
+    const filters = {
+        program: activeTab.value === 'AICS'
+            ? selectedProgramType.value || 'AICS'
+            : 'ECT',
     };
-    const filters = { program: activeTab.value };
-    if (selectedProgramType.value) filters.programType = selectedProgramType.value;
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
@@ -460,30 +365,28 @@ const fetchDashboard = async () => {
     if (appliedFrom.value) filters.from = appliedFrom.value;
     if (appliedTo.value) filters.to = appliedTo.value;
 
-    try {
-        const payload = await fetchPayoutDashboard(filters);
+    const result = await fetchDashboardMetrics(filters);
 
-        apiRows.value = payload.rows || [];
-        apiSummary.value = payload.summary || apiSummary.value;
-        apiDisasterTypes.value = payload.disasterTypes || [];
-        apiPayoutSites.value = payload.payoutSites || [];
-        loadError.value = '';
-    } catch (error) {
-        loadError.value = error?.code === 'PERMISSION_DENIED'
-            ? 'You do not have permission to read the payout data.'
-            : 'Could not load the payout data. Check your connection and try again.';
+    if (! result.ok) {
+        loadError.value = result.message;
+        loadWarnings.value = [];
         apiRows.value = [];
-        apiSummary.value = {
-            target: 0, paid: 0, remaining: 0, targetAmount: 0,
-            amountDisbursed: 0, unpaidAmount: 0, progress: 0,
-        };
-        apiDisasterTypes.value = [];
-        apiPayoutSites.value = [];
+        apiTotal.value = null;
+        apiKpi.value = emptyKpi();
+        apiLoaded.value = true;
+
+        return;
     }
 
-    // Either way the figures shown are the real ones, never the built-in samples.
+    apiRows.value = result.rows;
+    apiTotal.value = result.total;
+    apiKpi.value = result.kpi;
+    apiDisasterTypes.value = result.disasterTypes;
+    apiPayoutSites.value = result.payoutSites;
+    lastUpdated.value = result.lastUpdated;
+    loadWarnings.value = result.warnings;
+    loadError.value = '';
     apiLoaded.value = true;
-    isLoading.value = false;
 };
 
 const handleRowClick = async (row) => {
@@ -537,20 +440,42 @@ const goToLevel = async (level) => {
     window.scrollTo({ top: scrollPosition, behavior: 'auto' });
 };
 
-const setTab = (tab) => {
-  if (activeTab.value === tab) return;
-  activeTab.value = tab;
-  selectedProvince.value = null;
-  selectedMunicipality.value = null;
-  selectedBarangay.value = null;
-  payoutSiteFilter.value = '';
-  municipalitySearch.value = '';
-  selectedDisasterType.value = '';
+const resetDashboardScope = () => {
+    selectedProvince.value = null;
+    selectedMunicipality.value = null;
+    selectedBarangay.value = null;
+    payoutSiteFilter.value = '';
+    municipalitySearch.value = '';
+};
+
+const setProgram = (program) => {
+    activeTab.value = program;
+    selectedProgramType.value = '';
+    selectedDisasterType.value = '';
+    selectedAssistanceType.value = '';
+    resetDashboardScope();
+    fetchDashboard();
+};
+
+const setProgramType = (programType) => {
+    selectedProgramType.value = programType;
+    applyFilters();
+};
+
+const setAssistanceType = (assistanceType) => {
+    selectedAssistanceType.value = assistanceType;
+    applyFilters();
+};
+
+const clearAicsFilters = () => {
     selectedProgramType.value = '';
     selectedAssistanceType.value = '';
-    disasterMenuOpen.value = false;
-    assistanceMenuOpen.value = false;
-  fetchDashboard();
+    applyFilters();
+};
+
+const setDisasterType = (disasterType) => {
+    selectedDisasterType.value = disasterType;
+    applyFilters();
 };
 
 const applyFilters = () => {
@@ -586,17 +511,27 @@ const clearDateRange = () => {
     commitDateRange();
 };
 
-onMounted(() => document.addEventListener('click', closeFilterMenusOnOutsideClick));
-onUnmounted(() => document.removeEventListener('click', closeFilterMenusOnOutsideClick));
-
 onMounted(() => fetchDashboard());
+
+/* ---------- Staying up to date ----------
+   Asking the server for finished figures costs the page the live updates the
+   old subscription gave it, so this watches for the two things that move them —
+   an import arriving or leaving, and a target being edited — and asks again.
+   Neither watch downloads the payout records. */
+let stopWatching = () => {};
+let stopWatchingAvailability = () => {};
+
 onMounted(() => {
-    clockTimer = window.setInterval(() => {
-        currentTime.value = new Date().toLocaleString();
-    }, 1000);
+    stopWatching = subscribeToChanges(() => fetchDashboard());
+    stopWatchingAvailability = subscribeServedListAvailability((availability) => {
+        programAvailability.value = availability;
+    });
 });
 
-onUnmounted(() => window.clearInterval(clockTimer));
+onUnmounted(() => {
+    stopWatching();
+    stopWatchingAvailability();
+});
 </script>
 
 <style scoped>
@@ -620,12 +555,12 @@ button:hover { background: #2e2789; }
     flex-direction: column;
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 0;
+    min-height: 100vh;
     padding: 18px 30px 36px;
 }
 
 .dashboard-shell {
-    flex: 1 1 auto;
+    flex: 1 0 auto;
     width: 100%;
     max-width: none;
     margin: 0 auto;
@@ -643,21 +578,6 @@ button:hover { background: #2e2789; }
     border-radius: 10px;
     background: #fff;
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
-}
-
-.dashboard-loading {
-    display: flex;
-    min-height: 390px;
-    border: 1px solid #d5e0ea;
-    border-radius: 10px;
-    background: #fff;
-    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
-    color: #475569;
-    font-size: 16px;
-    font-weight: 600;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
 }
 
 .dashboard-header {
@@ -966,23 +886,6 @@ button:hover { background: #2e2789; }
     cursor: default;
 }
 
-.disaster-menu-label {
-    padding: 7px 10px 4px;
-    color: #b9c8f5;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.assistance-label {
-    margin-top: 5px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-.aics-menu { min-width: 220px; }
-
 .disaster-type-badge {
     display: inline-flex;
     align-items: center;
@@ -1002,12 +905,7 @@ button:hover { background: #2e2789; }
     text-overflow: ellipsis;
 }
 
-.filter-summary {
-    max-width: 320px;
-}
-
 .dashboard-footer {
-    flex: 0 0 auto;
     width: calc(100% + 60px);
     margin: 36px -30px -36px;
     padding: 8px 18px;
@@ -1061,6 +959,20 @@ button:hover { background: #2e2789; }
     border-radius: 8px;
     background: #fdecec;
     color: #b3261e;
+    font-size: 14px;
+}
+
+/* Not a failure: the figures loaded, but something about them is worth saying. */
+.dashboard-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 10px 16px;
+    border: 1px solid #f3d9a4;
+    border-radius: 8px;
+    background: #fdf6e7;
+    color: #8a5a00;
     font-size: 14px;
 }
 

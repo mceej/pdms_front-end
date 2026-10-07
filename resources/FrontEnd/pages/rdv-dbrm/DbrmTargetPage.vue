@@ -1086,7 +1086,12 @@ watch(search, () => { page.value = 1; });
     height: 76px;
     padding: 0 14px;
     border-top: 1px solid #e4e8ef;
+    font-weight: 500;
+    line-height: 1.25;
     overflow-wrap: anywhere;
+    text-align: left;
+    text-transform: uppercase;
+    vertical-align: middle;
 }
 
 .target-table th {
@@ -1099,10 +1104,7 @@ watch(search, () => { page.value = 1; });
     color: #354768;
     font-size: 14px;
     font-weight: 700;
-    line-height: 1.25;
-    text-align: left;
     text-transform: uppercase;
-    vertical-align: middle;
 }
 
 .target-table .action-col {
@@ -1139,7 +1141,7 @@ watch(search, () => { page.value = 1; });
     cursor: pointer;
     font: inherit;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 500;
 }
 
 .payout-toggle i {

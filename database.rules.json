@@ -22,7 +22,7 @@
 
     "targets": {
       ".read": "auth != null",
-      ".indexOn": ["section", "payoutType", "programType", "dateStart"],
+      ".indexOn": ["section", "payoutType", "programType", "dateStart", "updatedAt"],
       "$targetId": {
         ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'ADMIN' || (root.child('users').child(auth.uid).child('role').val() === 'RDV Focal' && root.child('users').child(auth.uid).child('section').val() === (newData.exists() ? newData.child('section').val() : data.child('section').val())))",
         ".validate": "newData.hasChildren(['section', 'targetBeneficiary', 'targetDisbursement', 'dateStart', 'dateEnd']) && (newData.hasChildren(['provinceName', 'municipalityName', 'barangayName']) || newData.hasChild('payoutSite'))",
@@ -56,9 +56,9 @@
     },
 
     "payoutRecords": {
-      ".read": "auth != null",
+      ".read": false,
       ".indexOn": ["program", "provinceId", "municipalityId", "barangayId", "servedDate", "servedListId"],
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'"
+      ".write": false
     },
 
     "servedLists": {

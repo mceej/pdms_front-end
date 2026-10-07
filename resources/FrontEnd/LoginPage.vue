@@ -150,6 +150,6 @@ const emit = defineEmits(['authenticated']);
     padding: 30px 0px 0px 0px;
     font-family: 'Arial Black';
     letter-spacing: -1px;
-    
+
 }
 </style>

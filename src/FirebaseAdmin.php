@@ -106,6 +106,103 @@ class FirebaseAdmin
     }
 
     /**
+     * Check a sign-in token and read several paths, all in the same breath.
+     *
+     * Checking the token first and reading afterwards costs two round trips,
+     * because the answer to the first says which profile to read. Asking for
+     * the whole users branch instead lets both go at once and the caller's
+     * profile be picked out of the reply, which halves the wait.
+     *
+     * That trade holds while the staff list is a staff list. If this ever has
+     * thousands of accounts, go back to two round trips.
+     *
+     * @param array<string, string> $paths
+     *
+     * @return array{accountId: ?string, values: array<string, mixed>}
+     */
+    public function readManyForToken(string $idToken, array $paths): array
+    {
+        $token = $this->account->accessToken();
+
+        $requests = ['~token' => [
+            'method' => 'POST',
+            'url' => self::IDENTITY_URL . $this->projectId . '/accounts:lookup',
+            'body' => ['idToken' => $idToken],
+            'headers' => ['Authorization: Bearer ' . $token],
+        ]];
+
+        foreach ($this->readRequests($paths, $token) as $name => $request) {
+            $requests[$name] = $request;
+        }
+
+        $replies = HttpJson::sendMany($requests);
+        $identity = $replies['~token'];
+        unset($replies['~token']);
+
+        $localId = $identity['body']['users'][0]['localId'] ?? null;
+        $values = [];
+
+        foreach ($replies as $name => $reply) {
+            $values[$name] = $reply['status'] === 200 ? ($reply['body'] ?: null) : null;
+        }
+
+        return [
+            // Only a reply Google actually accepted says who is calling.
+            'accountId' => $identity['status'] === 200 && is_string($localId) ? $localId : null,
+            'values' => $values,
+        ];
+    }
+
+    /**
+     * Read several paths at once, ignoring the security rules.
+     *
+     * Four reads one after another spend four round trips; the database does
+     * not care in which order it answers them, so they all go at once.
+     *
+     * A path may carry a query of its own, for example
+     * 'servedLists?orderBy="importedAt"&limitToLast=1'.
+     *
+     * @param array<string, string> $paths keyed however the caller wants them back
+     *
+     * @return array<string, mixed> the same keys, each holding the value or null
+     */
+    public function readMany(array $paths): array
+    {
+        $values = [];
+
+        foreach (HttpJson::sendMany($this->readRequests($paths, $this->account->accessToken())) as $name => $response) {
+            $values[$name] = $response['status'] === 200 ? ($response['body'] ?: null) : null;
+        }
+
+        return $values;
+    }
+
+    /**
+     * Turn paths into requests ready to be sent together.
+     *
+     * @param array<string, string> $paths
+     *
+     * @return array<string, array{method: string, url: string, headers: array<int, string>}>
+     */
+    private function readRequests(array $paths, string $token): array
+    {
+        $requests = [];
+
+        foreach ($paths as $name => $path) {
+            [$branch, $query] = array_pad(explode('?', $path, 2), 2, null);
+
+            $requests[$name] = [
+                'method' => 'GET',
+                'url' => $this->databaseUrl . '/' . ltrim((string) $branch, '/') . '.json'
+                    . ($query === null ? '' : '?' . $query),
+                'headers' => ['Authorization: Bearer ' . $token],
+            ];
+        }
+
+        return $requests;
+    }
+
+    /**
      * Write a path in the database, ignoring the security rules.
      *
      * @param array<string, mixed> $value
@@ -214,12 +311,22 @@ class FirebaseAdmin
     {
         $reason = (string) ($response['body']['error']['message'] ?? 'UNKNOWN');
 
-        return match (true) {
+        $known = match (true) {
             str_contains($reason, 'EMAIL_EXISTS') => 'That email already has an account.',
             str_contains($reason, 'INVALID_EMAIL') => 'That email address is not valid.',
-            str_contains($reason, 'WEAK_PASSWORD') => 'The password must be at least 6 characters.',
+            str_contains($reason, 'WEAK_PASSWORD') => 'That password is too weak.',
             str_contains($reason, 'USER_NOT_FOUND') => 'That account no longer exists.',
-            default => 'Firebase refused the request: ' . $reason,
+            default => null,
         };
+
+        if ($known !== null) {
+            return $known;
+        }
+
+        // Anything unrecognised is Google talking to us, not to the person at
+        // the screen, and repeating it back would describe the server to them.
+        error_log('DATS: Firebase refused the request: ' . $reason);
+
+        return 'Firebase would not accept that. Try again, or ask an administrator.';
     }
 }

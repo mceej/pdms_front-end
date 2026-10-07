@@ -12,6 +12,22 @@ ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
 header('Content-Type: application/json');
+// The body is always JSON; never let a browser decide otherwise and run it.
+header('X-Content-Type-Options: nosniff');
+
+/**
+ * Stop on something the caller can do nothing about.
+ *
+ * The reason goes to the log rather than the reply. Messages from this layer
+ * name server files and quote Google's answers back, and neither is any of a
+ * caller's business — least of all a caller who is guessing.
+ */
+function cannotContinue(Throwable $problem): never
+{
+    error_log('DATS: ' . $problem->getMessage());
+
+    respond(['message' => 'The server is not set up correctly. Ask an administrator.'], 500);
+}
 
 /**
  * Load the application configuration.
@@ -75,6 +91,77 @@ function recordAudit(FirebaseAdmin $admin, string $accountId, array $profile, ar
         'activity' => $entry['activity'],
         'ipAddress' => (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown'),
     ]);
+}
+
+/**
+ * The sign-in token on a request that has no body to carry it.
+ *
+ * A GET keeps its parameters in the address, and an address ends up in server
+ * logs and browser history, so the token travels in the Authorization header
+ * instead.
+ */
+function bearerToken(): string
+{
+    $header = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+
+    if ($header === '' && function_exists('getallheaders')) {
+        foreach (getallheaders() as $name => $value) {
+            if (strcasecmp((string) $name, 'Authorization') === 0) {
+                $header = (string) $value;
+
+                break;
+            }
+        }
+    }
+
+    return preg_match('/^Bearer\s+(.+)$/i', trim($header), $found) === 1 ? trim($found[1]) : '';
+}
+
+/**
+ * A cheap look at a sign-in token before the database is troubled with it.
+ *
+ * This settles nothing about who is calling. The signature is not checked, and
+ * only Google's answer is ever trusted for that. It exists because verifying a
+ * token now happens alongside the reads rather than before them, and without it
+ * anybody could spend the database's bandwidth by sending rubbish.
+ */
+function looksLikeIdToken(string $idToken, string $projectId): bool
+{
+    $parts = explode('.', $idToken);
+
+    if (count($parts) !== 3) {
+        return false;
+    }
+
+    $claims = json_decode((string) base64_decode(strtr($parts[1], '-_', '+/')), true);
+
+    if (! is_array($claims) || ($claims['aud'] ?? '') !== $projectId) {
+        return false;
+    }
+
+    // A minute of slack, for clocks that disagree.
+    return (int) ($claims['exp'] ?? 0) > time() - 60;
+}
+
+/**
+ * Make sure the account behind a request still works.
+ *
+ * Every role is allowed to read the dashboard, so this asks whether the account
+ * is active and nothing about the role.
+ *
+ * @return array<string, mixed>
+ */
+function requireActiveProfile(mixed $profile): array
+{
+    if (! is_array($profile)) {
+        respond(['message' => 'That account has no profile.'], 403);
+    }
+
+    if (($profile['status'] ?? '') !== 'Active') {
+        respond(['message' => 'This account is inactive. Ask an administrator.'], 403);
+    }
+
+    return $profile;
 }
 
 /**

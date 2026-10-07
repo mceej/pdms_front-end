@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/FileCache.php';
 require_once __DIR__ . '/HttpJson.php';
 
 /**
@@ -37,10 +38,22 @@ class GoogleServiceAccount
 
     /**
      * A token Google accepts, reused until it is close to expiring.
+     *
+     * PHP keeps nothing between requests, so without the file below every page
+     * load paid Google a round trip for a token that was still good for another
+     * fifty-nine minutes.
      */
     public function accessToken(): string
     {
         if ($this->accessToken !== null && $this->expiresAt > time() + 60) {
+            return $this->accessToken;
+        }
+
+        $saved = $this->savedToken();
+
+        if ($saved !== null) {
+            [$this->accessToken, $this->expiresAt] = $saved;
+
             return $this->accessToken;
         }
 
@@ -55,8 +68,58 @@ class GoogleServiceAccount
 
         $this->accessToken = (string) $response['body']['access_token'];
         $this->expiresAt = time() + (int) ($response['body']['expires_in'] ?? 3600);
+        $this->saveToken();
 
         return $this->accessToken;
+    }
+
+    /**
+     * Which cache entry belongs to this key.
+     *
+     * Named after the key it came from, so two projects never share a token,
+     * and hashed, so the file name says nothing about whose it is.
+     */
+    private function cacheKey(): string
+    {
+        return ($this->key['client_email'] ?? '') . '|' . ($this->key['private_key_id'] ?? '');
+    }
+
+    /**
+     * The token from an earlier request, if it is still worth using.
+     *
+     * @return array{0: string, 1: int}|null
+     */
+    private function savedToken(): ?array
+    {
+        $saved = (new FileCache('google-access-token'))->get($this->cacheKey());
+
+        if ($saved === null || ! isset($saved['access_token'], $saved['expires_at'])) {
+            return null;
+        }
+
+        // The same minute of headroom a fresh token gets, so a request never
+        // starts with a token that expires halfway through it.
+        if ((int) $saved['expires_at'] <= time() + 60) {
+            return null;
+        }
+
+        return [(string) $saved['access_token'], (int) $saved['expires_at']];
+    }
+
+    /**
+     * Keep the token for the next request.
+     *
+     * For the hour it lives, this token can do everything the key can, so it is
+     * held the way the key is: outside public/, and readable only by the user
+     * the server runs as.
+     */
+    private function saveToken(): void
+    {
+        (new FileCache('google-access-token'))->put(
+            $this->cacheKey(),
+            ['access_token' => $this->accessToken, 'expires_at' => $this->expiresAt],
+            $this->expiresAt
+        );
     }
 
     /**

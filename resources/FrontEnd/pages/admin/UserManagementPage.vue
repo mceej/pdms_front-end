@@ -929,10 +929,10 @@ watch(
 }
 
 .users-table th:nth-child(1) { width: 18%; }
-.users-table th:nth-child(2) { width: 24%; }
+.users-table th:nth-child(2) { width: 21%; }
 .users-table th:nth-child(3) { width: 15%; }
 .users-table th:nth-child(4) { width: 21%; }
-.users-table th:nth-child(5) { width: 12%; }
+.users-table th:nth-child(5) { width: 9%; }
 
 .admin-table th {
     position: sticky;

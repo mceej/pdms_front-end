@@ -194,7 +194,6 @@ onUnmounted(() => window.clearInterval(clockTimer));
 }
 
 .rdv-dbrm-content {
-    display: flex;
     flex: 1 1 auto;
     min-width: 0;
 }
@@ -211,9 +210,6 @@ onUnmounted(() => window.clearInterval(clockTimer));
 .served-list-shell {
     display: flex;
     flex-direction: column;
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
     min-height: 100vh;
     padding: 18px 30px 36px;
 }
