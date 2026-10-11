@@ -8,21 +8,36 @@
           class="dashboard-breadcrumb"
         />
 
-        <div v-if="activeLevel === 'municipality'" class="table-header-actions">
+        <div v-if="showFilters" class="table-header-actions">
           <InputText
+            v-if="activeLevel === 'municipality'"
             :modelValue="municipalitySearch"
             placeholder="Search municipality"
             class="municipality-search"
             @update:modelValue="emit('update:municipalitySearch', $event)"
           />
-          <Select
+          <MultiSelect
             :modelValue="payoutSiteFilter"
-            :options="payoutSiteOptions"
+            :options="dropdownOptions"
             placeholder="Payout Site"
+            :maxSelectedLabels="2"
+            :showToggleAll="false"
             showClear
             class="payout-select"
             @update:modelValue="emit('update:payoutSiteFilter', $event)"
-          />
+          >
+            <template #header>
+              <label class="select-all-row" for="payout-select-all">
+                <Checkbox
+                  inputId="payout-select-all"
+                  binary
+                  :modelValue="allSelected"
+                  @update:modelValue="toggleAll"
+                />
+                <span>Select all</span>
+              </label>
+            </template>
+          </MultiSelect>
           <Button label="Apply" size="small" @click="emit('apply-filters')" />
         </div>
       </div>
@@ -89,6 +104,9 @@
 </template>
 
 <script setup>
+import { computed, ref, watch } from 'vue';
+import MultiSelect from 'primevue/multiselect';
+import Checkbox from 'primevue/checkbox';
 import ColumnGroup from 'primevue/columngroup';
 import Row from 'primevue/row';
 
@@ -96,13 +114,43 @@ const props = defineProps({
   breadcrumbItems: { type: Array, required: true },
   activeLevel: { type: String, required: true },
   municipalitySearch: { type: String, default: '' },
-  payoutSiteFilter: { type: String, default: '' },
+  payoutSiteFilter: { type: Array, default: () => [] },
   payoutSiteOptions: { type: Array, default: () => [] },
   rowsWithProgress: { type: Array, default: () => [] },
   totalTableTarget: { type: Number, default: 0 },
   totalTablePaid: { type: Number, default: 0 },
   totalProgress: { type: Number, default: 0 },
 });
+
+// Show filters on every level below the province list (municipality, barangay, detail, ...)
+const showFilters = computed(() => props.breadcrumbItems.length >= 2);
+
+// Below the municipality list, the dropdown lists the barangays of the opened municipality.
+// Options are only refreshed while no barangay is selected, so picking some doesn't shrink the list.
+const barangayOptions = ref([]);
+
+watch(
+  () => [props.rowsWithProgress, props.activeLevel],
+  () => {
+    if (props.activeLevel === 'municipality' || props.payoutSiteFilter?.length) return;
+    barangayOptions.value = [...new Set(props.rowsWithProgress.map((row) => row.name))];
+  },
+  { immediate: true }
+);
+
+const dropdownOptions = computed(() =>
+  props.activeLevel === 'municipality' ? props.payoutSiteOptions : barangayOptions.value
+);
+
+const allSelected = computed(
+  () =>
+    dropdownOptions.value.length > 0 &&
+    props.payoutSiteFilter.length === dropdownOptions.value.length
+);
+
+const toggleAll = (checked) => {
+  emit('update:payoutSiteFilter', checked ? [...dropdownOptions.value] : []);
+};
 
 const formatPeso = (amount) => {
   const value = Number(amount || 0);
@@ -190,6 +238,16 @@ const emit = defineEmits([
 .municipality-search,
 .payout-select {
   min-width: 180px;
+}
+
+.select-all-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .dashboard-table {
