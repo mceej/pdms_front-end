@@ -33,7 +33,7 @@ To run it without Docker you need **PHP 8.3+** and **Node.js 20.19+ or 22.12+** 
 ## Running the project
 
 ```sh
-git clone https://github.com/Jhnqst/dswd_repository.git
+git clone https://github.com/mceej/pdms_front-end.git
 cd dswd_repository
 docker compose up
 ```
