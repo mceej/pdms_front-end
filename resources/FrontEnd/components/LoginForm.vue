@@ -24,6 +24,10 @@
             <p v-if="errors.password" class="error-text">The password field is required.</p>
         </div>
 
+        <p v-if="errors.credentials" class="error-text">
+            Invalid demo account. Use admin, mancom, rdv_cis, or rdv_dbrm with password 123.
+        </p>
+
         <div class="form-options">
             <label class="checkbox-label">
                 <input
@@ -52,15 +56,28 @@ const emit = defineEmits(['authenticated']);
 const username = ref('');
 const password = ref('');
 const hasAgreedToPrivacyPolicy = ref(false);
-const errors = reactive({ username: false, password: false, privacyPolicy: false });
+const errors = reactive({ username: false, password: false, privacyPolicy: false, credentials: false });
+const demoAccounts = {
+    admin: 'admin',
+    mancom: 'mancom',
+    rdv_cis: 'rdv-cis',
+    rdv_dbrm: 'rdv-dbrm',
+};
 
 const login = () => {
     errors.username = !username.value;
     errors.password = !password.value;
     errors.privacyPolicy = !hasAgreedToPrivacyPolicy.value;
+    errors.credentials = false;
 
     if (!errors.username && !errors.password && !errors.privacyPolicy) {
-        emit('authenticated');
+        const role = demoAccounts[username.value.trim().toLowerCase()];
+        if (!role || password.value !== '123') {
+            errors.credentials = true;
+            return;
+        }
+
+        emit('authenticated', role);
     }
 };
 </script>
@@ -108,6 +125,7 @@ const login = () => {
 
 .checkbox-label input {
     margin-top: 2px;
+    accent-color: #3730a3;
 }
 
 .checkbox-label a {
@@ -117,7 +135,7 @@ const login = () => {
 }
 
 .checkbox-error {
-    accent-color: #ef4444;
+    accent-color: #3730a3;
 }
 
 button {
@@ -158,3 +176,4 @@ button:hover {
     font-size: 12px;
 }
 </style>
+

@@ -3,15 +3,23 @@
     <div class="server-list-heading">
       <div>
         <span class="eyebrow">Import New Served List</span>
-        <h2>Server List</h2>
+        <h2>Served List</h2>
       </div>
       <span>as of {{ currentTime }}</span>
     </div>
 
     <form class="served-list-form" @submit.prevent="emit('upload-served-list')">
-      <label class="served-field served-program-field">
-        <span>Select Program</span>
-        <Select v-model="servedListForm.program" :options="tabs" placeholder="Select one..." />
+      <label v-if="isEctImport" class="served-field served-disaster-field">
+        <span>Disaster Name</span>
+        <AutoComplete
+          :model-value="servedListForm.disasterName"
+          :suggestions="filteredDisasterNameOptions"
+          dropdown
+          placeholder="Select disaster name"
+          @complete="searchDisasterNames"
+          @update:model-value="setDisasterName"
+          @blur="addDisasterName"
+        />
       </label>
 
       <div class="served-location-fields">
@@ -45,7 +53,7 @@
         <Button
           type="submit"
           :label="isUploading ? 'Uploading...' : 'Upload'"
-          :disabled="isUploading || !servedListForm.program || !servedListForm.file"
+          :disabled="isUploading || !servedListForm.file || (isEctImport && !servedListForm.disasterName)"
         />
       </div>
     </form>
@@ -56,21 +64,26 @@
         <div class="served-list-date-filter">
           <span>{{ appliedServedListDateLabel }}</span>
           <div class="date-range-inputs">
-            <input
-              :value="servedListDateFrom"
-              type="date"
-              aria-label="Filter served lists from date"
-              :max="servedListDateTo || undefined"
-              @change="emit('update:servedListDateFrom', $event.target.value)"
-            />
-            <span>to</span>
-            <input
-              :value="servedListDateTo"
-              type="date"
-              aria-label="Filter served lists to date"
-              :min="servedListDateFrom || undefined"
-              @change="emit('update:servedListDateTo', $event.target.value)"
-            />
+            <div :class="['date-field', { empty: !servedListDateFrom }]">
+              <span class="date-placeholder">From</span>
+              <input
+                :value="servedListDateFrom"
+                type="date"
+                aria-label="Filter served lists from date"
+                :max="servedListDateTo || undefined"
+                @change="emit('update:servedListDateFrom', $event.target.value)"
+              />
+            </div>
+            <div :class="['date-field', { empty: !servedListDateTo }]">
+              <span class="date-placeholder">To</span>
+              <input
+                :value="servedListDateTo"
+                type="date"
+                aria-label="Filter served lists to date"
+                :min="servedListDateFrom || undefined"
+                @change="emit('update:servedListDateTo', $event.target.value)"
+              />
+            </div>
             <Button label="Apply" size="small" @click="emit('apply-served-list-date-filter')" />
           </div>
         </div>
@@ -89,9 +102,12 @@
 </template>
 
 <script setup>
+import AutoComplete from 'primevue/autocomplete';
+import { computed, ref } from 'vue';
+
 const props = defineProps({
   currentTime: { type: String, required: true },
-  tabs: { type: Array, required: true },
+  payoutType: { type: String, default: 'AICS' },
   servedListForm: { type: Object, required: true },
   servedProvinceOptions: { type: Array, default: () => [] },
   servedMunicipalityOptions: { type: Array, default: () => [] },
@@ -99,11 +115,66 @@ const props = defineProps({
   isUploading: { type: Boolean, default: false },
   servedListMessage: { type: String, default: '' },
   servedListError: { type: Boolean, default: false },
-  servedListRows: { type: Array, default: () => [] },
+  servedListRows: {
+    type: Array,
+    default: () => [
+      { file_name: 'AICS_Davao_City_Served_List_2026-09-28.csv', imported_at: 'Sep 28, 2026, 11:30 AM', imported_by: 'John michael Quisaot' },
+      { file_name: 'ECT_Davao_City_Served_List_2026-09-27.csv', imported_at: 'Sep 27, 2026, 3:45 PM', imported_by: 'Benidict Solo (Star Wars)' },
+      { file_name: 'AICS_Davao_del_Sur_Served_List_2026-09-26.csv', imported_at: 'Sep 26, 2026, 1:10 PM', imported_by: 'Oliver Orano' },
+      { file_name: 'ECT_Davao_del_Norte_Served_List_2026-09-25.csv', imported_at: 'Sep 25, 2026, 10:05 AM', imported_by: 'John Carlo Morre' },
+      { file_name: 'AICS_Davao_Oriental_Served_List_2026-09-24.csv', imported_at: 'Sep 24, 2026, 9:20 AM', imported_by: 'Mikaella Summer Gorgonio' },
+    ],
+  },
   servedListDateFrom: { type: String, default: '' },
   servedListDateTo: { type: String, default: '' },
   appliedServedListDateLabel: { type: String, default: 'as of today' },
 });
+
+const disasterNameOptions = ref([
+  'Earthquake',
+  'Flood',
+  'Typhoon',
+  'Landslide',
+  'Storm Surge',
+  'Volcanic Eruption',
+  'Drought',
+  'Fire',
+  'Heavy Rain',
+  'Tropical Storm',
+]);
+const filteredDisasterNameOptions = ref([...disasterNameOptions.value]);
+const isEctImport = computed(() => props.payoutType === 'ECT');
+
+function setDisasterName(disasterName) {
+  props.servedListForm.disasterName = disasterName;
+}
+
+function searchDisasterNames({ query }) {
+  const searchTerm = query.trim().toLowerCase();
+
+  filteredDisasterNameOptions.value = searchTerm
+    ? disasterNameOptions.value.filter((option) => option.toLowerCase().includes(searchTerm))
+    : [...disasterNameOptions.value];
+}
+
+function addDisasterName() {
+  const disasterName = String(props.servedListForm.disasterName || '').trim();
+
+  if (!disasterName) return;
+
+  const existingName = disasterNameOptions.value.find(
+    (option) => option.toLowerCase() === disasterName.toLowerCase(),
+  );
+
+  if (existingName) {
+    props.servedListForm.disasterName = existingName;
+    return;
+  }
+
+  disasterNameOptions.value.push(disasterName);
+  filteredDisasterNameOptions.value = [...disasterNameOptions.value];
+  props.servedListForm.disasterName = disasterName;
+}
 
 const emit = defineEmits([
   'upload-served-list',
@@ -121,16 +192,24 @@ const emit = defineEmits([
 }
 
 .server-list-heading {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: flex-end;
   gap: 16px;
-  margin-top: 8px;
+  min-height: 190px;
+  margin-top: 0;
+  padding: 38px 40px 30px;
+  border-radius: 10px;
+  background:
+    linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
+    #2E3192;
+  box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
 .eyebrow {
   display: block;
-  color: #ffb703;
+  color: #F3BB2E;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.72rem;
@@ -138,20 +217,22 @@ const emit = defineEmits([
 }
 
 .server-list-heading h2 {
-  margin: 6px 0 0;
-  color: #0d234a;
-  font-size: clamp(1.8rem, 2.5vw, 2.5rem);
+  margin: 10px 0 0;
+  color: #fff;
+  font-size: 48px;
+  font-weight: 650;
+  line-height: 1.05;
 }
 
 .server-list-heading > span {
-  color: #5b7288;
+  color: #fff;
   font-size: 0.8rem;
 }
 
 .served-list-form {
   display: grid;
   gap: 18px;
-  padding: 22px;
+  padding: 22px 18px;
   border-radius: 18px;
   background: rgba(255,255,255,0.96);
   border: 1px solid rgba(12, 35, 77, 0.08);
@@ -161,14 +242,21 @@ const emit = defineEmits([
 .served-field {
   display: grid;
   gap: 8px;
-  color: #1a2d4d;
+  color: #000000;
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
-.served-program-field :deep(.p-select),
+.served-disaster-field :deep(.p-autocomplete),
+.served-disaster-field :deep(.p-autocomplete-input),
 .served-field :deep(.p-select) {
   width: 100%;
+}
+
+.served-field :deep(.p-select-label),
+.served-field :deep(.p-autocomplete-input) {
+  font-size: 0.75rem;
+  font-weight: 400;
 }
 
 .served-location-fields {
@@ -271,6 +359,35 @@ const emit = defineEmits([
   color: #0d234a;
 }
 
+.date-field {
+  position: relative;
+  display: inline-flex;
+}
+
+.date-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  z-index: 1;
+  color: #6b7a99;
+  font-size: 0.76rem;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.date-field:not(.empty) .date-placeholder,
+.date-field:focus-within .date-placeholder {
+  display: none;
+}
+
+.date-field.empty input {
+  color: transparent;
+}
+
+.date-field.empty input:focus {
+  color: #0d234a;
+}
+
 :deep(.dashboard-table) {
   width: 100%;
 }
@@ -299,5 +416,12 @@ const emit = defineEmits([
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .server-list-heading {
+    min-height: 170px;
+    padding: 30px 22px 24px;
+  }
+
+  .server-list-heading h2 { font-size: 40px; }
 }
 </style>

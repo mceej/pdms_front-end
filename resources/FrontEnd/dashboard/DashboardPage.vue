@@ -1,47 +1,17 @@
 ﻿﻿<template>
     <div class="dashboard-page">
-        <div class="welcome-bar">
-            <div class="welcome-user">
-                <span class="welcome-user-icon"><i class="pi pi-user"></i></span>
-                <strong>Welcome, User (name)</strong>
-            </div>
-            <div class="welcome-actions">
-                <span>Welcome to,</span>
-                <button type="button" class="logout-button" @click="emit('logout')">
-                    <i class="pi pi-sign-out"></i>
-                    Log out
-                </button>
-            </div>
-        </div>
-
         <div class="dashboard-shell">
-            <nav class="dashboard-nav" aria-label="Main navigation">
-                <button
-                    type="button"
-                    :class="['view-tab', { active: dashboardView === 'dashboard' }]"
-                    @click="dashboardView = 'dashboard'"
-                >
-                    Dashboard
-                </button>
-                <button
-                    type="button"
-                    :class="['view-tab', { active: dashboardView === 'server-list' }]"
-                    @click="dashboardView = 'server-list'"
-                >
-                    Server List
-                </button>
-            </nav>
-
             <header class="dashboard-header">
                 <div class="header-content">
                     <span class="brand">
-                        <i class="pi pi-shield"></i> DSWD • PAYOUT SYSTEM
+                        <i class="pi"></i> DSWD • PAYOUT SYSTEM
                     </span>
+                    <slot name="header-actions"></slot>
 
                     <div class="title-row">
                         <div>
-                            <h1>{{ dashboardView === 'dashboard' ? 'DSWD Assist Track Dashboard' : 'DSWD Assist Track' }}</h1>
-                            <span class="region-tag">{{ dashboardView === 'dashboard' ? regionName : 'Server List' }}</span>
+                            <h1>DSWD Assist Track Dashboard</h1>
+                            <span class="region-tag">{{ regionName }}</span>
                         </div>
 
                         <div class="progress-box">
@@ -61,46 +31,91 @@
                         </div>
                     </div>
 
-                    <div v-if="dashboardView === 'dashboard'" class="tab-row">
-                        <button type="button" class="tab" :class="{ active: activeTab === 'AICS' }" @click="setTab('AICS')">
-                            AICS
-                        </button>
-
-                        <div :class="['program-disaster-control', { active: activeTab === 'ECT' }]">
+                    <div class="tab-row">
+                        <div class="aics-control" ref="aicsControlRef">
                             <button
                                 type="button"
-                                :class="['tab', { active: activeTab === 'ECT' }]"
-                                @click="setTab('ECT')"
+                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' && !selectedAssistanceType }]"
+                                @click="toggleAicsTab"
                             >
-                                ECT
+                                <i class="pi pi-box"></i>
+                                AICS
+                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: assistanceMenuOpen }"></i>
                             </button>
-
-                            <div v-if="activeTab === 'ECT'" class="disaster-control">
-                                <Select
-                                    v-model="selectedDisasterType"
-                                    :options="disasterOptions"
-                                    placeholder="Type of Disaster"
-                                    showClear
-                                    panelClass="disaster-select-panel"
-                                    class="disaster-select"
-                                    @change="applyFilters"
-                                />
+                            <div v-if="assistanceMenuOpen" class="disaster-menu">
+                                <button
+                                    type="button"
+                                    class="disaster-menu-item disaster-menu-clear"
+                                    :disabled="!selectedAssistanceType"
+                                    @click="chooseAssistanceType('')"
+                                >
+                                    Clear selection
+                                </button>
+                                <button
+                                    v-for="option in assistanceTypeOptions"
+                                    :key="option"
+                                    type="button"
+                                    :class="['disaster-menu-item', { selected: selectedAssistanceType === option }]"
+                                    @click="chooseAssistanceType(option)"
+                                >
+                                    {{ option }}
+                                </button>
                             </div>
                         </div>
+
+                        <div class="ect-control" ref="ectControlRef">
+                            <button
+                                type="button"
+                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
+                                @click="toggleEctTab"
+                            >
+                                <i class="pi pi-file"></i>
+                                ECT
+                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
+                            </button>
+
+                            <div v-if="disasterMenuOpen" class="disaster-menu">
+                                <button
+                                    type="button"
+                                    class="disaster-menu-item disaster-menu-clear"
+                                    :disabled="!selectedDisasterType"
+                                    @click="chooseDisasterType('')"
+                                >
+                                    Clear selection
+                                </button>
+                                <button
+                                    v-for="option in disasterOptions"
+                                    :key="option"
+                                    type="button"
+                                    :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
+                                    @click="chooseDisasterType(option)"
+                                >
+                                    {{ option }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
+                            {{ selectedDisasterType }}
+                        </span>
+                        <span v-if="activeTab === 'AICS' && selectedAssistanceType" class="disaster-type-badge">
+                            {{ selectedAssistanceType }}
+                        </span>
                     </div>
                 </div>
             </header>
 
-            <template v-if="dashboardView === 'dashboard'">
-                <DashboardOverview
-                    :total-target="totalTarget"
-                    :total-disbursed="totalDisbursed"
-                    :total-paid-count="totalPaidCount"
-                    :total-balance="totalBalance"
-                    :unpaid-balance="unpaidBalance"
-                    :unpaid-disbursed="unpaidDisbursed"
-                />
+            <DashboardOverview
+                :total-target="totalTarget"
+                :total-disbursed="totalDisbursed"
+                :total-paid-count="totalPaidCount"
+                :total-balance="totalBalance"
+                :unpaid-balance="unpaidBalance"
+                :unpaid-disbursed="unpaidDisbursed"
+            />
 
+            <!-- Table (with Total row) + Progress Overview merged into one container -->
+            <div class="summary-panel">
                 <DashboardTable
                     :breadcrumb-items="breadcrumbItems"
                     :active-level="activeLevel"
@@ -108,9 +123,9 @@
                     :payout-site-filter="payoutSiteFilter"
                     :payout-site-options="payoutSiteOptions"
                     :rows-with-progress="rowsWithProgress"
-                    :total-table-target="totalTableTarget"
-                    :total-table-paid="totalTablePaid"
-                    :total-progress="totalProgress"
+                    :total-table-target="summaryTarget"
+                    :total-table-paid="summaryPaid"
+                    :total-progress="summaryProgress"
                     @update:municipalitySearch="municipalitySearch = $event"
                     @update:payoutSiteFilter="payoutSiteFilter = $event"
                     @apply-filters="applyFilters"
@@ -121,60 +136,47 @@
                 <ComparisonCharts
                     :selected-barangay="selectedBarangay"
                     :chart-markers="chartMarkers"
-                    :comparison-rows="comparisonRows"
+                    :comparison-rows="chartRowsWithProgress"
                     :api-loaded="apiLoaded"
                     :api-rows="apiRows"
                     :applied-date-label="appliedDateLabel"
                     :date-from="dateFrom"
                     :date-to="dateTo"
-                    :dashboard-progress="dashboardProgress"
-                    :total-paid-count="totalPaidCount"
-                    :total-target="totalTarget"
+                    :dashboard-progress="chartProgress"
+                    :total-paid-count="chartTotalPaid"
+                    :total-target="chartTotalTarget"
                     :comparison-color="comparisonColor"
+                    :active-level="activeLevel"
+                    :scope-name="scopeName"
+                    :extra-stat="extraStat"
                     @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
                     @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
+                    @apply="applyFilters"
                 />
-            </template>
-
-            <ServerListPage
-                v-else
-                :current-time="currentTime"
-                :tabs="tabs"
-                :served-list-form="servedListForm"
-                :served-province-options="servedProvinceOptions"
-                :served-municipality-options="servedMunicipalityOptions"
-                :served-barangay-options="servedBarangayOptions"
-                :is-uploading="isUploading"
-                :served-list-message="servedListMessage"
-                :served-list-error="servedListError"
-                :served-list-rows="servedListRows"
-                :served-list-date-from="servedListDateFrom"
-                :served-list-date-to="servedListDateTo"
-                :applied-served-list-date-label="appliedServedListDateLabel"
-                @upload-served-list="uploadServedList"
-                @select-served-list-file="selectServedListFile"
-                @update:servedListDateFrom="(value) => { servedListDateFrom = value; applyServedListDateFilter(); }"
-                @update:servedListDateTo="(value) => { servedListDateTo = value; applyServedListDateFilter(); }"
-                @apply-served-list-date-filter="applyServedListDateFilter"
-            />
+            </div>
         </div>
+
+        <footer class="dashboard-footer">
+            <p>Ⓒ 2026 Department of Social Welfare and Development - Field Office XI. All Rights Reserved.</p>
+        </footer>
     </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { fetchPayoutDashboard } from './mock/payoutDashboard.js';
-import DashboardOverview from './dashboard/DashboardOverview.vue';
-import DashboardTable from './dashboard/DashboardTable.vue';
-import ComparisonCharts from './dashboard/ComparisonCharts.vue';
-import ServerListPage from './serverList/ServerListPage.vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
+import { fetchPayoutDashboard } from '../mock/payoutDashboard.js';
+import ComparisonCharts from './ComparisonCharts.vue';
+import DashboardOverview from './DashboardOverview.vue';
+import DashboardTable from './DashboardTable.vue';
 
-const emit = defineEmits(['logout']);
-
-const dashboardView = ref('dashboard');
 const activeTab = ref('AICS');
 const disasterName = ref('');
 const selectedDisasterType = ref('');
+const selectedAssistanceType = ref('');
+const disasterMenuOpen = ref(false);
+const assistanceMenuOpen = ref(false);
+const ectControlRef = ref(null);
+const aicsControlRef = ref(null);
 const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
@@ -197,6 +199,47 @@ const formatUpdatedAt = (value) => {
     })}`;
 };
 
+const toggleAicsTab = () => {
+    const switchingIn = activeTab.value !== 'AICS';
+    if (switchingIn) {
+        setTab('AICS');
+        assistanceMenuOpen.value = true;
+        return;
+    }
+    assistanceMenuOpen.value = !assistanceMenuOpen.value;
+};
+
+const toggleEctTab = () => {
+    const switchingIn = activeTab.value !== 'ECT';
+    if (switchingIn) {
+        setTab('ECT');
+        disasterMenuOpen.value = true;
+        return;
+    }
+    disasterMenuOpen.value = !disasterMenuOpen.value;
+};
+
+const chooseDisasterType = (value) => {
+    selectedDisasterType.value = value;
+    disasterMenuOpen.value = false;
+    applyFilters();
+};
+
+const chooseAssistanceType = (value) => {
+    selectedAssistanceType.value = value;
+    assistanceMenuOpen.value = false;
+    applyFilters();
+};
+
+const closeDisasterMenuOnOutsideClick = (event) => {
+    if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
+        disasterMenuOpen.value = false;
+    }
+    if (assistanceMenuOpen.value && aicsControlRef.value && !aicsControlRef.value.contains(event.target)) {
+        assistanceMenuOpen.value = false;
+    }
+};
+
 const apiRows = ref([]);
 const apiLoaded = ref(false);
 const apiSummary = ref({ target: 0, paid: 0, remaining: 0, target_amount: 0, amount_disbursed: 0, unpaid_amount: 0, progress: 0 });
@@ -214,27 +257,10 @@ const disasterOptions = computed(() => [
         ...apiDisasterTypes.value,
     ]),
 ]);
+const assistanceTypeOptions = ['Cash Assistance', 'Medical Support'];
 const apiPayoutSites = ref([]);
-const isUploading = ref(false);
-const servedListMessage = ref('');
-const servedListError = ref(false);
-const servedListRows = ref([]);
-const servedListForm = reactive({ program: '', province: '', municipality: '', barangay: '', file: null });
-const servedListDateFrom = ref('');
-const servedListDateTo = ref('');
-const appliedServedListDateLabel = ref(`as of ${currentTime.value}`);
-
-const applyServedListDateFilter = () => {
-    if (servedListDateFrom.value && servedListDateTo.value && servedListDateTo.value < servedListDateFrom.value) {
-        servedListDateTo.value = servedListDateFrom.value;
-    }
-    appliedServedListDateLabel.value = servedListDateFrom.value && servedListDateTo.value
-        ? `from ${servedListDateFrom.value} to ${servedListDateTo.value}`
-        : `as of ${currentTime.value}`;
-};
 
 const regionName = ref('REGION XI');
-const tabs = ['AICS', 'ECT'];
 const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
@@ -279,16 +305,6 @@ const dashboardData = {
 };
 
 const activeData = computed(() => dashboardData[activeTab.value]);
-const servedProvinceOptions = computed(() => dashboardData[servedListForm.program || activeTab.value].provinces.map((province) => province.name));
-const servedMunicipalityOptions = computed(() => {
-    const province = dashboardData[servedListForm.program || activeTab.value].provinces.find((item) => item.name === servedListForm.province);
-    return (province?.municipalities || []).map((municipality) => municipality.name);
-});
-const servedBarangayOptions = computed(() => {
-    const province = dashboardData[servedListForm.program || activeTab.value].provinces.find((item) => item.name === servedListForm.province);
-    const municipality = province?.municipalities.find((item) => item.name === servedListForm.municipality);
-    return (municipality?.barangays || []).map((barangay) => barangay.name);
-});
 
 const totalTarget = computed(() => apiLoaded.value ? apiSummary.value.target : activeData.value.target);
 const totalDisbursed = computed(() => {
@@ -298,8 +314,7 @@ const totalDisbursed = computed(() => {
 });
 const totalPaidCount = computed(() => {
     if (apiLoaded.value) return apiSummary.value.paid;
-    const sum = activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
-    return sum > 0 ? sum.toLocaleString() : '-----';
+    return activeData.value.provinces.reduce((acc, p) => acc + p.paid, 0);
 });
 const totalBalance = computed(() => {
     if (apiLoaded.value) return `₱${Number(apiSummary.value.target_amount || 0).toLocaleString()}`;
@@ -321,14 +336,6 @@ const dashboardProgress = computed(() => {
 });
 
 const formatCurrency = (value) => `₱${Number(value || 0).toLocaleString()}`;
-
-const comparisonRows = computed(() => apiLoaded.value ? apiRows.value : activeData.value.provinces.map((row, index) => ({
-    id: index,
-    name: row.name,
-    target: row.target,
-    paid: row.paid,
-    progress: row.target ? Math.round((row.paid / row.target) * 100) : 0,
-})));
 
 const activeLevel = computed(() => {
   if (selectedBarangay.value) return 'detail';
@@ -377,6 +384,55 @@ const totalProgress = computed(() =>
   totalTableTarget.value ? Math.round((totalTablePaid.value / totalTableTarget.value) * 100) : 0
 );
 
+/* ---------- Data fed to the Target Distribution / Progress charts ----------
+   Mirrors the table's drill-down level, except at 'detail' (a barangay is
+   selected) where the chart shows that single barangay's own paid/remaining
+   split plus an extra stat, since there's nothing further to drill into. */
+const chartRows = computed(() => {
+  if (activeLevel.value === 'detail' && selectedBarangay.value) {
+    return [selectedBarangay.value];
+  }
+  return currentTableRows.value;
+});
+const chartRowsWithProgress = computed(() =>
+  chartRows.value.map((row) => ({
+    ...row,
+    progress: row.target ? Math.round((row.paid / row.target) * 100) : 0,
+  }))
+);
+const chartTotalTarget = computed(() => chartRows.value.reduce((sum, r) => sum + (r.target || 0), 0));
+const chartTotalPaid = computed(() => chartRows.value.reduce((sum, r) => sum + (r.paid || 0), 0));
+const chartProgress = computed(() =>
+  chartTotalTarget.value ? Math.round((chartTotalPaid.value / chartTotalTarget.value) * 100) : 0
+);
+
+/* ---------- Total row (table footer) ----------
+   Now that the table and the progress overview share one container, the Total
+   row must agree with the charts. At 'detail' level the table has no rows, so
+   fall back to the selected barangay's numbers used by the charts. */
+const summaryTarget = computed(() => activeLevel.value === 'detail' ? chartTotalTarget.value : totalTableTarget.value);
+const summaryPaid = computed(() => activeLevel.value === 'detail' ? chartTotalPaid.value : totalTablePaid.value);
+const summaryProgress = computed(() => activeLevel.value === 'detail' ? chartProgress.value : totalProgress.value);
+
+// Name of the parent entity the chart is currently scoped to (shown in the subtitle)
+const scopeName = computed(() => {
+  if (activeLevel.value === 'municipality') return selectedProvince.value?.name || '';
+  if (activeLevel.value === 'barangay') return selectedMunicipality.value?.name || '';
+  if (activeLevel.value === 'detail') return selectedBarangay.value?.name || '';
+  return '';
+});
+
+// Extra "minority" data point surfaced once a barangay is selected
+const extraStat = computed(() => {
+  if (activeLevel.value === 'detail' && selectedBarangay.value) {
+    return {
+      label: 'Beneficiaries Served',
+      value: selectedBarangay.value.beneficiaries ?? selectedBarangay.value.paid,
+    };
+  }
+  return null;
+});
+
 const payoutSiteOptions = computed(() => {
     if (apiLoaded.value) return apiPayoutSites.value;
     if (!selectedProvince.value) return [];
@@ -406,6 +462,7 @@ const breadcrumbItems = computed(() => {
 const fetchDashboard = async () => {
     const filters = { program: activeTab.value };
     if (selectedDisasterType.value) filters.disaster_type = selectedDisasterType.value;
+    if (selectedAssistanceType.value) filters.assistance_type = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.province_id = selectedProvince.value.id;
     if (selectedMunicipality.value?.id) filters.municipality_id = selectedMunicipality.value.id;
     if (selectedBarangay.value?.id) filters.barangay_id = selectedBarangay.value.id;
@@ -481,6 +538,8 @@ const setTab = (tab) => {
   payoutSiteFilter.value = '';
   municipalitySearch.value = '';
   selectedDisasterType.value = '';
+    selectedAssistanceType.value = '';
+    assistanceMenuOpen.value = false;
   fetchDashboard();
 };
 
@@ -501,16 +560,8 @@ const applyDateRange = (changedField) => {
     applyFilters();
 };
 
-const selectServedListFile = (event) => {
-    servedListForm.file = event.target.files?.[0] || null;
-    servedListMessage.value = '';
-    servedListError.value = false;
-};
-
-const uploadServedList = async () => {
-    servedListError.value = true;
-    servedListMessage.value = 'Uploading a served list needs the PHP backend, which is not built yet.';
-};
+onMounted(() => document.addEventListener('click', closeDisasterMenuOnOutsideClick));
+onUnmounted(() => document.removeEventListener('click', closeDisasterMenuOnOutsideClick));
 
 onMounted(() => fetchDashboard().catch((error) => console.error(error)));
 onMounted(() => {
@@ -539,63 +590,10 @@ button {
 button:hover { background: #2e2789; }
 
 .dashboard-page {
+    flex: 1 1 auto;
+    min-width: 0;
     min-height: 100vh;
-    width: 100%;
-    padding: 0 30px 36px;
-}
-
-.welcome-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: calc(100% + 60px);
-    min-height: 46px;
-    margin: 0 -30px 16px;
-    padding: 0 22px;
-    background: #171b82;
-    color: #fff;
-    box-shadow: 0 2px 5px rgba(12, 23, 92, 0.3);
-    font-size: 12px;
-}
-
-.welcome-user,
-.welcome-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-}
-
-.welcome-actions {
-    gap: 12px;
-}
-
-.logout-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    width: auto;
-    padding: 7px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 6px;
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.logout-button:hover {
-    background: rgba(255, 255, 255, 0.22);
-}
-
-.welcome-user-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 25px;
-    height: 25px;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    font-size: 12px;
+    padding: 18px 30px 36px;
 }
 
 .dashboard-shell {
@@ -609,104 +607,95 @@ button:hover { background: #2e2789; }
     box-shadow: none;
 }
 
-.dashboard-nav {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 18px;
-    padding: 6px;
-    border-radius: 14px;
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(12, 35, 77, 0.08);
-    box-shadow: 0 10px 26px rgba(16, 40, 78, 0.06);
-    width: fit-content;
-}
-
-.view-tab {
-    width: auto;
-    min-width: 132px;
-    padding: 10px 18px;
-    border: none;
+/* One container for the table (incl. Total row) and the Progress Overview */
+.summary-panel {
+    overflow: hidden;
+    border: 1px solid #d5e0ea;
     border-radius: 10px;
-    background: transparent;
-    color: #35507d;
-    font-weight: 700;
-    font-size: 0.82rem;
-    letter-spacing: 0.02em;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.view-tab.active {
-    background: linear-gradient(135deg, #0d234a 0%, #1647a5 100%);
-    color: #ffffff;
-    box-shadow: 0 8px 18px rgba(18, 52, 112, 0.2);
-}
-
-.view-tab:hover {
-    background: rgba(17, 58, 134, 0.06);
-}
-
-.view-tab.active:hover {
-    background: linear-gradient(135deg, #0d234a 0%, #1647a5 100%);
+    background: #fff;
+    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.18);
 }
 
 .dashboard-header {
     position: relative;
     overflow: visible;
     border-radius: 10px;
-    padding: 30px 34px 24px;
+    padding: 34px 36px 20px;
     margin-bottom: 24px;
-    background: linear-gradient(135deg, #052557 0%, #073a91 45%, #0649b9 100%);
-    box-shadow: 0 8px 24px rgba(7, 32, 74, 0.35);
-    border-top: 5px solid transparent;
-    border-image: linear-gradient(90deg, #f28b27 0%, #f28b27 72%, #e9482f 92%, #b71c3c 100%) 1;
+    min-height: 220px;
+    background:
+        linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
+<<<<<<< HEAD
+        linear-gradient(90deg, #2e3192);
+=======
+        linear-gradient(90deg, #2E3192 );
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
+    box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
 .header-content { position: relative; z-index: 1; }
+
+.header-logout {
+    position: absolute;
+    top: -12px;
+    right: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: auto;
+    padding: 8px 12px;
+    border: 1px solid rgb(255 255 255 / 55%);
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+}
+
+.header-logout:hover { background: rgb(255 255 255 / 14%); }
 
 .brand {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-size: 12px;
-    letter-spacing: 0.12em;
+    font-size: 16px;
+    letter-spacing: 0;
     text-transform: uppercase;
-    color: #f5bd18;
-    font-weight: 800;
+    color: #9dc1f8;
+    font-weight: 700;
 }
 
 .region-tag {
     display: inline-block;
-    margin-top: 6px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.12);
-    color: #cfe0fb;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
+    margin-top: 18px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0;
 }
 
 .title-row {
     display: flex;
     justify-content: space-between;
-    align-items: end;
-    gap: 18px;
-    margin-top: 12px;
+    align-items: flex-start;
+    gap: 24px;
+    margin-top: 16px;
 }
 
 .title-row h1 {
     margin: 0;
     color: #fff;
-    font-size: clamp(2rem, 4vw, 3.2rem);
-    font-weight: 800;
+    font-size: 50px;
+    font-weight: 650;
     letter-spacing: 0;
     line-height: 1;
 }
 
 .progress-box {
-    min-width: 340px;
+    width: 360px;
+    min-width: 360px;
+    margin-top: 20px;
     text-align: left;
 }
 
@@ -714,42 +703,64 @@ button:hover { background: #2e2789; }
     display: flex;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     text-align: left;
 }
 
 .header-beneficiaries {
     color: #fff;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
     white-space: nowrap;
 }
 
 .header-progress-value {
-    color: #fff;
-    font-size: clamp(1.7rem, 2.8vw, 2.5rem);
+    color: #ffffff;
+    font-size: 50px;
     line-height: 1;
-    font-weight: 800;
+    font-weight: 600;
+}
+
+.header-progress-wrap {
+    margin-top: 8px;
+    width: 100%;
+}
+
+:deep(.header-progress) {
+    height: 6px;
+    border-radius: 999px;
+    background: #06336f;
+    overflow: hidden;
+}
+
+:deep(.header-progress .p-progressbar-value) {
+    background: #ffae1a;
+    border-radius: 999px;
 }
 
 .header-updated {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 3px;
-    margin-top: 10px;
+    align-items: flex-end;
+    gap: 6px;
+    margin-top: 4px;
     color: #fff;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.2;
+    text-align: right;
 }
 
 .header-updated span {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    font-weight: 600;
+    margin-top: 10px;
 }
 
 .header-updated strong {
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
 }
 
@@ -761,7 +772,7 @@ button:hover { background: #2e2789; }
     padding: 0;
     border-radius: 0;
     border: 0;
-    margin: 28px 0 0;
+    margin: 5px 0 0;
     position: relative;
     z-index: 1;
 }
@@ -771,9 +782,10 @@ button:hover { background: #2e2789; }
     flex: 0 0 auto;
     align-items: center;
     justify-content: center;
+    gap: 7px;
     box-sizing: border-box;
     width: auto;
-    height: 36px;
+    height: 34px;
     min-width: 82px;
     padding: 0 20px;
     border-radius: 8px;
@@ -784,6 +796,8 @@ button:hover { background: #2e2789; }
     font-size: 12px;
     cursor: pointer;
 }
+
+.tab i { font-size: 12px; }
 
 .tab.active {
     background: #fff;
@@ -817,68 +831,140 @@ button:hover { background: #2e2789; }
     box-shadow: 0 2px 8px rgba(5, 37, 87, 0.24);
 }
 
-.dashboard-as-of {
-    margin: -14px 0 18px;
-    color: #5b7288;
-    font-size: 12px;
-    font-weight: 500;
-    text-align: right;
+.disaster-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 98px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background:#2e3192;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.disaster-control {
+.ect-control,
+.aics-control {
+    position: relative;
+}
+
+.ect-tab,
+.aics-tab {
+    gap: 8px;
+}
+
+.aics-tab {
+    height: 36px;
+    min-width: 72px;
+    padding: 0 12px;
+    font-size: 11px;
+}
+
+.ect-chevron {
+    font-size: 10px;
+    margin-left: 2px;
+    transition: transform 0.15s ease;
+}
+
+.ect-chevron.open {
+    transform: rotate(180deg);
+}
+
+.disaster-menu {
     position: absolute;
-    top: 0;
-    left: calc(100% + 8px);
+    top: calc(100% + 6px);
+    left: 0;
     z-index: 10;
-    min-width: 260px;
-    padding: 4px;
-    border: 0;
+    min-width: 200px;
+    padding: 6px;
     border-radius: 8px;
     background: #073a91;
-    box-shadow: 0 4px 10px rgba(5, 37, 87, 0.2);
-}
-
-.disaster-control :deep(.p-select) {
-    width: 100%;
-    min-height: 34px;
     border: 1px solid #6d86ed;
-    border-radius: 8px;
-    background: #073a91;
-    box-shadow: inset 0 1px 2px rgba(5, 37, 87, 0.08);
+    box-shadow: 0 6px 16px rgba(5, 37, 87, 0.35);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.disaster-control :deep(.p-select-label) {
+.disaster-menu-item {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
     color: #fff;
     font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
 }
 
-.disaster-control :deep(.p-select-dropdown) {
-    color: #fff;
-}
-
-:deep(.disaster-select-panel) {
-    border: 1px solid #6d86ed;
-    background: #073a91;
-    color: #fff;
-}
-
-:deep(.disaster-select-panel .p-select-option) {
-    color: #fff;
-}
-
-:deep(.disaster-select-panel .p-select-option:hover),
-:deep(.disaster-select-panel .p-select-option.p-focus) {
+.disaster-menu-item:hover:not(:disabled) {
     background: #0649b9;
-    color: #fff;
 }
+
+.disaster-menu-item.selected {
+    background: #0649b9;
+    font-weight: 800;
+}
+
+.disaster-menu-clear {
+    color: #b9c8f5;
+    font-weight: 500;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px 6px 0 0;
+    margin-bottom: 4px;
+}
+
+.disaster-menu-clear:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.disaster-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 98px;
+    max-width: 220px;
+    height: 24px;
+    padding: 16px;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #063b95;
+<<<<<<< HEAD
+    font-size: 12px;
+    font-weight: 750;
+=======
+    font-size: 13px;
+    font-weight: 700;
+>>>>>>> a2d4feaea0397b58e880a9277f05945a2bba0d54
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-footer {
+    width: calc(100% + 60px);
+    margin: 36px -30px -36px;
+    padding: 8px 18px;
+    background: #000;
+    color: #fff;
+    font-size: 10px;
+    line-height: 1.35;
+    text-align: center;
+}
+
+.dashboard-footer p { margin: 0; }
 
 @media (max-width: 768px) {
-    .welcome-bar {
-            width: calc(100% + 32px);
-            margin-left: -16px;
-            margin-right: -16px;
-            padding: 0 16px;
-    }
+    .dashboard-header { padding: 28px 22px 20px; }
 
   .title-row {
       flex-direction: column;
@@ -886,14 +972,25 @@ button:hover { background: #2e2789; }
       gap: 16px;
   }
 
+    .title-row h1 { font-size: 40px; }
+
   .progress-box {
       width: 100%;
       min-width: 0;
       text-align: left;
   }
 
-  .dashboard-page {
-      padding: 18px 16px 24px;
+  .header-updated {
+      align-items: flex-start;
+      text-align: left;
+  }
+
+    .dashboard-page { padding: 12px 16px 24px; }
+
+  .dashboard-footer {
+      width: calc(100% + 32px);
+      margin: 36px -16px -24px;
+            padding: 8px 12px;
   }
 }
 </style>

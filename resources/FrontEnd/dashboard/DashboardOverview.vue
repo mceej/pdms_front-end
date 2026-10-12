@@ -1,24 +1,49 @@
 <template>
   <section class="stats-grid">
-    <div class="metric-card">
-      <div class="metric-label">Total Balance</div>
-      <div class="metric-value">{{ totalBalance }}</div>
+    <!-- Top row: 3 blue cards (beneficiary counts) -->
+    <div class="metric-card metric-card--target">
+      <div class="metric-card-label">Target Number of Beneficiaries</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--human"><i class="pi pi-user"></i></span>
+        <div class="metric-value">{{ formatNumber(totalTarget) }}</div>
+      </div>
     </div>
-    <div class="metric-card">
-      <div class="metric-label">Total Paid</div>
-      <div class="metric-value">{{ formatNumber(totalPaidCount) }}</div>
+    <div class="metric-card metric-card--paid">
+      <div class="metric-card-label">Paid</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--human"><i class="pi pi-user"></i></span>
+        <div class="metric-value">{{ formatNumber(totalPaidCount) }}</div>
+      </div>
     </div>
-    <div class="metric-card">
-      <div class="metric-label">Total Disbursed</div>
-      <div class="metric-value">{{ totalDisbursed }}</div>
+    <div class="metric-card metric-card--unpaid">
+      <div class="metric-card-label">Unpaid</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--human"><i class="pi pi-user"></i></span>
+        <div class="metric-value">{{ formatNumber(totalRemaining) }}</div>
+      </div>
     </div>
-    <div class="metric-card metric-card-warning">
-      <div class="metric-label">Unpaid Balance</div>
-      <div class="metric-value">{{ unpaidBalance }}</div>
+
+    <!-- Bottom row: 3 orange/red cards (peso amounts) -->
+    <div class="metric-card metric-card--amount-to-disburse">
+      <div class="metric-card-label">Total Amount to be Disbursed</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--peso">₱</span>
+        <div class="metric-value unpaid-value">{{ stripPeso(totalAmountToDisburse) }}</div>
+      </div>
     </div>
-    <div class="metric-card metric-card-warning">
-      <div class="metric-label">Unpaid Disbursed</div>
-      <div class="metric-value">{{ unpaidDisbursed }}</div>
+    <div class="metric-card metric-card--disbursed">
+      <div class="metric-card-label">Disbursed</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--peso">₱</span>
+        <div class="metric-value unpaid-value">{{ stripPeso(totalDisbursed) }}</div>
+      </div>
+    </div>
+    <div class="metric-card metric-card--balance">
+      <div class="metric-card-label">Balance</div>
+      <div class="metric-card-value-box">
+        <span class="metric-icon metric-icon--peso">₱</span>
+        <div class="metric-value unpaid-value">{{ stripPeso(totalUnpaidDisbursed) }}</div>
+      </div>
     </div>
   </section>
 </template>
@@ -26,11 +51,11 @@
 <script setup>
 const props = defineProps({
   totalTarget: [Number, String],
-  totalDisbursed: { type: String, default: '-----' },
   totalPaidCount: [Number, String],
-  totalBalance: { type: String, default: '-----' },
-  unpaidBalance: { type: String, default: '-----' },
-  unpaidDisbursed: { type: String, default: '-----' },
+  totalRemaining: [Number, String],
+  totalAmountToDisburse: { type: String, default: '-----' },
+  totalDisbursed: { type: String, default: '-----' },
+  totalUnpaidDisbursed: { type: String, default: '-----' },
 });
 
 const formatNumber = (value) => {
@@ -38,132 +63,144 @@ const formatNumber = (value) => {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue.toLocaleString() : String(value);
 };
+
+// The peso values arrive pre-formatted with a leading ₱ (e.g. "₱12,000").
+// Since the icon badge now carries that symbol, strip it from the text so it isn't duplicated.
+const stripPeso = (value) => {
+  if (value === null || value === undefined || value === '' || value === '-----') return '-----';
+  return String(value).replace(/^\s*₱\s*/, '');
+};
 </script>
 
 <style scoped>
-.stats-grid {
-  --card-blue-border: #a9cdf7;
-  --card-blue-label: #edf4ff;
-  --card-blue-text: #173d68;
-  --card-blue-value: #172c8b;
-  --card-red-border: #ffbd7d;
-  --card-red-label: #fff1e6;
-  --card-red-text: #c33118;
-  --card-red-value: #c52d12;
-}
+.metric-card, .metric-card * { box-sizing: border-box; }
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin: 0 0 28px;
 }
 
 .metric-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 112px;
-  padding: 0;
-  overflow: visible;
-  border: 0;
   border-radius: 14px;
+  box-shadow: 0.2px 3px 0 rgba(104, 104, 104, 0.1);
+  overflow: visible;
+  transition: transform 0.15s ease;
+}
+
+.metric-card:hover { transform: translateY(-2px); }
+
+.metric-card-label {
+  padding: 14px 20px 40px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 14px 14px 0 0;
+  border: 2px solid #C7DCEF;
+  border-bottom: none;
+}
+
+.metric-card-value-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  margin-top: -28px;
   background: #fff;
-  box-shadow: 0 4px 14px rgba(24, 67, 101, 0.1);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.metric-card:nth-child(-n + 3) {
-  grid-column: span 2;
-}
-
-.metric-card-warning {
-  grid-column: span 3;
-  background: #fff5ed;
-  box-shadow: none;
-}
-
-.metric-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(24, 67, 101, 0.16);
+  border-radius: 13px 13px 15px 15px;
+  padding: 30px 20px;
+  box-shadow: 0 18px 28px -6px rgba(148, 163, 184, 0.45), 0 6px 10px -4px rgba(148, 163, 184, 0.3);
+  border: none;
 }
 
 .metric-icon {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  font-size: 1rem;
-}
-
-.metric-label {
-  display: flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 8px 32px;
-  border: 2px solid var(--card-blue-border);
-  border-bottom: 0;
-  border-radius: 14px 14px 0 0;
-  background: var(--card-blue-label);
-  color: var(--card-blue-text);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  line-height: 1.35;
-  font-weight: 600;
-}
-
-.metric-card-warning .metric-label {
-  padding: 8px 32px;
-  border-color: var(--card-red-border);
-  background: var(--card-red-label);
-  color: var(--card-red-text);
-  font-size: 10px;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-size: 1.15rem;
   font-weight: 800;
+  line-height: 1;
+}
+
+.metric-card--target,
+.metric-card--paid,
+.metric-card--unpaid {
+  background: #dee8ff;
+}
+
+.metric-card--target .metric-card-label,
+.metric-card--paid .metric-card-label,
+.metric-card--unpaid .metric-card-label {
+  color: #063B95;
+  background: transparent;
+  border-color: #3e4c79;
+}
+
+.metric-card--target .metric-card-value-box,
+.metric-card--paid .metric-card-value-box,
+.metric-card--unpaid .metric-card-value-box {
+  background: #fff;
+}
+
+.metric-icon--human {
+  background: #E0ECFF;
+  color: #063B95;
+}
+
+.metric-icon--human i {
+  font-size: 1.7rem;
+}
+
+.metric-card--amount-to-disburse,
+.metric-card--disbursed,
+.metric-card--balance {
+  background: #FFF5EE;
+}
+
+.metric-card--amount-to-disburse .metric-card-label,
+.metric-card--disbursed .metric-card-label,
+.metric-card--balance .metric-card-label {
+  color: #C2410C;
+  background: transparent;
+  border-color: #ff7967;
+}
+
+.metric-card--amount-to-disburse .metric-card-value-box,
+.metric-card--disbursed .metric-card-value-box,
+.metric-card--balance .metric-card-value-box {
+  background: #fff;
+}
+
+.metric-icon--peso {
+  background: #FFF5EE;
+  color: #C2410C;
+  font-size: 1.7rem;
 }
 
 .metric-value {
-  display: flex;
-  align-items: center;
-  flex: 1;
-  margin: 0;
-  min-height: 72px;
-  padding: 10px 32px;
-  border: 0;
-  border-radius: 0 0 8px 8px;
-  background: #fff;
-  color: var(--card-blue-value);
-  font-size: clamp(1.3rem, 2vw, 2rem);
-  font-weight: 800;
+  font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 5px 10px rgba(24, 67, 101, 0.2);
+  color: #2e3192;
+  line-height: 1;
 }
 
-.metric-card-warning .metric-value {
-  color: var(--card-red-value);
-  font-size: clamp(1.3rem, 2vw, 2rem);
-  box-shadow: 0 5px 10px rgba(62, 39, 24, 0.2);
-}
+.metric-value.unpaid-value { color: #C92A16; }
 
 @media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .metric-card:nth-child(-n + 3),
-  .metric-card-warning {
-    grid-column: span 1;
-  }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 520px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+  .stats-grid { grid-template-columns: 1fr; }
 }
 </style>
