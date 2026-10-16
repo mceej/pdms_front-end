@@ -311,7 +311,7 @@ const emit = defineEmits([
 }
 
 .progress-pct {
-  color: #313b83;
+  color: #2e3192;
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -328,6 +328,7 @@ const emit = defineEmits([
 
 .progress-remaining {
   color: #D93F2F;
+
   font-size: 0.90rem;
   font-weight: 700;
 }

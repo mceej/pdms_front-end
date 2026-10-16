@@ -633,7 +633,7 @@ button:hover { background: #2e2789; }
     min-height: 220px;
     background:
         linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
-        linear-gradient(90deg, #2E3192 );
+        linear-gradient(90deg, #2e3192);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
@@ -942,8 +942,8 @@ button:hover { background: #2e2789; }
     border-radius: 6px;
     background: #ffffff;
     color: #063b95;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 750;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
