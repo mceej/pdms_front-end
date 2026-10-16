@@ -41,130 +41,77 @@
                     </div>
 
                     <div class="tab-row">
-                        <div class="aics-control" ref="aicsControlRef">
-                            <button
-                                type="button"
-                                :class="['tab', 'aics-tab', { active: activeTab === 'AICS' && !selectedAssistanceType }]"
-                                @click="toggleAicsTab"
-                            >
-                                <i class="pi pi-box"></i>
-                                AICS
-                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: assistanceMenuOpen }"></i>
-                            </button>
-                            <div v-if="assistanceMenuOpen" class="disaster-menu">
-                                <button
-                                    type="button"
-                                    class="disaster-menu-item disaster-menu-clear"
-                                    :disabled="!selectedAssistanceType"
-                                    @click="chooseAssistanceType('')"
-                                >
-                                    Clear selection
-                                </button>
-                                <button
-                                    v-for="option in assistanceTypeOptions"
-                                    :key="option"
-                                    type="button"
-                                    :class="['disaster-menu-item', { selected: selectedAssistanceType === option }]"
-                                    @click="chooseAssistanceType(option)"
-                                >
-                                    {{ option }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="ect-control" ref="ectControlRef">
-                            <button
-                                type="button"
-                                :class="['tab', 'ect-tab', { active: activeTab === 'ECT' && !selectedDisasterType }]"
-                                @click="toggleEctTab"
-                            >
-                                <i class="pi pi-file"></i>
-                                ECT
-                                <i class="pi pi-chevron-down ect-chevron" :class="{ open: disasterMenuOpen }"></i>
-                            </button>
-
-                            <div v-if="disasterMenuOpen" class="disaster-menu">
-                                <button
-                                    type="button"
-                                    class="disaster-menu-item disaster-menu-clear"
-                                    :disabled="!selectedDisasterType"
-                                    @click="chooseDisasterType('')"
-                                >
-                                    Clear selection
-                                </button>
-                                <button
-                                    v-for="option in disasterOptions"
-                                    :key="option"
-                                    type="button"
-                                    :class="['disaster-menu-item', { selected: selectedDisasterType === option }]"
-                                    @click="chooseDisasterType(option)"
-                                >
-                                    {{ option }}
-                                </button>
-                            </div>
-                        </div>
-
-                        <span v-if="activeTab === 'ECT' && selectedDisasterType" class="disaster-type-badge">
-                            {{ selectedDisasterType }}
-                        </span>
-                        <span v-if="activeTab === 'AICS' && selectedAssistanceType" class="disaster-type-badge">
-                            {{ selectedAssistanceType }}
-                        </span>
+                        <DashboardProgramFilters
+                            :program="activeTab"
+                            :program-type="selectedProgramType"
+                            :assistance-type="selectedAssistanceType"
+                            :disaster-name="selectedDisasterType"
+                            :disaster-options="disasterOptions"
+                            @update:program="setProgram"
+                            @update:program-type="setProgramType"
+                            @update:assistance-type="setAssistanceType"
+                            @update:disaster-name="setDisasterType"
+                            @clear:aics="clearAicsFilters"
+                        />
                     </div>
                 </div>
             </header>
 
-            <DashboardOverview
-                :total-target="totalTarget"
-                :total-paid-count="totalPaidCount"
-                :total-remaining="totalRemaining"
-                :total-amount-to-disburse="totalBalance"
-                :total-disbursed="totalDisbursed"
-                :total-unpaid-disbursed="unpaidBalance"
-            />
+            <DashboardEmptyState v-if="showEmptyState" :program="activeTab" />
 
-            <!-- Table (with Total row) + Progress Overview merged into one container -->
-            <div class="summary-panel">
-                <DashboardTable
-                    :breadcrumb-items="breadcrumbItems"
-                    :active-level="activeLevel"
-                    :municipality-search="municipalitySearch"
-                    :payout-site-filter="payoutSiteFilter"
-                    :payout-site-options="payoutSiteOptions"
-                    :rows-with-progress="rowsWithProgress"
-                    :total-table-target="summaryTarget"
-                    :total-table-paid="summaryPaid"
-                    :total-progress="summaryProgress"
-                    @update:municipalitySearch="municipalitySearch = $event"
-                    @update:payoutSiteFilter="payoutSiteFilter = $event"
-                    @apply-filters="applyFilters"
-                    @row-click="handleRowClick"
-                    @home-click="goToLevel('province')"
+            <template v-else>
+                <DashboardOverview
+                    :total-target="totalTarget"
+                    :total-paid-count="totalPaidCount"
+                    :total-remaining="totalRemaining"
+                    :total-amount-to-disburse="totalBalance"
+                    :total-disbursed="totalDisbursed"
+                    :total-unpaid-disbursed="unpaidBalance"
                 />
 
-                <ComparisonCharts
-                    :selected-barangay="selectedBarangay"
-                    :chart-markers="chartMarkers"
-                    :comparison-rows="chartRowsWithProgress"
-                    :api-loaded="apiLoaded"
-                    :api-rows="apiRows"
-                    :applied-date-label="appliedDateLabel"
-                    :date-from="dateFrom"
-                    :date-to="dateTo"
-                    :dashboard-progress="chartProgress"
-                    :total-paid-count="chartTotalPaid"
-                    :total-target="chartTotalTarget"
-                    :comparison-color="comparisonColor"
-                    :active-level="activeLevel"
-                    :scope-name="scopeName"
-                    :extra-stat="extraStat"
-                    :has-pending-range="hasPendingRange"
-                    @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
-                    @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
-                    @apply="commitDateRange"
-                    @clear="clearDateRange"
-                />
-            </div>
+                <!-- Table (with Total row) + Progress Overview merged into one container -->
+                <div class="summary-panel">
+                    <DashboardTable
+                        :breadcrumb-items="breadcrumbItems"
+                        :active-level="activeLevel"
+                        :municipality-search="municipalitySearch"
+                        :payout-site-filter="payoutSiteFilter"
+                        :payout-site-options="payoutSiteOptions"
+                        :rows-with-progress="rowsWithProgress"
+                        :total-table-target="summaryTarget"
+                        :total-table-paid="summaryPaid"
+                        :total-progress="summaryProgress"
+                        @update:municipalitySearch="municipalitySearch = $event"
+                        @update:payoutSiteFilter="payoutSiteFilter = $event"
+                        @apply-filters="applyFilters"
+                        @row-click="handleRowClick"
+                        @home-click="goToLevel('province')"
+                    />
+
+                    <ComparisonCharts
+                        :selected-barangay="selectedBarangay"
+                        :chart-markers="chartMarkers"
+                        :comparison-rows="chartRowsWithProgress"
+                        :api-loaded="apiLoaded"
+                        :api-rows="apiRows"
+                        :applied-date-label="appliedDateLabel"
+                        :date-from="dateFrom"
+                        :date-to="dateTo"
+                        :dashboard-progress="chartProgress"
+                        :total-paid-count="chartTotalPaid"
+                        :total-target="chartTotalTarget"
+                        :comparison-color="comparisonColor"
+                        :active-level="activeLevel"
+                        :scope-name="scopeName"
+                        :extra-stat="extraStat"
+                        :has-pending-range="hasPendingRange"
+                        @update:dateFrom="(value) => { dateFrom = value; applyDateRange('from'); }"
+                        @update:dateTo="(value) => { dateTo = value; applyDateRange('to'); }"
+                        @apply="commitDateRange"
+                        @clear="clearDateRange"
+                    />
+                </div>
+            </template>
         </div>
 
         <footer class="dashboard-footer">
@@ -178,16 +125,15 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import ComparisonCharts from './ComparisonCharts.vue';
 import DashboardOverview from './DashboardOverview.vue';
 import DashboardTable from './DashboardTable.vue';
+import DashboardEmptyState from './DashboardEmptyState.vue';
+import DashboardProgramFilters from './DashboardProgramFilters.vue';
 import { fetchDashboardMetrics, subscribeToChanges } from '../data/metrics.js';
+import { subscribeServedListAvailability } from '../data/servedLists.js';
 
 const activeTab = ref('AICS');
-const disasterName = ref('');
+const selectedProgramType = ref('');
 const selectedDisasterType = ref('');
 const selectedAssistanceType = ref('');
-const disasterMenuOpen = ref(false);
-const assistanceMenuOpen = ref(false);
-const ectControlRef = ref(null);
-const aicsControlRef = ref(null);
 const payoutSiteFilter = ref('');
 const municipalitySearch = ref('');
 const dateFrom = ref('');
@@ -211,47 +157,6 @@ const formatUpdatedAt = (value) => {
         hour: 'numeric',
         minute: '2-digit',
     })}`;
-};
-
-const toggleAicsTab = () => {
-    const switchingIn = activeTab.value !== 'AICS';
-    if (switchingIn) {
-        setTab('AICS');
-        assistanceMenuOpen.value = true;
-        return;
-    }
-    assistanceMenuOpen.value = !assistanceMenuOpen.value;
-};
-
-const toggleEctTab = () => {
-    const switchingIn = activeTab.value !== 'ECT';
-    if (switchingIn) {
-        setTab('ECT');
-        disasterMenuOpen.value = true;
-        return;
-    }
-    disasterMenuOpen.value = !disasterMenuOpen.value;
-};
-
-const chooseDisasterType = (value) => {
-    selectedDisasterType.value = value;
-    disasterMenuOpen.value = false;
-    applyFilters();
-};
-
-const chooseAssistanceType = (value) => {
-    selectedAssistanceType.value = value;
-    assistanceMenuOpen.value = false;
-    applyFilters();
-};
-
-const closeDisasterMenuOnOutsideClick = (event) => {
-    if (disasterMenuOpen.value && ectControlRef.value && !ectControlRef.value.contains(event.target)) {
-        disasterMenuOpen.value = false;
-    }
-    if (assistanceMenuOpen.value && aicsControlRef.value && !aicsControlRef.value.contains(event.target)) {
-        assistanceMenuOpen.value = false;
-    }
 };
 
 const emptyKpi = () => ({
@@ -287,13 +192,29 @@ const disasterOptions = computed(() => [
         ...apiDisasterTypes.value,
     ]),
 ]);
-const assistanceTypeOptions = ['Cash Assistance', 'Medical Support'];
 const apiPayoutSites = ref([]);
+const programAvailability = ref({ AICS: null, ECT: null });
 
 const regionName = ref('REGION XI');
 const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
+const metricsAreEmpty = computed(() => (
+    apiRows.value.length === 0
+    && Number(apiTotal.value?.target || 0) === 0
+    && Number(apiTotal.value?.paid || 0) === 0
+    && Number(apiKpi.value.targetBeneficiaries || 0) === 0
+    && Number(apiKpi.value.totalPaid || 0) === 0
+    && Number(apiKpi.value.totalDisbursed || 0) === 0
+));
+const showEmptyState = computed(() => (
+    apiLoaded.value
+    && loadError.value === ''
+    && (
+        programAvailability.value[activeTab.value] === false
+        || metricsAreEmpty.value
+    )
+));
 
 /* ---------- The six cards at the top ----------
    Every one of them comes from the server, worked out for the place being
@@ -430,7 +351,11 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
-    const filters = { program: activeTab.value };
+    const filters = {
+        program: activeTab.value === 'AICS'
+            ? selectedProgramType.value || 'AICS'
+            : 'ECT',
+    };
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
@@ -515,18 +440,42 @@ const goToLevel = async (level) => {
     window.scrollTo({ top: scrollPosition, behavior: 'auto' });
 };
 
-const setTab = (tab) => {
-  activeTab.value = tab;
-  disasterName.value = '';
-  selectedProvince.value = null;
-  selectedMunicipality.value = null;
-  selectedBarangay.value = null;
-  payoutSiteFilter.value = '';
-  municipalitySearch.value = '';
-  selectedDisasterType.value = '';
+const resetDashboardScope = () => {
+    selectedProvince.value = null;
+    selectedMunicipality.value = null;
+    selectedBarangay.value = null;
+    payoutSiteFilter.value = '';
+    municipalitySearch.value = '';
+};
+
+const setProgram = (program) => {
+    activeTab.value = program;
+    selectedProgramType.value = '';
+    selectedDisasterType.value = '';
     selectedAssistanceType.value = '';
-    assistanceMenuOpen.value = false;
-  fetchDashboard();
+    resetDashboardScope();
+    fetchDashboard();
+};
+
+const setProgramType = (programType) => {
+    selectedProgramType.value = programType;
+    applyFilters();
+};
+
+const setAssistanceType = (assistanceType) => {
+    selectedAssistanceType.value = assistanceType;
+    applyFilters();
+};
+
+const clearAicsFilters = () => {
+    selectedProgramType.value = '';
+    selectedAssistanceType.value = '';
+    applyFilters();
+};
+
+const setDisasterType = (disasterType) => {
+    selectedDisasterType.value = disasterType;
+    applyFilters();
 };
 
 const applyFilters = () => {
@@ -562,9 +511,6 @@ const clearDateRange = () => {
     commitDateRange();
 };
 
-onMounted(() => document.addEventListener('click', closeDisasterMenuOnOutsideClick));
-onUnmounted(() => document.removeEventListener('click', closeDisasterMenuOnOutsideClick));
-
 onMounted(() => fetchDashboard());
 
 /* ---------- Staying up to date ----------
@@ -573,12 +519,19 @@ onMounted(() => fetchDashboard());
    an import arriving or leaving, and a target being edited — and asks again.
    Neither watch downloads the payout records. */
 let stopWatching = () => {};
+let stopWatchingAvailability = () => {};
 
 onMounted(() => {
     stopWatching = subscribeToChanges(() => fetchDashboard());
+    stopWatchingAvailability = subscribeServedListAvailability((availability) => {
+        programAvailability.value = availability;
+    });
 });
 
-onUnmounted(() => stopWatching());
+onUnmounted(() => {
+    stopWatching();
+    stopWatchingAvailability();
+});
 </script>
 
 <style scoped>
@@ -598,6 +551,8 @@ button {
 button:hover { background: #2e2789; }
 
 .dashboard-page {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-width: 0;
     min-height: 100vh;
@@ -605,6 +560,7 @@ button:hover { background: #2e2789; }
 }
 
 .dashboard-shell {
+    flex: 1 0 auto;
     width: 100%;
     max-width: none;
     margin: 0 auto;

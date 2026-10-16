@@ -15,3 +15,6 @@ service-account.json
 /node_modules
 /public/build
 Thumbs.db
+
+# A scratch report, regenerated on demand rather than tracked.
+long-lines.csv

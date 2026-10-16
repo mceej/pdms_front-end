@@ -412,7 +412,9 @@ class DashboardMetrics
                 }
             }
 
-            if (isset($wanted['end_date']) && $target['dateStart'] !== null && $target['dateStart'] > $wanted['end_date']) {
+            if (isset($wanted['end_date'])
+                && $target['dateStart'] !== null
+                && $target['dateStart'] > $wanted['end_date']) {
                 return false;
             }
 

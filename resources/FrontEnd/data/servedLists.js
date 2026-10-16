@@ -6,6 +6,43 @@ import { auth, database } from '../firebase/app.js';
 const ENDPOINT = '/api/served-lists.php';
 
 /**
+ * Watch which dashboard programs have at least one imported served list.
+ *
+ * The dashboard needs this separately from its metrics because targets can
+ * produce rows even when no served-list payout data exists yet.
+ *
+ * @return {function} call it to stop watching
+ */
+export const subscribeServedListAvailability = (onChange) => {
+    if (database === null) {
+        onChange({ AICS: null, ECT: null });
+
+        return () => {};
+    }
+
+    return onValue(
+        databaseRef(database, 'servedLists'),
+        (snapshot) => {
+            const availability = { AICS: false, ECT: false };
+
+            Object.values(snapshot.val() || {}).forEach((entry) => {
+                if (Number(entry?.rowsImported || 0) <= 0) return;
+
+                const program = String(entry?.program || '').trim().toUpperCase();
+
+                if (program.includes('ECT')) availability.ECT = true;
+                if (['AICS', 'AKAP', 'UPLIFT'].some((name) => program.includes(name))) {
+                    availability.AICS = true;
+                }
+            });
+
+            onChange(availability);
+        },
+        () => onChange({ AICS: null, ECT: null })
+    );
+};
+
+/**
  * Watch the imports that have already happened, newest first.
  *
  * @return {function} call it to stop watching
