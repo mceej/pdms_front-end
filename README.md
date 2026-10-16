@@ -168,7 +168,7 @@ public/index.php                    The page that loads the Vue app
 src/AuditLog.php                    Reads and filters the audit log
 public/api/admin-users.php          The user list; create accounts, set passwords, block sign-in
 public/api/audit.php                Reads the audit log, and records entries with the caller’s address
-public/api/audit-export.php         The audit log as a CSV file
+public/api/audit-export.php         The audit log as a CSV file, for a chosen date range
 public/api/metrics.php              The dashboard figures
 public/api/served-lists.php         Imports a served-list CSV, and deletes an import
 scripts/seed-firebase.php           Loads the sample data

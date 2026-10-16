@@ -13,12 +13,21 @@
 class AuditLog
 {
     /**
-     * How many entries are read before filtering.
+     * How many entries are read for a page of the table.
      *
      * A log only grows, so there has to be a line somewhere. Past it the reply
      * says so rather than quietly leaving the oldest entries out.
      */
     public const MAX_ENTRIES = 5000;
+
+    /**
+     * How many are read for an export.
+     *
+     * Higher, because a download is asked for deliberately and is expected to
+     * be complete — but not unbounded: the whole branch has to fit in memory,
+     * and the container is given 128 MB.
+     */
+    public const MAX_EXPORT_ENTRIES = 25000;
 
     /** The heading of each column, in the order the table shows them. */
     public const HEADINGS = [
@@ -49,11 +58,29 @@ class AuditLog
     }
 
     /**
-     * The newest entries, as a path FirebaseAdmin::readMany understands.
+     * The entries to read, as a path FirebaseAdmin::readMany understands.
+     *
+     * A date range is handed to the database rather than applied here. The
+     * branch is indexed on the time an entry was written, so asking for a
+     * month means a month crosses the wire instead of the whole log — which
+     * is the difference between an export that waits on a download and one
+     * that does not.
+     *
+     * @param array{from?: ?int, to?: ?int} $filters
      */
-    public static function newestPath(): string
+    public static function pathFor(array $filters, int $limit): string
     {
-        return 'auditLogs?orderBy=' . urlencode('"at"') . '&limitToLast=' . self::MAX_ENTRIES;
+        $path = 'auditLogs?orderBy=' . urlencode('"at"');
+
+        if (($filters['from'] ?? null) !== null) {
+            $path .= '&startAt=' . (int) $filters['from'];
+        }
+
+        if (($filters['to'] ?? null) !== null) {
+            $path .= '&endAt=' . (int) $filters['to'];
+        }
+
+        return $path . '&limitToLast=' . $limit;
     }
 
     /**
@@ -67,26 +94,19 @@ class AuditLog
      */
     public static function filtersFrom(array $query): array
     {
+        $from = self::dayBound($query['start_date'] ?? null, 'start_date', false);
+        $to = self::dayBound($query['end_date'] ?? null, 'end_date', true);
+
+        if ($from !== null && $to !== null && $from > $to) {
+            throw new InvalidArgumentException('The start date comes after the end date.');
+        }
+
         return [
             'modules' => self::moduleNames($query['module'] ?? []),
             'search' => trim((string) ($query['search'] ?? '')),
-            'from' => self::dayBound($query['start_date'] ?? null, 'start_date', false),
-            'to' => self::dayBound($query['end_date'] ?? null, 'end_date', true),
+            'from' => $from,
+            'to' => $to,
         ];
-    }
-
-    /**
-     * One entry as the browser and the export see it.
-     *
-     * @param array<string, mixed> $entry
-     *
-     * @return array<string, mixed>
-     */
-    public static function asRow(array $entry): array
-    {
-        unset($entry['search']);
-
-        return $entry;
     }
 
     /**
@@ -135,11 +155,11 @@ class AuditLog
     }
 
     /**
-     * Whether the cap was reached, so older entries exist that were not read.
+     * Whether the cap was reached, so entries exist that were not read.
      */
-    public function reachedCap(): bool
+    public function reachedCap(int $limit): bool
     {
-        return count($this->entries) >= self::MAX_ENTRIES;
+        return count($this->entries) >= $limit;
     }
 
     /**
@@ -182,15 +202,18 @@ class AuditLog
         $matching = [];
 
         foreach ($this->entries as $entry) {
+            // Cheapest test first, so a filtered export does the least work.
             if ($modules !== [] && ! in_array($entry['module'], $modules, true)) {
                 continue;
             }
 
-            if ($search !== '' && ! str_contains($entry['search'], $search)) {
+            // The dates were handed to the database, which answered within
+            // them. This is the net under that, for an entry with no time.
+            if (($from !== null && $entry['at'] < $from) || ($to !== null && $entry['at'] > $to)) {
                 continue;
             }
 
-            if (($from !== null && $entry['at'] < $from) || ($to !== null && $entry['at'] > $to)) {
+            if ($search !== '' && ! str_contains(self::haystack($entry), $search)) {
                 continue;
             }
 
@@ -249,18 +272,24 @@ class AuditLog
             'ipAddress' => (string) ($entry['ipAddress'] ?? ''),
         ];
 
-        // Built once per entry rather than once per keystroke, the way the page
-        // used to do it before the searching moved here.
-        $row['search'] = strtolower(implode(' ', [
-            $row['name'],
-            $row['userType'],
-            $row['module'],
-            $row['action'],
-            $row['activity'],
-            $row['ipAddress'],
-        ]));
-
         return $row;
+    }
+
+    /**
+     * The text a search looks through, for one entry.
+     *
+     * Built during the one pass that needs it rather than stored on every
+     * entry: a stored copy is roughly another entry's worth of memory each,
+     * and an export of twenty thousand has to fit in the container.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private static function haystack(array $entry): string
+    {
+        return strtolower(
+            $entry['name'] . ' ' . $entry['userType'] . ' ' . $entry['module'] . ' '
+            . $entry['action'] . ' ' . $entry['activity'] . ' ' . $entry['ipAddress']
+        );
     }
 
     /**

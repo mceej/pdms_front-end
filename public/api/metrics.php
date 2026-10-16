@@ -60,7 +60,21 @@ $signedIn = $admin->readManyForToken($idToken, [
 ]);
 
 if ($signedIn['accountId'] === null) {
+    // No answer at all is a blip on the way to Google, not a session that
+    // has ended. Saying the wrong one sends somebody to fix nothing.
+    if (! $signedIn['reachedGoogle']) {
+        respond(['message' => 'Could not reach the sign-in service. Try again.'], 503);
+    }
+
     respond(['message' => 'Your session has expired. Sign in again.'], 401);
+}
+
+if ($signedIn['failed'] !== []) {
+    // A branch that could not be read would otherwise read as empty here,
+    // and the page would show a confident nought for money that did move.
+    error_log('DATS: could not read ' . implode(', ', $signedIn['failed']));
+
+    respond(['message' => 'The database could not be reached. Try again.'], 503);
 }
 
 $data = $signedIn['values'];

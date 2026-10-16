@@ -35,12 +35,25 @@ try {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
-    $caller = requireAdminReading($admin, ['auditLogs' => AuditLog::newestPath()]);
+    /* Read before the caller is checked, because a date range decides which
+       entries to ask the database for, and that request goes out alongside
+       the check. A bad date is still answered after it, so somebody who is
+       not an administrator learns nothing from trying. */
+    $filters = ['modules' => [], 'search' => '', 'from' => null, 'to' => null];
+    $badFilter = null;
 
     try {
         $filters = AuditLog::filtersFrom($_GET);
     } catch (InvalidArgumentException $exception) {
-        respond(['message' => $exception->getMessage()], 422);
+        $badFilter = $exception->getMessage();
+    }
+
+    $caller = requireAdminReading($admin, [
+        'auditLogs' => AuditLog::pathFor($filters, AuditLog::MAX_ENTRIES),
+    ]);
+
+    if ($badFilter !== null) {
+        respond(['message' => $badFilter], 422);
     }
 
     $log = new AuditLog($caller['values']['auditLogs'] ?? []);
@@ -49,14 +62,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $offset = max((int) ($_GET['offset'] ?? 0), 0);
 
     respond([
-        'entries' => array_map(AuditLog::asRow(...), array_slice($matching, $offset, $limit)),
+        'entries' => array_slice($matching, $offset, $limit),
         'total' => count($matching),
         'modules' => $log->modules(),
         'limit' => $limit,
         'offset' => $offset,
         // Said plainly rather than quietly dropping the oldest entries.
-        'warnings' => $log->reachedCap()
-            ? ['Only the newest ' . AuditLog::MAX_ENTRIES . ' entries were searched.']
+        'warnings' => $log->reachedCap(AuditLog::MAX_ENTRIES)
+            ? [
+                'Only the newest ' . AuditLog::MAX_ENTRIES
+                    . ' entries were searched. Narrow the dates to see further back.',
+            ]
             : [],
     ]);
 }

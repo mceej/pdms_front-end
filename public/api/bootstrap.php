@@ -191,7 +191,19 @@ function requireAdminReading(FirebaseAdmin $admin, array $paths = []): array
     $signedIn = $admin->readManyForToken($idToken, ['users' => 'users'] + $paths);
 
     if ($signedIn['accountId'] === null) {
+        // Telling somebody their session has expired when the server simply
+        // could not reach Google sends them off to fix nothing.
+        if (! $signedIn['reachedGoogle']) {
+            respond(['message' => 'Could not reach the sign-in service. Try again.'], 503);
+        }
+
         respond(['message' => 'Your session has expired. Sign in again.'], 401);
+    }
+
+    if ($signedIn['failed'] !== []) {
+        error_log('DATS: could not read ' . implode(', ', $signedIn['failed']));
+
+        respond(['message' => 'The database could not be reached. Try again.'], 503);
     }
 
     $profile = $signedIn['values']['users'][$signedIn['accountId']] ?? null;
