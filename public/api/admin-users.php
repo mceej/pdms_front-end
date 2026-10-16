@@ -5,6 +5,11 @@
  *
  * Creating a login, changing someone's password and blocking sign-in all need
  * admin rights that a browser cannot hold, so they happen here.
+ *
+ *   GET  /api/admin-users.php          the user list
+ *        Authorization: Bearer <Firebase ID token>
+ *   POST /api/admin-users.php          { idToken, action, ... }
+ *        action: create | update | setPassword | delete
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -16,16 +21,40 @@ require_once __DIR__ . '/bootstrap.php';
  */
 const MINIMUM_PASSWORD = 12;
 
-requireMethod('POST');
-
-$body = jsonBody();
-
 try {
     $admin = new FirebaseAdmin(config()['firebase']);
 } catch (RuntimeException $exception) {
     cannotContinue($exception);
 }
 
+/**
+ * The user list.
+ *
+ * Reading it here rather than in the browser means the users branch need not
+ * be readable at all: the only account anybody can read is their own, which is
+ * what the sign-in needs to work out their role.
+ */
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+    $caller = requireAdminReading($admin);
+    $users = [];
+
+    foreach ($caller['values']['users'] ?? [] as $uid => $profile) {
+        if (is_array($profile)) {
+            $users[] = ['id' => (string) $uid, 'uid' => (string) $uid] + $profile;
+        }
+    }
+
+    usort($users, static fn (array $one, array $two): int => strcasecmp(
+        (string) ($one['name'] ?? ''),
+        (string) ($two['name'] ?? '')
+    ));
+
+    respond(['users' => $users]);
+}
+
+requireMethod('POST');
+
+$body = jsonBody();
 $caller = requireAdmin($admin, $body);
 $callerId = $caller['id'];
 $action = (string) ($body['action'] ?? '');

@@ -23,7 +23,8 @@ Logins, users, targets, payout figures and the audit log all live in Firebase.
 2. In development the page loads the Vue code from Vite on port 5173, so saving a file updates the browser. Without `VITE_DEV_SERVER`, it loads the built files from `public/build`.
 3. `resources/FrontEnd/app.js` registers the PrimeVue components and mounts `App.vue`.
 4. Signing in goes through Firebase Authentication. The person's role comes from `users/{uid}` in the database, and `App.vue` shows the page for that role.
-5. Creating accounts, setting passwords and blocking sign-in happen in `public/api/admin-users.php`, because a browser is not allowed to manage other people's logins.
+5. Creating accounts, setting passwords and blocking sign-in happen in `public/api/admin-users.php`, because a browser is not allowed to manage other people's logins. The same endpoint answers with the user list, so the staff list need not be readable from a browser at all.
+6. The dashboard figures, the audit log and the audit export are worked out by the server too, in `public/api/metrics.php`, `public/api/audit.php` and `public/api/audit-export.php`. Each checks the caller's ID token first, and the last two also check the caller is an administrator.
 6. Every table reads the database through `resources/FrontEnd/data/`, so pages never touch Firebase directly.
 
 ## Requirements
@@ -85,7 +86,9 @@ An account marked **Inactive** cannot sign in at all — the status also disable
 | Data | Realtime Database (`asia-southeast1`) |
 | Security rules | [`database.rules.json`](database.rules.json) in this repository |
 
-The rules deny everything by default: people read their own profile, admins read and write all of them, signed-in staff read targets while Admin or the matching RDV Focal writes them, payout data is read-only except to admins, and audit entries can be created but never changed.
+The rules deny everything by default. A person reads their own profile and nobody else's; an administrator changes profiles, but reads the staff list through the server. Signed-in staff read targets, while Admin or the matching RDV Focal writes them. Payout records and the audit log are closed to the browser entirely — both are reached through the endpoints above, which check the caller first.
+
+Those endpoints sign their own requests with the service-account key, which ignores the rules. The rules are the second lock, not the only one: every endpoint checks the caller's ID token and their role before it reads or writes anything.
 
 After editing the rules, publish them:
 
@@ -162,8 +165,12 @@ config.php                          Server settings (not web-accessible)
 service-account.json                Firebase admin key — secret, never committed
 src/                                PHP classes (FirebaseAdmin, GoogleServiceAccount, HttpJson)
 public/index.php                    The page that loads the Vue app
-public/api/admin-users.php          Create accounts, set passwords, block sign-in
-public/api/audit.php                Records audit entries, with the caller’s address
+src/AuditLog.php                    Reads and filters the audit log
+public/api/admin-users.php          The user list; create accounts, set passwords, block sign-in
+public/api/audit.php                Reads the audit log, and records entries with the caller’s address
+public/api/audit-export.php         The audit log as a CSV file
+public/api/metrics.php              The dashboard figures
+public/api/served-lists.php         Imports a served-list CSV, and deletes an import
 scripts/seed-firebase.php           Loads the sample data
 resources/FrontEnd/app.js           Vue entry point; registers PrimeVue
 resources/FrontEnd/firebase/        Firebase connection

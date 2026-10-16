@@ -1,35 +1,133 @@
 // The audit log. Entries are written by the server so that the address and the
 // person's identity come from the request, and so nobody can rewrite their own
-// history. Only an admin may read them.
-import { limitToLast, onValue, query, orderByChild, ref as databaseRef } from 'firebase/database';
-import { auth, database } from '../firebase/app.js';
+// history. They are read through the server too, so the browser needs no
+// permission to read the log and carries one page instead of the whole branch.
+import { auth } from '../firebase/app.js';
 
 const ENDPOINT = '/api/audit.php';
+const EXPORT_ENDPOINT = '/api/audit-export.php';
+
+const EXPIRED = 'Your session has expired. Sign in again.';
+const UNREACHABLE = 'Cannot reach the server. Check that it is running.';
 
 /**
- * Watch the most recent entries, newest first.
+ * Turn what the page is showing into the query the endpoints take.
  *
- * @return {function} call it to stop watching
+ * Both the table and the export are asked the same question, so they are asked
+ * it the same way and the file matches what is on screen.
  */
-export const subscribeAuditLog = (onChange, howMany = 500) => {
-    if (database === null) {
-        onChange([]);
+const asQuery = ({ modules = [], search = '', from = '', to = '', limit, offset } = {}) => {
+    const query = new URLSearchParams();
 
-        return () => {};
+    modules.filter(Boolean).forEach((module) => query.append('module[]', module));
+
+    const pairs = { search, start_date: from, end_date: to, limit, offset };
+
+    Object.entries(pairs).forEach(([name, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            query.set(name, String(value));
+        }
+    });
+
+    return query.toString();
+};
+
+/**
+ * Ask the server for one page of the log.
+ *
+ * @return {Promise<object>} { ok: true, entries, total, modules } or { ok: false, message }
+ */
+export const fetchAuditLog = async (options = {}) => {
+    const signedInUser = auth?.currentUser;
+
+    if (! signedInUser) {
+        return { ok: false, message: EXPIRED };
     }
 
-    const recent = query(databaseRef(database, 'auditLogs'), orderByChild('at'), limitToLast(howMany));
+    const query = asQuery(options);
+    let response;
 
-    return onValue(
-        recent,
-        (snapshot) => {
-            const value = snapshot.val() || {};
-            const list = Object.entries(value).map(([id, entry]) => ({ id, ...entry }));
+    try {
+        const idToken = await signedInUser.getIdToken();
 
-            onChange(list.sort((one, two) => (two.at || 0) - (one.at || 0)));
-        },
-        () => onChange([])
-    );
+        response = await fetch(query === '' ? ENDPOINT : `${ENDPOINT}?${query}`, {
+            headers: { Authorization: `Bearer ${idToken}` },
+        });
+    } catch {
+        return { ok: false, message: UNREACHABLE };
+    }
+
+    const body = await response.json().catch(() => ({}));
+
+    if (! response.ok) {
+        return { ok: false, message: body.message || 'Could not load the audit log.' };
+    }
+
+    return {
+        ok: true,
+        entries: body.entries || [],
+        total: body.total || 0,
+        modules: body.modules || [],
+        warnings: body.warnings || [],
+    };
+};
+
+/**
+ * Hand the browser a file to save.
+ *
+ * The token travels in a header, so the file cannot be fetched by pointing a
+ * link at the endpoint; it is downloaded here and handed over as a blob.
+ */
+const saveFile = (blob, fileName) => {
+    const address = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+
+    link.href = address;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(address);
+};
+
+/**
+ * Download the matching entries as a CSV file.
+ *
+ * @return {Promise<object>} { ok: true, fileName } or { ok: false, message }
+ */
+export const exportAuditLog = async (options = {}) => {
+    const signedInUser = auth?.currentUser;
+
+    if (! signedInUser) {
+        return { ok: false, message: EXPIRED };
+    }
+
+    // Every matching entry belongs in the file, not just the page on screen.
+    const { limit, offset, ...filters } = options;
+    const query = asQuery(filters);
+    let response;
+
+    try {
+        const idToken = await signedInUser.getIdToken();
+
+        response = await fetch(query === '' ? EXPORT_ENDPOINT : `${EXPORT_ENDPOINT}?${query}`, {
+            headers: { Authorization: `Bearer ${idToken}` },
+        });
+    } catch {
+        return { ok: false, message: UNREACHABLE };
+    }
+
+    if (! response.ok) {
+        const body = await response.json().catch(() => ({}));
+
+        return { ok: false, message: body.message || 'The export did not work. Try again.' };
+    }
+
+    const fileName = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    saveFile(await response.blob(), fileName);
+
+    return { ok: true, fileName };
 };
 
 /**

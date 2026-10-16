@@ -165,6 +165,45 @@ function requireActiveProfile(mixed $profile): array
 }
 
 /**
+ * Make sure a GET comes from an administrator, and read what it came for.
+ *
+ * A GET has no body to carry the token, so it arrives in the Authorization
+ * header. Checking it and reading the branches happen in the same breath
+ * rather than one after the other, which costs one round trip instead of two.
+ *
+ * @param array<string, string> $paths branches to read alongside the check
+ *
+ * @return array{id: string, profile: array<string, mixed>, values: array<string, mixed>}
+ */
+function requireAdminReading(FirebaseAdmin $admin, array $paths = []): array
+{
+    $idToken = bearerToken();
+
+    if ($idToken === '') {
+        respond(['message' => 'Sign in first.'], 401);
+    }
+
+    // Turned away before anything is read. Google still has the final say.
+    if (! looksLikeIdToken($idToken, (string) config()['firebase']['projectId'])) {
+        respond(['message' => 'Your session has expired. Sign in again.'], 401);
+    }
+
+    $signedIn = $admin->readManyForToken($idToken, ['users' => 'users'] + $paths);
+
+    if ($signedIn['accountId'] === null) {
+        respond(['message' => 'Your session has expired. Sign in again.'], 401);
+    }
+
+    $profile = $signedIn['values']['users'][$signedIn['accountId']] ?? null;
+
+    if (! is_array($profile) || ($profile['role'] ?? '') !== 'ADMIN' || ($profile['status'] ?? '') !== 'Active') {
+        respond(['message' => 'Only an active administrator can do this.'], 403);
+    }
+
+    return ['id' => $signedIn['accountId'], 'profile' => $profile, 'values' => $signedIn['values']];
+}
+
+/**
  * Make sure the request comes from a signed-in administrator.
  *
  * Returns the caller's account id and profile, or stops with an error.

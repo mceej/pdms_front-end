@@ -8,7 +8,7 @@ Follow the team's code ethics in @memory.md.
 
 - **Front end:** Vue 3 single-file components with `<script setup>`, PrimeVue 4 (Aura theme), Chart.js, Tailwind CSS 4, built by Vite 8.
 - **Logins and data:** Firebase Authentication and Realtime Database, project `pdmsfoxi`.
-- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, `public/api/admin-users.php` manages accounts, `public/api/served-lists.php` imports payout CSVs, and `public/api/audit.php` records audit entries.
+- **Server-side:** plain PHP 8.4 — `public/index.php` loads the Vue app, `public/api/admin-users.php` lists and manages accounts, `public/api/served-lists.php` imports payout CSVs, `public/api/metrics.php` works out the dashboard figures, `public/api/audit.php` reads and records audit entries, and `public/api/audit-export.php` hands the log over as CSV.
 - **Environment:** Docker Compose runs a `php` container (port 8000) and a `vite` container (port 5173).
 
 ## Running it
@@ -38,7 +38,8 @@ Never point the user at port 5173; it only feeds front-end files to the page on 
 ## Rules that matter
 
 - Accounts are created only by an admin, through the User Management page. There is no self-registration and no password reset.
-- Audit entries are written by the server only. Never write to `auditLogs` from the browser; the rules forbid it, so that nobody can rewrite what they did.
+- Audit entries are written **and read** by the server only. The rules close `auditLogs` to the browser in both directions, so nobody can rewrite what they did, and reading the log goes through `public/api/audit.php`, which checks the caller is an admin.
+- The browser cannot read the `users` branch either — only its own account, which is what the sign-in needs for the role. The staff list comes from a GET on `public/api/admin-users.php`.
 - A browser cannot create another person's login, set someone's password, or disable an account. Those go through `public/api/admin-users.php`, which checks the caller's ID token and their `ADMIN` role first.
 - Keep components small and single-purpose. Prefer a new file in `components/` over growing a page component.
 - Use the PrimeVue components already registered in `resources/FrontEnd/app.js` before adding libraries.

@@ -46,8 +46,21 @@
                         </div>
                     </div>
                 </div>
+                <button
+                    type="button"
+                    class="export-button"
+                    :disabled="isExporting || isLoading"
+                    @click="exportLog"
+                >
+                    <i class="pi pi-download" aria-hidden="true"></i>
+                    <span>{{ isExporting ? 'Exporting…' : 'Export' }}</span>
+                </button>
             </div>
         </header>
+
+        <p v-if="serverError" class="page-error" role="alert">{{ serverError }}</p>
+        <p v-else-if="exportNotice" class="page-notice" role="status">{{ exportNotice }}</p>
+        <p v-for="warning in warnings" :key="warning" class="page-notice">{{ warning }}</p>
 
         <div
             class="table-wrap"
@@ -144,8 +157,8 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
-import { subscribeAuditLog } from '../../data/auditLog.js';
-import { searchableText, useDebounced } from '../../support/useDebounced.js';
+import { exportAuditLog, fetchAuditLog } from '../../data/auditLog.js';
+import { useDebounced } from '../../support/useDebounced.js';
 
 const formatMoment = (milliseconds) => {
     if (!milliseconds) {
@@ -166,65 +179,105 @@ const draftModules = ref([]);
 const selectedModules = ref([]);
 const page = ref(1);
 const pageSize = ref(10);
-const rows = ref([]);
+const visibleRows = ref([]);
+const moduleOptions = ref([]);
+const total = ref(0);
+const warnings = ref([]);
 const isLoading = ref(true);
+const isExporting = ref(false);
+const serverError = ref('');
+const exportNotice = ref('');
+let exportNoticeTimer;
 
-let unsubscribeAuditLog = () => {};
-
-onMounted(() => {
-    unsubscribeAuditLog = subscribeAuditLog((entries) => {
-        rows.value = entries.map((entry) => ({
-            ...entry,
-            timestamp: formatMoment(entry.at),
-            searchText: searchableText(
-                entry.name,
-                entry.userType,
-                entry.module,
-                entry.action,
-                entry.activity,
-                entry.ipAddress
-            ),
-        }));
-        isLoading.value = false;
-    });
-});
-
-onUnmounted(() => unsubscribeAuditLog());
-
-// Built from the entries themselves, so the filter always offers exactly the
-// modules that appear in the log and never drifts from what is recorded.
-const moduleOptions = computed(() =>
-    [...new Set(rows.value.map((row) => row.module).filter(Boolean))].sort()
-);
-
-const filteredRows = computed(() => {
-    const query = searchQuery.value.trim().toLowerCase();
-    return rows.value.filter((row) => {
-        const matchesSearch = !query || row.searchText.includes(query);
-        const matchesModule =
-            selectedModules.value.length === 0 || selectedModules.value.includes(row.module);
-        return matchesSearch && matchesModule;
-    });
-});
-
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)));
-const visibleRows = computed(() => {
-    const start = (page.value - 1) * pageSize.value;
-    return filteredRows.value.slice(start, start + pageSize.value);
-});
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 
 const hasSelectedFilters = computed(() => draftModules.value.length > 0);
+
+/**
+ * What is being looked for, the way both the table and the export ask for it.
+ *
+ * Sharing it is what makes the file match the screen: the same search, the
+ * same modules, so nobody exports something other than what they filtered to.
+ */
+const currentFilters = () => ({
+    modules: selectedModules.value,
+    search: searchQuery.value.trim(),
+});
+
+/**
+ * Ask the server for the page being shown.
+ *
+ * The page used to watch the whole log and filter it here. The server filters
+ * it now, so what crosses the wire is ten rows rather than every entry ever
+ * recorded — and the browser needs no permission to read the log at all.
+ */
+const loadPage = async () => {
+    isLoading.value = true;
+
+    const result = await fetchAuditLog({
+        ...currentFilters(),
+        limit: pageSize.value,
+        offset: (page.value - 1) * pageSize.value,
+    });
+
+    isLoading.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+        visibleRows.value = [];
+        total.value = 0;
+
+        return;
+    }
+
+    serverError.value = '';
+    total.value = result.total;
+    warnings.value = result.warnings;
+    moduleOptions.value = result.modules;
+    visibleRows.value = result.entries.map((entry) => ({
+        ...entry,
+        timestamp: formatMoment(entry.at),
+    }));
+
+    // Narrowing the filter can leave the page past the end of what is left.
+    if (page.value > pageCount.value) {
+        page.value = pageCount.value;
+    }
+};
+
+const exportLog = async () => {
+    isExporting.value = true;
+    exportNotice.value = '';
+
+    const result = await exportAuditLog(currentFilters());
+
+    isExporting.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+
+        return;
+    }
+
+    serverError.value = '';
+    exportNotice.value = `Saved ${result.fileName}.`;
+    window.clearTimeout(exportNoticeTimer);
+    exportNoticeTimer = window.setTimeout(() => {
+        exportNotice.value = '';
+    }, 3500);
+
+    // Taking the log out is itself recorded, so the table is a row behind.
+    loadPage();
+};
 
 const applyFilters = () => {
     selectedModules.value = [...draftModules.value];
     filterOpen.value = false;
-    page.value = 1;
 };
 
 const clearFilters = () => {
     draftModules.value = [];
     selectedModules.value = [];
-    page.value = 1;
 };
 
 const closeFilterOnOutsidePointer = (event) => {
@@ -233,15 +286,29 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    loadPage();
+});
 
-watch(
-    [search, pageSize],
-    () => {
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    window.clearTimeout(exportNoticeTimer);
+});
+
+// Changing what is being looked for starts again at the first page; changing
+// the page does not. Either way the server is asked exactly once.
+watch([searchQuery, selectedModules, pageSize], () => {
+    if (page.value !== 1) {
         page.value = 1;
-    },
-);
+
+        return;
+    }
+
+    loadPage();
+});
+
+watch(page, loadPage);
 </script>
 
 <style scoped>
@@ -322,6 +389,45 @@ watch(
 .search-control i,
 .filter-control i {
     font-size: 14px;
+}
+
+.export-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 4px;
+    background: #302b9c;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.export-button:disabled {
+    background: #a7a8c7;
+    cursor: not-allowed;
+}
+
+.page-error,
+.page-notice {
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.page-error {
+    background: #fdecea;
+    color: #9b2c2c;
+}
+
+.page-notice {
+    background: #eef2ff;
+    color: #302b9c;
 }
 
 .filter-control {
