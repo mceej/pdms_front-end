@@ -50,6 +50,9 @@ const asQuery = (filters) => {
         municipality_id: filters.municipalityId,
         barangay_id: filters.barangayId,
         program: filters.program ? String(filters.program).toLowerCase() : '',
+        // AKAP and Uplift are paid under AICS, so they narrow the programme
+        // rather than stand in for it. Sent as its own parameter for that.
+        program_type: filters.programType,
         disaster_type: filters.disasterType,
         assistance_type: filters.assistanceType,
         payout_site: filters.payoutSite,
@@ -105,6 +108,7 @@ export const fetchDashboardMetrics = async (filters = {}) => {
         total: asRow(body.total),
         payoutSites: body.payout_sites || [],
         disasterTypes: body.disaster_types || [],
+        programTypes: body.program_types || [],
         lastUpdated: body.last_updated,
         // Things the figures cannot say for themselves, such as targets that
         // were left out. Worth showing rather than swallowing.

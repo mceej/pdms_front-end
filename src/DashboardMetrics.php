@@ -16,6 +16,30 @@ class DashboardMetrics
 {
     public const LEVELS = ['province', 'municipality', 'barangay'];
 
+    /**
+     * The two programmes money is paid under.
+     *
+     * This is what a payout record carries and what the import writes.
+     */
+    public const PROGRAMS = ['AICS', 'ECT'];
+
+    /**
+     * The finer breakdown within those two.
+     *
+     * AKAP and AICS-Uplift are run under AICS, so a record belonging to one
+     * carries AICS as its programme and the type alongside it. A record with
+     * no type at all is the plain programme: ECT, or AICS.
+     */
+    public const PROGRAM_TYPES = ['AICS', 'AICS-Uplift', 'AKAP', 'ECT'];
+
+    /** Which programme each type is paid under. */
+    private const PROGRAM_OF_TYPE = [
+        'AICS' => 'AICS',
+        'AICS-Uplift' => 'AICS',
+        'AKAP' => 'AICS',
+        'ECT' => 'ECT',
+    ];
+
     private const KEY_FIELD = [
         'province' => 'provinceId',
         'municipality' => 'municipalityId',
@@ -39,6 +63,8 @@ class DashboardMetrics
     private int $targetsWithoutProgram = 0;
 
     private int $targetsAboveLevel = 0;
+
+    private int $payoutsWithoutProgramType = 0;
 
     private bool $payoutsCarryAssistanceType = false;
 
@@ -109,6 +135,7 @@ class DashboardMetrics
             'total' => $this->totalRow($rows),
             'filters' => [
                 'program' => $query['program'],
+                'program_type' => $query['program_type'] ?? null,
                 'disaster_type' => $query['disaster_type'],
                 'assistance_type' => $query['assistance_type'],
                 'payout_site' => $query['payout_site'],
@@ -127,6 +154,12 @@ class DashboardMetrics
             'disaster_types' => $this->distinct(
                 $this->payoutsMatching($query, ['disaster_type', 'start_date', 'end_date']),
                 'disasterType'
+            ),
+            // The types actually paid under the programme being looked at,
+            // so a menu can offer what exists rather than what might.
+            'program_types' => $this->distinct(
+                $this->within($this->payoutsMatching($query, ['program_type']), $query),
+                'programType'
             ),
             'last_updated' => $lastUpdated,
             'last_updated_iso' => $lastUpdated === null
@@ -318,7 +351,10 @@ class DashboardMetrics
     {
         $filters = [];
 
-        foreach (['program', 'disaster_type', 'assistance_type', 'payout_site', 'start_date', 'end_date'] as $name) {
+        $names = ['program', 'program_type', 'disaster_type', 'assistance_type',
+            'payout_site', 'start_date', 'end_date'];
+
+        foreach ($names as $name) {
             $value = $query[$name] ?? null;
 
             if ($value !== null && $value !== '' && ! in_array($name, $ignore, true)) {
@@ -343,6 +379,7 @@ class DashboardMetrics
 
         $fields = [
             'program' => 'program',
+            'program_type' => 'programType',
             'disaster_type' => 'disasterType',
             'assistance_type' => 'assistanceType',
             'payout_site' => 'payoutSite',
@@ -404,6 +441,11 @@ class DashboardMetrics
                 if ($target['program'] !== $wanted['program']) {
                     return false;
                 }
+            }
+
+            if (isset($wanted['program_type'])
+                && strcasecmp($target['programType'], $wanted['program_type']) !== 0) {
+                return false;
             }
 
             foreach ($fields as $name => $field) {
@@ -523,6 +565,17 @@ class DashboardMetrics
             );
         }
 
+        $programType = (string) ($query['program_type'] ?? '');
+
+        if ($programType !== '' && $this->isSubProgram($programType) && $this->payoutsWithoutProgramType > 0) {
+            $warnings[] = sprintf(
+                '%d payout record(s) were imported before the type of programme was recorded. '
+                . 'They count as plain %s, so they are not in this figure.',
+                $this->payoutsWithoutProgramType,
+                self::PROGRAM_OF_TYPE[$programType] ?? 'AICS'
+            );
+        }
+
         if ($targets === [] && $payouts !== []) {
             $warnings[] = 'No target covers these filters, so every progress figure reads zero.';
         }
@@ -539,8 +592,19 @@ class DashboardMetrics
      */
     private function readPayout(array $record): array
     {
+        $program = strtoupper(trim((string) ($record['program'] ?? '')));
+        $programType = trim((string) ($record['programType'] ?? ''));
+
+        // Records imported before the type was recorded belong to the plain
+        // programme, which is what AICS and ECT mean in the list of types.
+        if ($programType === '') {
+            $this->payoutsWithoutProgramType++;
+            $programType = $program;
+        }
+
         return [
-            'program' => strtoupper(trim((string) ($record['program'] ?? ''))),
+            'program' => $program,
+            'programType' => $programType,
             'disasterType' => (string) ($record['disasterType'] ?? ''),
             // The import does not store this yet, so it is blank on every row.
             'assistanceType' => (string) ($record['assistanceType'] ?? ''),
@@ -576,9 +640,12 @@ class DashboardMetrics
         $dateStart = trim((string) ($target['dateStart'] ?? ''));
         $dateEnd = trim((string) ($target['dateEnd'] ?? ''));
 
+        $program = $this->programOf($target);
+
         return [
             'place' => $place,
-            'program' => $this->programOf($target),
+            'program' => $program,
+            'programType' => $this->programTypeOf($target, $program),
             'disasterName' => (string) ($target['disasterName'] ?? ''),
             'assistanceType' => (string) ($target['assistanceType'] ?? ''),
             'payoutSite' => (string) ($target['payoutSite'] ?? ''),
@@ -596,6 +663,36 @@ class DashboardMetrics
      * while ECT belongs to DRMD, so the section answers when the type does not.
      *
      * @param array<string, mixed> $target
+     */
+    private function programTypeOf(array $target, ?string $program): string
+    {
+        $programType = trim((string) ($target['programType'] ?? ''));
+
+        foreach (self::PROGRAM_TYPES as $known) {
+            if (strcasecmp($programType, $known) === 0) {
+                return $known;
+            }
+        }
+
+        // A target that does not say is the plain programme, the same way a
+        // payout record that does not say is.
+        return (string) $program;
+    }
+
+    /**
+     * Whether a type is one run under another programme rather than a
+     * programme in its own right.
+     *
+     * Only these were added later, so only these can be missing from a record
+     * that was imported before the field existed.
+     */
+    private function isSubProgram(string $programType): bool
+    {
+        return ! in_array(strtoupper($programType), self::PROGRAMS, true);
+    }
+
+    /**
+     * Which of the two programmes a target belongs to.
      */
     private function programOf(array $target): ?string
     {

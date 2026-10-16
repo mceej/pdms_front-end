@@ -15,6 +15,7 @@
  *   province_id, municipality_id, barangay_id     ids, from geographies/
  *   province, municipality, barangay              or their names instead
  *   program                   aics | ect
+ *   program_type              AICS | AICS-Uplift | AKAP | ECT, within the above
  *   disaster_type             named on a target, typed on a payout record
  *   assistance_type           e.g. Cash Assistance
  *   payout_site
@@ -163,8 +164,27 @@ if (! in_array($group, DashboardMetrics::LEVELS, true)) {
 
 $program = strtoupper(trim((string) ($_GET['program'] ?? '')));
 
-if ($program !== '' && ! in_array($program, ['AICS', 'ECT'], true)) {
+if ($program !== '' && ! in_array($program, DashboardMetrics::PROGRAMS, true)) {
     respond(['message' => 'program must be aics or ect.'], 422);
+}
+
+/* The type is the finer cut within a programme: AKAP and AICS-Uplift are paid
+   under AICS, so they narrow it rather than replace it. Matched without regard
+   to case so the address can carry it however it likes. */
+$programType = trim((string) ($_GET['program_type'] ?? ''));
+
+foreach (DashboardMetrics::PROGRAM_TYPES as $known) {
+    if (strcasecmp($programType, $known) === 0) {
+        $programType = $known;
+
+        break;
+    }
+}
+
+if ($programType !== '' && ! in_array($programType, DashboardMetrics::PROGRAM_TYPES, true)) {
+    respond([
+        'message' => 'program_type must be one of ' . implode(', ', DashboardMetrics::PROGRAM_TYPES) . '.',
+    ], 422);
 }
 
 /**
@@ -215,6 +235,7 @@ $metrics = new DashboardMetrics($data['payoutRecords'] ?? [], $targets, $geograp
 respond($metrics->build([
     'group' => $group,
     'program' => $program === '' ? null : $program,
+    'program_type' => $programType === '' ? null : $programType,
     'disaster_type' => textParam('disaster_type'),
     'assistance_type' => textParam('assistance_type'),
     'payout_site' => textParam('payout_site'),

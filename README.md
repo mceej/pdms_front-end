@@ -144,6 +144,19 @@ The programme follows the person's section — CIS imports AICS, DRMD imports EC
 the disaster. Importing the same file into the same barangay twice is refused; send it again with `replace` to
 overwrite the earlier rows.
 
+### Programmes and the types within them
+
+Money is paid under two programmes: **AICS** and **ECT**. That is what a payout record carries, and it is what
+the dashboard's two tabs are.
+
+**AKAP** and **AICS-Uplift** are run under AICS, so a record belonging to one carries both — `AICS` as its
+programme, the type alongside it — and the dashboard reaches them through `program_type` rather than `program`.
+A CIS import asks which of the three it is, because nothing in a served list says. An ECT import has no choice
+to make.
+
+Records imported before the type was recorded have none, and count as the plain programme. Filtering to AKAP or
+Uplift therefore leaves them out, and the dashboard says how many rather than letting a zero speak for itself.
+
 ## Useful commands
 
 | Command | What it does |

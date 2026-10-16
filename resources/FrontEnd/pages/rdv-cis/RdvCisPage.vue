@@ -19,7 +19,7 @@
             <div v-else class="served-list-shell">
                 <ServerListPage
                     :current-time="currentTime"
-                    payout-type="ECT"
+                    payout-type="AICS"
                     :served-list-form="servedListForm"
                     :served-province-options="provinceOptions"
                     :served-municipality-options="municipalityOptions"
@@ -80,6 +80,7 @@ const activePage = ref('dashboard');
 const logoutDialogOpen = ref(false);
 const servedListForm = ref({
     disasterName: '',
+    programType: '',
     province: '',
     municipality: '',
     barangay: '',
@@ -123,6 +124,7 @@ const uploadServedList = async () => {
         municipality: servedListForm.value.municipality,
         barangay: servedListForm.value.barangay,
         disasterType: servedListForm.value.disasterName || '',
+        programType: servedListForm.value.programType || '',
         program: servedListForm.value.program || 'AICS',
     });
 

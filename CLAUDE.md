@@ -38,6 +38,7 @@ Never point the user at port 5173; it only feeds front-end files to the page on 
 ## Rules that matter
 
 - Accounts are created only by an admin, through the User Management page. There is no self-registration and no password reset.
+- `program` is AICS or ECT and nothing else — it is what a payout record carries. AKAP and AICS-Uplift are types *within* AICS, filtered through `program_type` and recorded on each row at import. Sending one as a `program` is refused.
 - Audit entries are written **and read** by the server only. The rules close `auditLogs` to the browser in both directions, so nobody can rewrite what they did, and reading the log goes through `public/api/audit.php`, which checks the caller is an admin.
 - The browser cannot read the `users` branch either — only its own account, which is what the sign-in needs for the role. The staff list comes from a GET on `public/api/admin-users.php`.
 - A browser cannot create another person's login, set someone's password, or disable an account. Those go through `public/api/admin-users.php`, which checks the caller's ID token and their `ADMIN` role first.

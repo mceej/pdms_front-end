@@ -351,11 +351,15 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
-    const filters = {
-        program: activeTab.value === 'AICS'
-            ? selectedProgramType.value || 'AICS'
-            : 'ECT',
-    };
+    /* The tab is the programme; the menu under it is the type. AKAP and
+       Uplift are paid under AICS, so they go as program_type and leave the
+       programme alone — sending them as the programme is what the server
+       refused with "program must be aics or ect". */
+    const filters = { program: activeTab.value === 'AICS' ? 'AICS' : 'ECT' };
+
+    if (activeTab.value === 'AICS' && selectedProgramType.value) {
+        filters.programType = selectedProgramType.value;
+    }
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;

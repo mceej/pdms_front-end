@@ -11,6 +11,7 @@
  */
 
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../../src/DashboardMetrics.php';
 require_once __DIR__ . '/../../src/ServedListReader.php';
 
 const BATCH_SIZE = 500;
@@ -167,8 +168,41 @@ if ($program === '') {
     $program = ($profile['section'] ?? '') === 'DRMD' ? 'ECT' : 'AICS';
 }
 
-if (! in_array($program, ['AICS', 'ECT'], true)) {
+if (! in_array($program, DashboardMetrics::PROGRAMS, true)) {
     refuse($admin, $accountId, $profile, $fileName, 'The programme must be AICS or ECT.');
+}
+
+/* AKAP and AICS-Uplift are paid under AICS, so the rows carry both: AICS as
+   the programme, the type alongside it. Recorded here rather than worked out
+   later, because nothing in a served list says which it was. */
+$programType = trim((string) ($_POST['programType'] ?? ''));
+
+foreach (DashboardMetrics::PROGRAM_TYPES as $known) {
+    if (strcasecmp($programType, $known) === 0) {
+        $programType = $known;
+
+        break;
+    }
+}
+
+if ($programType === '') {
+    $programType = $program;
+}
+
+if (! in_array($programType, DashboardMetrics::PROGRAM_TYPES, true)) {
+    refuse(
+        $admin,
+        $accountId,
+        $profile,
+        $fileName,
+        'The type of programme must be one of ' . implode(', ', DashboardMetrics::PROGRAM_TYPES) . '.'
+    );
+}
+
+// A type belongs to one programme, and picking one from the other is a
+// mistake worth naming rather than quietly storing.
+if (($program === 'ECT') !== ($programType === 'ECT')) {
+    refuse($admin, $accountId, $profile, $fileName, $programType . ' is not paid under ' . $program . '.');
 }
 
 $disasterType = trim((string) ($_POST['disasterType'] ?? ''));
@@ -285,6 +319,7 @@ if ($records === []) {
 $listId = $admin->push('servedLists', [
     'fileName' => $fileName,
     'program' => $program,
+    'programType' => $programType,
     'disasterType' => $disasterType,
     'provinceId' => $place['provinceId'],
     'municipalityId' => $place['municipalityId'],
@@ -311,6 +346,7 @@ $batch = [];
 foreach ($records as $index => $record) {
     $batch[$listId . '-' . ($index + 1)] = $record + [
         'program' => $program,
+        'programType' => $programType,
         'disasterType' => $disasterType,
         'servedListId' => $listId,
     ];
@@ -330,7 +366,7 @@ $summary = sprintf(
     count($records),
     $reader->rowsRead(),
     $fileName,
-    $program,
+    $programType === $program ? $program : $program . '/' . $programType,
     $disasterType !== '' ? $disasterType : 'no disaster name',
     $where
 );
@@ -353,4 +389,5 @@ respond([
     'skipped' => array_slice($reader->skipped(), 0, 20),
     'where' => $where,
     'program' => $program,
+    'programType' => $programType,
 ], 201);
