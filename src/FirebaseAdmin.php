@@ -118,7 +118,8 @@ class FirebaseAdmin
      *
      * @param array<string, string> $paths
      *
-     * @return array{accountId: ?string, values: array<string, mixed>}
+     * @return array{accountId: ?string, reachedGoogle: bool, failed: array<int, string>,
+     *               values: array<string, mixed>}
      */
     public function readManyForToken(string $idToken, array $paths): array
     {
@@ -141,14 +142,30 @@ class FirebaseAdmin
 
         $localId = $identity['body']['users'][0]['localId'] ?? null;
         $values = [];
+        $failed = [];
 
         foreach ($replies as $name => $reply) {
-            $values[$name] = $reply['status'] === 200 ? ($reply['body'] ?: null) : null;
+            // A branch that could not be read is not a branch that is empty.
+            // Told apart here, because further up the two look identical and
+            // an audit log must never pass one off as the other.
+            if ($reply['status'] !== 200) {
+                $failed[] = $name;
+                $values[$name] = null;
+
+                continue;
+            }
+
+            $values[$name] = $reply['body'] ?: null;
         }
 
         return [
             // Only a reply Google actually accepted says who is calling.
             'accountId' => $identity['status'] === 200 && is_string($localId) ? $localId : null,
+            // A status of nought means no answer came back at all. That is a
+            // blip on the way to Google, not a session that has ended, and
+            // the two deserve different things said about them.
+            'reachedGoogle' => $identity['status'] !== 0,
+            'failed' => $failed,
             'values' => $values,
         ];
     }

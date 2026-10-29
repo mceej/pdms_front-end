@@ -4,9 +4,9 @@
     ".write": false,
 
     "users": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      ".read": false,
       "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'ADMIN')",
+        ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
         ".validate": "newData.hasChildren(['name', 'role', 'status']) && (newData.child('role').val() !== 'RDV Focal' || newData.hasChild('section'))",
         "name": { ".validate": "newData.isString() && newData.val().length > 0" },
@@ -73,7 +73,7 @@
     },
 
     "auditLogs": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'ADMIN'",
+      ".read": false,
       ".indexOn": ["at", "uid"],
       ".write": false
     }

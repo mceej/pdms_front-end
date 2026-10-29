@@ -22,6 +22,17 @@
         />
       </label>
 
+      <label v-if="! isEctImport" class="served-field">
+        <span>Type of Program</span>
+        <Select
+          v-model="servedListForm.programType"
+          :options="programTypeOptions"
+          option-label="label"
+          option-value="value"
+          placeholder="AICS"
+        />
+      </label>
+
       <div class="served-location-fields">
         <label class="served-field">
           <span>Province</span>
@@ -159,6 +170,19 @@ const disasterNameOptions = ref([
 ]);
 const filteredDisasterNameOptions = ref([...disasterNameOptions.value]);
 const isEctImport = computed(() => props.payoutType === 'ECT');
+
+/**
+ * What AICS money can be paid under.
+ *
+ * The import has to be told, because nothing in a served list says which it
+ * was, and the dashboard cannot report on AKAP or Uplift separately unless
+ * each row carries it. ECT imports have no choice to make.
+ */
+const programTypeOptions = [
+  { label: 'AICS', value: 'AICS' },
+  { label: 'AKAP', value: 'AKAP' },
+  { label: 'Uplift', value: 'AICS-Uplift' },
+];
 
 function setDisasterName(disasterName) {
   props.servedListForm.disasterName = disasterName;

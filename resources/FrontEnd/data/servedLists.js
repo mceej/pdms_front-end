@@ -104,7 +104,8 @@ export const deleteServedList = async (servedListId) => {
 /**
  * Send a served-list file for one barangay.
  *
- * @param {object} details file, province, municipality, barangay, disasterType, program, replace
+ * @param {object} details file, province, municipality, barangay, disasterType, program,
+ *                          programType, replace
  *
  * @return {Promise<object>} { ok: true, rowsImported, ... } or { ok: false, message, canReplace }
  */
@@ -123,6 +124,12 @@ export const importServedList = async (details) => {
     form.append('municipality', details.municipality || '');
     form.append('barangay', details.barangay || '');
     form.append('disasterType', details.disasterType || '');
+
+    // Left out rather than guessed when the form has no choice to offer; the
+    // server then records the plain programme.
+    if (details.programType) {
+        form.append('programType', details.programType);
+    }
 
     if (details.program) {
         form.append('program', details.program);

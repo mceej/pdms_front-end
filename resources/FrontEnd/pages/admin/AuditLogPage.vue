@@ -45,18 +45,48 @@
                                 {{ module }}
                             </label>
                         </section>
+                        <section class="filter-group">
+                            <h2>Date</h2>
+                            <label class="filter-date">
+                                <span>From</span>
+                                <input v-model="draftFrom" type="date" :max="draftTo || undefined" />
+                            </label>
+                            <label class="filter-date">
+                                <span>To</span>
+                                <input v-model="draftTo" type="date" :min="draftFrom || undefined" />
+                            </label>
+                            <p v-if="dateError" class="filter-date-error">{{ dateError }}</p>
+                        </section>
                         <div class="filter-actions">
                             <button type="button" class="clear-filters" @click="clearFilters">
                                 Clear All
                             </button>
-                            <button type="button" class="apply-filters" @click="applyFilters">
+                            <button
+                                type="button"
+                                class="apply-filters"
+                                :disabled="Boolean(dateError)"
+                                @click="applyFilters"
+                            >
                                 Apply
                             </button>
                         </div>
                     </div>
                 </div>
+                <button
+                    type="button"
+                    class="export-button"
+                    :disabled="isExporting || isLoading"
+                    @click="exportLog"
+                >
+                    <i class="pi pi-download" aria-hidden="true"></i>
+                    <span>{{ isExporting ? 'Exporting…' : 'Export' }}</span>
+                </button>
             </div>
         </header>
+
+        <p v-if="serverError" class="page-error" role="alert">{{ serverError }}</p>
+        <p v-else-if="exportNotice" class="page-notice" role="status">{{ exportNotice }}</p>
+        <p v-for="warning in warnings" :key="warning" class="page-notice">{{ warning }}</p>
 
         <div
             class="table-wrap"
@@ -257,8 +287,8 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
-import { subscribeAuditLog } from '../../data/auditLog.js';
-import { searchableText, useDebounced } from '../../support/useDebounced.js';
+import { exportAuditLog, fetchAuditLog } from '../../data/auditLog.js';
+import { useDebounced } from '../../support/useDebounced.js';
 
 const formatMoment = (milliseconds) => {
     if (!milliseconds) {
@@ -276,10 +306,17 @@ const searchQuery = useDebounced(search, 150);
 const filterOpen = ref(false);
 const filterControl = ref(null);
 const draftModules = ref([]);
+const draftFrom = ref('');
+const draftTo = ref('');
 const selectedModules = ref([]);
+const selectedFrom = ref('');
+const selectedTo = ref('');
 const page = ref(1);
 const pageSize = ref(10);
-const rows = ref([]);
+const visibleRows = ref([]);
+const loggedModules = ref([]);
+const total = ref(0);
+const warnings = ref([]);
 const isLoading = ref(true);
 const exportConfirmationOpen = ref(false);
 const exportScope = ref('all');
@@ -287,52 +324,115 @@ const exportFromDate = ref('');
 const exportToDate = ref('');
 const hasChosenDateRange = ref(false);
 const cancelExportButton = ref(null);
+const isExporting = ref(false);
+const serverError = ref('');
+const exportNotice = ref('');
+let exportNoticeTimer;
 
-let unsubscribeAuditLog = () => {};
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)));
 
-onMounted(() => {
-    unsubscribeAuditLog = subscribeAuditLog((entries) => {
-        rows.value = entries.map((entry) => ({
-            ...entry,
-            timestamp: formatMoment(entry.at),
-            searchText: searchableText(
-                entry.name,
-                entry.userType,
-                entry.module,
-                entry.action,
-                entry.activity,
-                entry.ipAddress
-            ),
-        }));
-        isLoading.value = false;
-    });
-});
-
-onUnmounted(() => unsubscribeAuditLog());
-
-// Built from the entries themselves, so the filter always offers exactly the
-// modules that appear in the log and never drifts from what is recorded.
-const moduleOptions = computed(() =>
-    [...new Set(rows.value.map((row) => row.module).filter(Boolean))].sort()
+const hasSelectedFilters = computed(
+    () => draftModules.value.length > 0 || Boolean(draftFrom.value) || Boolean(draftTo.value)
 );
 
-const filteredRows = computed(() => {
-    const query = searchQuery.value.trim().toLowerCase();
-    return rows.value.filter((row) => {
-        const matchesSearch = !query || row.searchText.includes(query);
-        const matchesModule =
-            selectedModules.value.length === 0 || selectedModules.value.includes(row.module);
-        return matchesSearch && matchesModule;
+/**
+ * The modules the filter offers.
+ *
+ * The server names the ones that appear in the range being looked at, so a
+ * date range narrows the list. Anything already ticked stays on it even when
+ * the range holds none of it — otherwise picking a date can hide a ticked box
+ * and leave somebody with no rows and no way to see why.
+ */
+const moduleOptions = computed(() =>
+    [...new Set([...loggedModules.value, ...draftModules.value])].sort()
+);
+
+// Caught here as well as on the server, so Apply cannot send a range that
+// would only come back refused.
+const dateError = computed(() =>
+    draftFrom.value && draftTo.value && draftFrom.value > draftTo.value
+        ? 'The start date comes after the end date.'
+        : ''
+);
+
+/**
+ * What is being looked for, the way both the table and the export ask for it.
+ *
+ * Sharing it is what makes the file match the screen: the same search, the
+ * same modules, so nobody exports something other than what they filtered to.
+ */
+const currentFilters = () => ({
+    modules: selectedModules.value,
+    search: searchQuery.value.trim(),
+    from: selectedFrom.value,
+    to: selectedTo.value,
+});
+
+/**
+ * Ask the server for the page being shown.
+ *
+ * The page used to watch the whole log and filter it here. The server filters
+ * it now, so what crosses the wire is ten rows rather than every entry ever
+ * recorded — and the browser needs no permission to read the log at all.
+ */
+const loadPage = async () => {
+    isLoading.value = true;
+
+    const result = await fetchAuditLog({
+        ...currentFilters(),
+        limit: pageSize.value,
+        offset: (page.value - 1) * pageSize.value,
     });
-});
 
-const pageCount = computed(() => Math.max(1, Math.ceil(filteredRows.value.length / pageSize.value)));
-const visibleRows = computed(() => {
-    const start = (page.value - 1) * pageSize.value;
-    return filteredRows.value.slice(start, start + pageSize.value);
-});
+    isLoading.value = false;
 
-const hasSelectedFilters = computed(() => draftModules.value.length > 0);
+    if (!result.ok) {
+        serverError.value = result.message;
+        visibleRows.value = [];
+        total.value = 0;
+
+        return;
+    }
+
+    serverError.value = '';
+    total.value = result.total;
+    warnings.value = result.warnings;
+    loggedModules.value = result.modules;
+    visibleRows.value = result.entries.map((entry) => ({
+        ...entry,
+        timestamp: formatMoment(entry.at),
+    }));
+
+    // Narrowing the filter can leave the page past the end of what is left.
+    if (page.value > pageCount.value) {
+        page.value = pageCount.value;
+    }
+};
+
+const exportLog = async () => {
+    isExporting.value = true;
+    exportNotice.value = '';
+
+    const result = await exportAuditLog(currentFilters());
+
+    isExporting.value = false;
+
+    if (!result.ok) {
+        serverError.value = result.message;
+
+        return;
+    }
+
+    serverError.value = '';
+    exportNotice.value = `Saved ${result.fileName}.`;
+    window.clearTimeout(exportNoticeTimer);
+    exportNoticeTimer = window.setTimeout(() => {
+        exportNotice.value = '';
+    }, 3500);
+
+    // Taking the log out is itself recorded, so the table is a row behind.
+    loadPage();
+};
 
 const getRowDateKey = (row) => {
     if (row.at !== undefined && row.at !== null) {
@@ -455,15 +555,23 @@ watch(exportConfirmationOpen, async (isOpen) => {
 });
 
 const applyFilters = () => {
+    if (dateError.value) {
+        return;
+    }
+
     selectedModules.value = [...draftModules.value];
+    selectedFrom.value = draftFrom.value;
+    selectedTo.value = draftTo.value;
     filterOpen.value = false;
-    page.value = 1;
 };
 
 const clearFilters = () => {
     draftModules.value = [];
+    draftFrom.value = '';
+    draftTo.value = '';
     selectedModules.value = [];
-    page.value = 1;
+    selectedFrom.value = '';
+    selectedTo.value = '';
 };
 
 const closeFilterOnOutsidePointer = (event) => {
@@ -472,15 +580,29 @@ const closeFilterOnOutsidePointer = (event) => {
     }
 };
 
-onMounted(() => document.addEventListener('pointerdown', closeFilterOnOutsidePointer));
-onUnmounted(() => document.removeEventListener('pointerdown', closeFilterOnOutsidePointer));
+onMounted(() => {
+    document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
+    loadPage();
+});
 
-watch(
-    [search, pageSize],
-    () => {
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
+    window.clearTimeout(exportNoticeTimer);
+});
+
+// Changing what is being looked for starts again at the first page; changing
+// the page does not. Either way the server is asked exactly once.
+watch([searchQuery, selectedModules, selectedFrom, selectedTo, pageSize], () => {
+    if (page.value !== 1) {
         page.value = 1;
-    },
-);
+
+        return;
+    }
+
+    loadPage();
+});
+
+watch(page, loadPage);
 </script>
 
 <style scoped>
@@ -810,6 +932,45 @@ watch(
     font-size: 14px;
 }
 
+.export-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 4px;
+    background: #302b9c;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.export-button:disabled {
+    background: #a7a8c7;
+    cursor: not-allowed;
+}
+
+.page-error,
+.page-notice {
+    margin: 0 0 10px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.page-error {
+    background: #fdecea;
+    color: #9b2c2c;
+}
+
+.page-notice {
+    background: #eef2ff;
+    color: #302b9c;
+}
+
 .filter-control {
     position: relative;
     height: auto;
@@ -886,6 +1047,39 @@ watch(
     height: 14px;
     margin: 0;
     accent-color: #302b9c;
+}
+
+.filter-date {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 3px 0;
+    color: #4a5568;
+    font-size: 12px;
+}
+
+.filter-date input {
+    width: 132px;
+    height: 26px;
+    padding: 0 6px;
+    border: 1px solid #dce3ed;
+    border-radius: 4px;
+    background: #f9fbfe;
+    color: #2d3748;
+    font: inherit;
+    font-size: 12px;
+}
+
+.filter-date-error {
+    margin: 4px 0 0;
+    color: #9b2c2c;
+    font-size: 11px;
+}
+
+.apply-filters:disabled {
+    background: #a7a8c7;
+    cursor: not-allowed;
 }
 
 .filter-actions {

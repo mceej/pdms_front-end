@@ -351,11 +351,15 @@ const breadcrumbItems = computed(() => {
 });
 
 const fetchDashboard = async () => {
-    const filters = {
-        program: activeTab.value === 'AICS'
-            ? selectedProgramType.value || 'AICS'
-            : 'ECT',
-    };
+    /* The tab is the programme; the menu under it is the type. AKAP and
+       Uplift are paid under AICS, so they go as program_type and leave the
+       programme alone — sending them as the programme is what the server
+       refused with "program must be aics or ect". */
+    const filters = { program: activeTab.value === 'AICS' ? 'AICS' : 'ECT' };
+
+    if (activeTab.value === 'AICS' && selectedProgramType.value) {
+        filters.programType = selectedProgramType.value;
+    }
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
     if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
@@ -589,7 +593,7 @@ button:hover { background: #2e2789; }
     min-height: 220px;
     background:
         linear-gradient(90deg, #F3BB2E 0%, #F39D2A 33.33%, #F28E27 66.67%, #DD4B3B 100%) top / 100% 7px no-repeat,
-        linear-gradient(90deg, #2E3192 );
+        linear-gradient(90deg, #2e3192);
     box-shadow: 0 4px 8px rgba(7, 32, 74, 0.38);
 }
 
@@ -898,8 +902,8 @@ button:hover { background: #2e2789; }
     border-radius: 6px;
     background: #ffffff;
     color: #063b95;
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 750;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

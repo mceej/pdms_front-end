@@ -1,31 +1,40 @@
-// The user list comes straight from the database; changes to accounts go
-// through the server, because a browser cannot manage other people's logins.
-import { onValue, ref as databaseRef } from 'firebase/database';
-import { auth, database } from '../firebase/app.js';
+// Accounts. Both the list and the changes go through the server: a browser
+// cannot manage other people's logins, and now it cannot read the staff list
+// either — only the one account it is signed in as.
+import { auth } from '../firebase/app.js';
 
 const ENDPOINT = '/api/admin-users.php';
 
-/**
- * Watch the user list. Calls back with an array whenever it changes.
- *
- * @return {function} call it to stop watching
- */
-export const subscribeUsers = (onChange) => {
-    if (database === null) {
-        onChange([]);
+const EXPIRED = 'Your session has expired. Sign in again.';
+const UNREACHABLE = 'Cannot reach the server. Check that it is running.';
 
-        return () => {};
+/**
+ * Ask the server for the user list.
+ *
+ * @return {Promise<object>} { ok: true, users } or { ok: false, message }
+ */
+export const fetchUsers = async () => {
+    const signedInUser = auth?.currentUser;
+
+    if (! signedInUser) {
+        return { ok: false, message: EXPIRED };
     }
 
-    return onValue(
-        databaseRef(database, 'users'),
-        (snapshot) => {
-            const value = snapshot.val() || {};
+    let response;
 
-            onChange(Object.entries(value).map(([uid, profile]) => ({ id: uid, uid, ...profile })));
-        },
-        () => onChange([])
-    );
+    try {
+        const idToken = await signedInUser.getIdToken();
+
+        response = await fetch(ENDPOINT, { headers: { Authorization: `Bearer ${idToken}` } });
+    } catch {
+        return { ok: false, message: UNREACHABLE };
+    }
+
+    const body = await response.json().catch(() => ({}));
+
+    return response.ok
+        ? { ok: true, users: body.users || [] }
+        : { ok: false, message: body.message || 'Could not load the user list.' };
 };
 
 /**
@@ -37,7 +46,7 @@ const askServer = async (action, payload = {}) => {
     const signedInUser = auth?.currentUser;
 
     if (! signedInUser) {
-        return { ok: false, message: 'Your session has expired. Sign in again.' };
+        return { ok: false, message: EXPIRED };
     }
 
     let response;
@@ -51,7 +60,7 @@ const askServer = async (action, payload = {}) => {
             body: JSON.stringify({ idToken, action, ...payload }),
         });
     } catch {
-        return { ok: false, message: 'Cannot reach the server. Check that it is running.' };
+        return { ok: false, message: UNREACHABLE };
     }
 
     const body = await response.json().catch(() => ({}));

@@ -344,8 +344,8 @@ import { searchableText, useDebounced } from '../../support/useDebounced.js';
 import {
     createUser,
     deleteUser,
+    fetchUsers,
     setUserPassword,
-    subscribeUsers,
     updateUser,
 } from '../../data/users.js';
 
@@ -387,7 +387,30 @@ const isSaving = ref(false);
 const serverError = ref('');
 const searchQuery = useDebounced(search, 150);
 
-let unsubscribeUsers = () => {};
+/**
+ * Load the list from the server.
+ *
+ * The page used to watch the users branch and redraw whenever it changed. It
+ * asks for the list instead, because the branch is no longer readable from a
+ * browser — and only this page changes accounts, so it knows when to ask again.
+ */
+const loadUsers = async () => {
+    const result = await fetchUsers();
+
+    isLoading.value = false;
+
+    if (! result.ok) {
+        serverError.value = result.message;
+
+        return;
+    }
+
+    serverError.value = '';
+    users.value = result.users.map((user) => ({
+        ...user,
+        searchText: searchableText(user.name, user.email, user.section, user.role, user.status),
+    }));
+};
 
 const filteredUsers = computed(() => {
     const query = searchQuery.value.trim().toLowerCase();
@@ -472,6 +495,7 @@ const addUser = async () => {
     };
     passwordMismatch.value = false;
     showAddUserDialog.value = false;
+    await loadUsers();
 };
 
 const openAddUserDialog = () => {
@@ -586,6 +610,8 @@ const confirmAction = async () => {
         return;
     }
 
+    await loadUsers();
+
     if (action.type === 'edit') {
         cancelEditUser();
         showActionNotification('User updated successfully.');
@@ -609,18 +635,11 @@ const closeFilterOnOutsidePointer = (event) => {
 
 onMounted(() => {
     document.addEventListener('pointerdown', closeFilterOnOutsidePointer);
-    unsubscribeUsers = subscribeUsers((list) => {
-        users.value = list.map((user) => ({
-            ...user,
-            searchText: searchableText(user.name, user.email, user.section, user.role, user.status),
-        }));
-        isLoading.value = false;
-    });
+    loadUsers();
 });
 onUnmounted(() => {
     document.removeEventListener('pointerdown', closeFilterOnOutsidePointer);
     window.clearTimeout(actionNotificationTimer);
-    unsubscribeUsers();
 });
 
 watch(
