@@ -12,6 +12,7 @@
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/../../src/DashboardMetrics.php';
+require_once __DIR__ . '/../../src/GeographyIndex.php';
 require_once __DIR__ . '/../../src/ServedListReader.php';
 
 const BATCH_SIZE = 500;
@@ -211,47 +212,18 @@ if ($program === 'ECT' && $disasterType === '') {
     refuse($admin, $accountId, $profile, $fileName, 'Choose the disaster name for an ECT import.');
 }
 
-/**
- * Find a place by id or by name, within the level it belongs to.
- *
- * @param array<string, mixed> $geographies
- *
- * @return array{0: string, 1: string}|null the id and name
- */
-function findPlace(array $geographies, string $level, string $wanted, ?string $parentId): ?array
-{
-    if ($wanted === '') {
-        return null;
-    }
-
-    foreach ($geographies as $id => $place) {
-        if (($place['level'] ?? '') !== $level) {
-            continue;
-        }
-
-        if ($parentId !== null && ($place['parentId'] ?? '') !== $parentId) {
-            continue;
-        }
-
-        $matchesId = $id === $wanted;
-        $matchesName = strcasecmp((string) ($place['name'] ?? ''), $wanted) === 0;
-
-        if ($matchesId || $matchesName) {
-            return [$id, (string) $place['name']];
-        }
-    }
-
-    return null;
-}
-
-$geographies = $admin->read('geographies') ?: [];
-$province = findPlace($geographies, 'province', trim((string) ($_POST['province'] ?? '')), null);
+$geographies = new GeographyIndex($admin->read('geographies') ?: []);
+$province = $geographies->find('province', trim((string) ($_POST['province'] ?? '')), null);
 
 if ($province === null) {
     refuse($admin, $accountId, $profile, $fileName, 'That province is not in the database.');
 }
 
-$municipality = findPlace($geographies, 'municipality', trim((string) ($_POST['municipality'] ?? '')), $province[0]);
+$municipality = $geographies->find(
+    'municipality',
+    trim((string) ($_POST['municipality'] ?? '')),
+    $province[0]
+);
 
 if ($municipality === null) {
     refuse(
@@ -263,7 +235,7 @@ if ($municipality === null) {
     );
 }
 
-$barangay = findPlace($geographies, 'barangay', trim((string) ($_POST['barangay'] ?? '')), $municipality[0]);
+$barangay = $geographies->find('barangay', trim((string) ($_POST['barangay'] ?? '')), $municipality[0]);
 
 if ($barangay === null) {
     refuse($admin, $accountId, $profile, $fileName, 'That barangay does not belong to ' . $municipality[1] . '.');
@@ -307,13 +279,33 @@ if ($earlier !== null && ! $replacing) {
 $reader = new ServedListReader();
 
 try {
-    $records = $reader->read((string) $_FILES['file']['tmp_name'], $place);
+    $records = $reader->read((string) $_FILES['file']['tmp_name'], [
+        'geographies' => $geographies,
+        'place' => $place,
+        'program' => $program,
+        'programType' => $programType,
+    ]);
 } catch (RuntimeException $exception) {
     refuse($admin, $accountId, $profile, $fileName, $exception->getMessage());
 }
 
 if ($records === []) {
-    refuse($admin, $accountId, $profile, $fileName, 'No usable rows were found in the file.');
+    // Every row was skipped. Saying only that none were usable leaves the
+    // person to guess, when the reader already knows what was wrong with
+    // each one, so the first few go back with the refusal.
+    $reasons = array_slice($reader->skipped(), 0, 3);
+    $andMore = $reader->skippedCount() - count($reasons);
+
+    refuse(
+        $admin,
+        $accountId,
+        $profile,
+        $fileName,
+        $reasons === []
+            ? 'No usable rows were found in the file.'
+            : 'No usable rows were found. ' . implode('; ', $reasons)
+                . ($andMore > 0 ? sprintf(' (and %d more)', $andMore) : '')
+    );
 }
 
 $listId = $admin->push('servedLists', [
@@ -329,7 +321,7 @@ $listId = $admin->push('servedLists', [
     'importedAt' => (int) (microtime(true) * 1000),
     'rowsRead' => $reader->rowsRead(),
     'rowsImported' => count($records),
-    'rowsSkipped' => count($reader->skipped()),
+    'rowsSkipped' => $reader->skippedCount(),
 ]);
 
 // Out with the rows the earlier import created, before the new ones go in.
@@ -344,9 +336,9 @@ if ($earlier !== null) {
 $batch = [];
 
 foreach ($records as $index => $record) {
+    // The row already carries its place, its programme and its type; only
+    // what belongs to the import as a whole is added here.
     $batch[$listId . '-' . ($index + 1)] = $record + [
-        'program' => $program,
-        'programType' => $programType,
         'disasterType' => $disasterType,
         'servedListId' => $listId,
     ];
@@ -371,8 +363,8 @@ $summary = sprintf(
     $where
 );
 
-if ($reader->skipped() !== []) {
-    $summary .= sprintf(' (%d skipped)', count($reader->skipped()));
+if ($reader->skippedCount() > 0) {
+    $summary .= sprintf(' (%d skipped)', $reader->skippedCount());
 }
 
 if ($replaced > 0) {
@@ -386,6 +378,7 @@ respond([
     'rowsRead' => $reader->rowsRead(),
     'rowsImported' => count($records),
     'rowsReplaced' => $replaced,
+    'rowsSkipped' => $reader->skippedCount(),
     'skipped' => array_slice($reader->skipped(), 0, 20),
     'where' => $where,
     'program' => $program,

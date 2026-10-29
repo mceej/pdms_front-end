@@ -1,4 +1,5 @@
-beneficiary_reference,payout_site,target_amount,disbursed_amount,is_paid,served_date
-BEN-001,Covered Court,5000,5000,yes,2026-09-20
-BEN-002,Covered Court,5000,0,no,2026-09-20
-BEN-003,Covered Court,5000,5000,true,2026-09-21
+CONTROL NUMBER,BIRTH DAY,BIRTH MONTH,BIRTH YEAR,SEX,BARANGAY,PROVINCE,CITY/MUNICIPALITY,AMOUNT,DATE LAST SERVED,PAYOUT SITE,TYPE OF ASSISTANCE,CHARGING
+DDO-FOXI-00001,1,1,1999,MALE,Barangay Central,Davao de Oro,Davao de Oro Municipality,5000,13/03/2026,Covered Court,FOOD ASSISTANCE,AICS
+DDO-FOXI-00002,14,7,1986,FEMALE,Barangay Central,Davao de Oro,Davao de Oro Municipality,5000,13/03/2026,Covered Court,CASH RELIEF ASSISTANCE,AICS
+DDO-FOXI-00003,2,11,1974,FEMALE,Barangay Riverside,Davao de Oro,Davao de Oro Municipality 2,3000,14/03/2026,Barangay Hall,EDUCATIONAL ASSISTANCE,AKAP
+DDO-FOXI-00004,30,5,2001,MALE,Barangay Riverside,Davao de Oro,Davao de Oro Municipality 2,0,14/03/2026,Barangay Hall,FOOD ASSISTANCE,AICS

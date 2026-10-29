@@ -115,19 +115,37 @@ An RDV Focal or an admin imports a CSV on the **Import Served List** page. The f
 `public/api/served-lists.php`, which checks it, writes the payout records and records the import in the audit
 log — successes and failures alike.
 
-The file holds one beneficiary per row. Where the payout happened comes from the form, not the file:
+The shape is the one in [`Serve List - Template.csv`](Serve%20List%20-%20Template.csv): one beneficiary per
+row, with all thirteen columns present. Order and capitalisation do not matter; a missing column does, and the
+file is refused whole with the missing names listed.
 
-| Column | Required | Example |
+| Column | Example | What it becomes |
 |---|---|---|
-| `served_date` | yes | 2026-09-20 |
-| `is_paid` | yes | yes / no / true / false / 1 / 0 |
-| `disbursed_amount` | yes | 5000 |
-| `beneficiary_reference` | no | BEN-001 |
-| `target_amount` | no | 5000 (defaults to the disbursed amount) |
-| `payout_site` | no | Covered Court |
+| `CONTROL NUMBER` | DDO-FOXI-00001 | the beneficiary's reference |
+| `BIRTH DAY` / `BIRTH MONTH` / `BIRTH YEAR` | 1 / 1 / 1999 | one date of birth |
+| `SEX` | MALE | Male or Female |
+| `BARANGAY` / `PROVINCE` / `CITY/MUNICIPALITY` | CONSOLACION / DAVAO DE ORO / MAWAB | where the row happened |
+| `AMOUNT` | 5000 | what was disbursed |
+| `DATE LAST SERVED` | 13/03/2026 | the date served — **day first** |
+| `PAYOUT SITE` | SALVACION | the site, or the barangay when blank |
+| `TYPE OF ASSISTANCE` | FOOD ASSISTANCE | what the dashboard's assistance filter reads |
+| `CHARGING` | AICS | the programme type: AICS, AKAP or AICS-Uplift, or ECT |
 
-[`scripts/sample-served-list.csv`](scripts/sample-served-list.csv) is a working example. Rows that fail a check
-are skipped and counted, and the reason is kept in the audit entry; the rest still import.
+Three things follow from the template that are worth knowing:
+
+- **The row says where it happened, not the form.** The form's province, city and barangay are what the import
+  is filed under and the fallback for a row that names nowhere, but a row naming a place of its own is believed
+  — so one file may cover several barangays. A row naming a place that is not in `geographies` is skipped and
+  said so, never quietly re-filed under the form's choice.
+- **There is no paid column.** A served list is the record of money handed over, so a row counts as paid when
+  its `AMOUNT` is above zero.
+- **`CHARGING` must belong to the import's programme.** An AICS import takes AICS, AKAP and AICS-Uplift rows; a
+  row charged to ECT is skipped rather than quietly filed under the wrong programme.
+
+[`scripts/sample-served-list.csv`](scripts/sample-served-list.csv) is a working example that spans two
+barangays. Rows that fail a check are skipped and counted, and the reason is kept in the audit entry; the rest
+still import. When every row fails, the refusal names the first few reasons rather than only saying none were
+usable.
 
 
 ### Every payout record belongs to an import

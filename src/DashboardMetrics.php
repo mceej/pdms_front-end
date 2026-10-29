@@ -680,6 +680,23 @@ class DashboardMetrics
     }
 
     /**
+     * Which of the two programmes a type is paid under.
+     *
+     * Unknown types answer null, so a caller has to decide what to do with
+     * one rather than have it quietly counted as AICS.
+     */
+    public static function programOfType(string $programType): ?string
+    {
+        foreach (self::PROGRAM_OF_TYPE as $type => $program) {
+            if (strcasecmp($programType, $type) === 0) {
+                return $program;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Whether a type is one run under another programme rather than a
      * programme in its own right.
      *

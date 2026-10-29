@@ -33,11 +33,13 @@ Never point the user at port 5173; it only feeds front-end files to the page on 
 - `resources/FrontEnd/data/` — every database read and every server call, one file per table. Pages must not import Firebase directly; that boundary is what keeps a later move to Firestore small.
 - `resources/FrontEnd/mock/` — the sample figures `scripts/seed-firebase.php` loads into Firebase. The app reads the database, not this folder.
 - `src/` and `config.php` — PHP classes and settings, outside `public/` so they are never served.
+- `Serve List - Template.csv` — the shape every imported served list must have. `src/ServedListReader.php` enforces it; change one and change the other.
 - `database.rules.json` — security rules. Changing what a role may do means changing this file and publishing it.
 
 ## Rules that matter
 
 - Accounts are created only by an admin, through the User Management page. There is no self-registration and no password reset.
+- A served list must match `Serve List - Template.csv` — all thirteen columns, any order or case. The row names its own place, the amount decides whether it counts as paid, dates are day-first, and `CHARGING` is the programme type.
 - `program` is AICS or ECT and nothing else — it is what a payout record carries. AKAP and AICS-Uplift are types *within* AICS, filtered through `program_type` and recorded on each row at import. Sending one as a `program` is refused.
 - Audit entries are written **and read** by the server only. The rules close `auditLogs` to the browser in both directions, so nobody can rewrite what they did, and reading the log goes through `public/api/audit.php`, which checks the caller is an admin.
 - The browser cannot read the `users` branch either — only its own account, which is what the sign-in needs for the role. The staff list comes from a GET on `public/api/admin-users.php`.
