@@ -1111,6 +1111,20 @@ watch(
     font: inherit;
 }
 
+.add-user-dialog select,
+.management-dialog select {
+    width: 100%;
+    padding-right: 38px;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%23516074' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5'/%3E%3C/svg%3E");
+    background-position: right 16px center;
+    background-repeat: no-repeat;
+    background-size: 10px 7px;
+    cursor: pointer;
+}
+
 .form-field-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1171,11 +1185,11 @@ watch(
 }
 
 .status-choice .inactive-choice {
-    color: #a10e0e;
+    color: #040101;
 }
 
 .status-choice .active-choice {
-    color: #137238;
+    color: #000201;
 }
 
 .status-choice button:active {
@@ -1183,13 +1197,13 @@ watch(
 }
 
 .status-choice .inactive-choice.selected {
-    background: #942020;
+    background: #302b9c;
     color: #fff;
     animation: status-choice-pop 220ms ease-out;
 }
 
 .status-choice .active-choice.selected {
-    background: #13863b;
+    background: #302b9c;
     color: #fff;
     animation: status-choice-pop 220ms ease-out;
 }
