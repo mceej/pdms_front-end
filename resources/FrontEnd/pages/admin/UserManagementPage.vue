@@ -187,11 +187,11 @@
                 <h2>Add New User</h2>
                 <label>
                     Name
-                    <input v-model="newUser.name" required />
+                    <input v-model="newUser.name" placeholder="Name" required />
                 </label>
                 <label>
                     Email
-                    <input v-model="newUser.email" type="email" required />
+                    <input v-model="newUser.email" type="email" placeholder="Email" required />
                 </label>
                 <label>
                     User Role
@@ -246,7 +246,7 @@
                 </label>
                 <label>
                     Email
-                    <input v-model="editDraft.email" type="email" disabled />
+                    <input v-model="editDraft.email" type="email" required />
                 </label>
                 <label>
                     User Role
@@ -273,27 +273,23 @@
                     Confirm Password
                     <input v-model="editDraft.confirmPassword" type="password" autocomplete="new-password" />
                 </label>
-                <fieldset class="status-switch">
+                <fieldset class="status-control" :disabled="isSaving">
                     <legend>Edit Status</legend>
-                    <div class="status-choice" role="group" aria-label="Edit user status">
-                        <button
+                    <div class="status-options" :class="{ 'is-active': editDraft.status === 'Active' }">
+                        <span class="selection-indicator" aria-hidden="true"></span>
+                        <Button
+                            v-for="status in ['Inactive', 'Active']"
+                            :key="status"
                             type="button"
-                            class="inactive-choice"
-                            :class="{ selected: editDraft.status === 'Inactive' }"
-                            :aria-pressed="editDraft.status === 'Inactive'"
-                            @click="editDraft.status = 'Inactive'"
+                            class="status-option"
+                            :class="{ selected: editDraft.status === status }"
+                            :aria-pressed="editDraft.status === status"
+                            :disabled="isSaving"
+                            @click="editDraft.status = status"
                         >
-                            Inactive
-                        </button>
-                        <button
-                            type="button"
-                            class="active-choice"
-                            :class="{ selected: editDraft.status === 'Active' }"
-                            :aria-pressed="editDraft.status === 'Active'"
-                            @click="editDraft.status = 'Active'"
-                        >
-                            Active
-                        </button>
+                            <i :class="['pi', status === 'Active' ? 'pi-check-circle' : 'pi-ban']" aria-hidden="true"></i>
+                            <span>{{ status }}</span>
+                        </Button>
                     </div>
                 </fieldset>
                 <p v-if="editPasswordError" class="form-error">{{ editPasswordError }}</p>
@@ -340,7 +336,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
-import { searchableText, useDebounced } from '../../support/useDebounced.js';
 import {
     createUser,
     deleteUser,
@@ -348,6 +343,7 @@ import {
     setUserPassword,
     updateUser,
 } from '../../data/users.js';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
 
 const search = ref('');
 const page = ref(1);
@@ -536,7 +532,6 @@ const beginEditUser = (user) => {
     passwordMismatch.value = false;
     editPasswordError.value = '';
     serverError.value = '';
-    openUserActions.value = null;
 };
 
 const cancelEditUser = () => {
@@ -583,6 +578,7 @@ const confirmAction = async () => {
     if (action.type === 'edit') {
         result = await updateUser(action.user.uid, {
             name: action.draft.name,
+            email: action.draft.email,
             section: action.draft.section,
             role: action.draft.role,
             status: action.draft.status,
@@ -651,6 +647,81 @@ watch(
 </script>
 
 <style scoped>
+.status-control {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.status-control legend {
+    margin-bottom: 8px;
+    color: #39465a;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.status-options {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 320px;
+    padding: 5px;
+    border: 1px solid #dfe3ec;
+    border-radius: 30px;
+    background: #f0f2f7;
+}
+
+.selection-indicator {
+    position: absolute;
+    inset: 5px auto 5px 5px;
+    width: calc((100% - 10px) / 2);
+    border-radius: 24px;
+    background: #586174;
+    box-shadow: 0 3px 8px rgb(31 41 55 / 18%);
+    transition: transform 220ms ease, background-color 220ms ease;
+}
+
+.is-active .selection-indicator {
+    transform: translateX(100%);
+    background: #302b9c;
+}
+
+.status-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 24px;
+    background: transparent;
+    color: #586174;
+    cursor: pointer;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 180ms ease, background-color 180ms ease, transform 150ms ease;
+}
+
+.status-option.selected { color: #fff; }
+.status-option:not(.selected):hover:not(:disabled) { background: rgb(48 43 156 / 8%); color: #302b9c; }
+.status-option:active:not(:disabled) { transform: scale(0.96); }
+.status-option:focus-visible { outline: 3px solid #8e89e5; outline-offset: 2px; }
+.status-control:disabled { opacity: 0.65; }
+.status-option:disabled { cursor: wait; }
+
+@media (prefers-reduced-motion: reduce) {
+    .selection-indicator, .status-option { transition: none; }
+}
+
+.add-user-dialog input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -1128,6 +1199,7 @@ watch(
     border: 1px solid #cfd8e5;
     border-radius: 4px;
     font: inherit;
+    font-weight: 300
 }
 
 .add-user-dialog select,
@@ -1166,90 +1238,7 @@ watch(
     background-size: 10px 7px;
 }
 
-.status-switch {
-    margin: 0;
-    padding: 0;
-    border: 0;
-}
 
-.status-switch legend {
-    margin-bottom: 6px;
-    color: #39465a;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.status-choice {
-    display: inline-flex;
-    overflow: hidden;
-    padding: 3px;
-    border: 0;
-    border-radius: 30px;
-    background: #e1e3e7;
-    box-shadow: 0 2px 5px rgb(15 23 42 / 10%);
-}
-
-.status-choice button {
-    min-width: 106px;
-    min-height: 38px;
-    padding: 0 18px;
-    border: 0;
-    border-radius: 25px;
-    background: transparent;
-    cursor: pointer;
-    font: inherit;
-    font-size: 14px;
-    font-weight: 700;
-    transition: background-color 180ms ease, color 180ms ease, transform 160ms ease;
-}
-
-.status-choice .inactive-choice {
-    color: #040101;
-}
-
-.status-choice .active-choice {
-    color: #000201;
-}
-
-.status-choice button:active {
-    transform: scale(0.95);
-}
-
-.status-choice .inactive-choice.selected {
-    background: #302b9c;
-    color: #fff;
-    animation: status-choice-pop 220ms ease-out;
-}
-
-.status-choice .active-choice.selected {
-    background: #302b9c;
-    color: #fff;
-    animation: status-choice-pop 220ms ease-out;
-}
-
-.status-choice button:focus-visible {
-    position: relative;
-    z-index: 1;
-    outline: 3px solid rgb(48 43 156 / 32%);
-    outline-offset: -3px;
-}
-
-@keyframes status-choice-pop {
-    0% { filter: brightness(1.25); }
-    100% { filter: brightness(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .status-choice,
-    .status-choice button {
-        transition: none;
-    }
-
-    .status-choice .inactive-choice.selected,
-    .status-choice .active-choice.selected {
-        animation: none;
-    }
-}
 
 .dialog-actions {
     display: flex;
