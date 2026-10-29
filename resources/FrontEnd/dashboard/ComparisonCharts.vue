@@ -283,9 +283,9 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
   min-width: 140px;
   height: 40px;
   padding: 6px 20px;
-  border: 1.5px solid #181A7E;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  color: #2e3192;
+  color: #4b5563;
   font-size: 0.85rem;
   font-weight: 600;
   box-sizing: border-box;
@@ -295,28 +295,29 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 }
 
 .quick-filter:hover {
-  background: #eef2ff;
-  box-shadow: 0 2px 6px rgba(21, 42, 132, 0.15);
+  background: #f3f4f6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .quick-filter.active {
-  background: #2e3192;
-  color: #fff;
-  box-shadow: 0 2px 6px rgba(21, 42, 132, 0.22);
+  background: #e5e7eb;
+  color: #1f2937;
+  border-color: #d1d5db;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .quick-filter.active:hover {
-  background: #12145f;
+  background: #d9dce1;
 }
 
 .overview-filters input {
   width: 200px;
   height: 40px;
   padding: 10px;
-  border: 1.4px solid #181A7E;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
   background: #fff;
-  color: #26366e;
+  color: #4b5563;
   font-size: 0.85rem;
   box-sizing: border-box;
 }
@@ -339,18 +340,18 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 
 .date-field.empty .date-placeholder { display: block; }
 .date-field.empty input { color: transparent; }
-.date-field.empty input:focus { color: #26366e; }
+.date-field.empty input:focus { color: #4b5563; }
 .date-field.empty:focus-within .date-placeholder { display: none; }
 
 .apply-filter {
   min-width: 90px;
   border-radius: 6px;
-  background: #2e3192;
-  color: #fff;
-  border-color: #2e3192;
+  background: #fff;
+  color: #4b5563;
+  border-color: #d1d5db;
 }
 
-.apply-filter:hover { background: #12145f; }
+.apply-filter:hover { background: #f3f4f6; }
 
 .chart-layout {
   display: grid;
@@ -492,9 +493,10 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 }
 
 .apply-filter.pending {
-  background: #1d4ed8;
-  color: #fff;
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.18);
+  background: #e5e7eb;
+  color: #1f2937;
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.15);
 }
 
 .clear-range {
@@ -512,4 +514,4 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .clear-range:hover {
   background: #f3f4f6;
 }
-</style>
+</style>ff

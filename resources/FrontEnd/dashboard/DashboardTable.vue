@@ -337,7 +337,7 @@ const emit = defineEmits([
 
 :deep(.p-datatable-tfoot .total-target),
 :deep(.p-datatable-tfoot .total-paid) {
-  color: #4d0c0e;
+  color: #000000;
 }
 
 .paid-cell {
