@@ -129,6 +129,12 @@ class DashboardMetrics
         $rows = $this->rowsFor($query['group'], $scopedTargets, $scopedPayouts);
 
         return [
+            // Availability follows the programme and disaster, regardless of
+            // drill-down or date filters. Targets alone are not payout data.
+            'has_payout_data' => $this->payoutsMatching(
+                $query,
+                ['assistance_type', 'payout_site', 'start_date', 'end_date']
+            ) !== [],
             'kpi' => $this->headlineFigures($scopedTargets, $scopedPayouts),
             'grouping' => $query['group'],
             'rows' => $rows,

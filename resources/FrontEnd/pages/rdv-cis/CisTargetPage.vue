@@ -303,9 +303,9 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
-import { searchableText, useDebounced } from '../../support/useDebounced.js';
 import { recordActivity } from '../../data/auditLog.js';
 import { saveTarget as persistTarget, subscribeTargets } from '../../data/targets.js';
+import { searchableText, useDebounced } from '../../support/useDebounced.js';
 
 const props = defineProps({
     pageTitle: { type: String, required: true },

@@ -102,6 +102,7 @@ export const fetchDashboardMetrics = async (filters = {}) => {
 
     return {
         ok: true,
+        hasPayoutData: body.has_payout_data === true,
         kpi: asKpi(body.kpi),
         grouping: body.grouping,
         rows: (body.rows || []).map(asRow),

@@ -33,20 +33,7 @@
         />
       </label>
 
-      <div class="served-location-fields">
-        <label class="served-field">
-          <span>Province</span>
-          <Select v-model="servedListForm.province" :options="servedProvinceOptions" placeholder="Province" />
-        </label>
-        <label class="served-field">
-          <span>Municipality</span>
-          <Select v-model="servedListForm.municipality" :options="servedMunicipalityOptions" placeholder="Municipality" />
-        </label>
-        <label class="served-field">
-          <span>Barangay</span>
-          <Select v-model="servedListForm.barangay" :options="servedBarangayOptions" placeholder="Barangay" />
-        </label>
-      </div>
+      <ServedListLocations :form="servedListForm" />
 
       <label class="served-field">
         <span>Upload File</span>
@@ -129,15 +116,13 @@
 
 <script setup>
 import AutoComplete from 'primevue/autocomplete';
+import ServedListLocations from './ServedListLocations.vue';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
   currentTime: { type: String, required: true },
   payoutType: { type: String, default: 'AICS' },
   servedListForm: { type: Object, required: true },
-  servedProvinceOptions: { type: Array, default: () => [] },
-  servedMunicipalityOptions: { type: Array, default: () => [] },
-  servedBarangayOptions: { type: Array, default: () => [] },
   isUploading: { type: Boolean, default: false },
   servedListMessage: { type: String, default: '' },
   servedListError: { type: Boolean, default: false },
@@ -297,12 +282,6 @@ const emit = defineEmits([
 .served-field :deep(.p-autocomplete-input) {
   font-size: 0.75rem;
   font-weight: 400;
-}
-
-.served-location-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
-  gap: 16px;
 }
 
 .file-dropzone {
@@ -476,10 +455,6 @@ const emit = defineEmits([
 }
 
 @media (max-width: 768px) {
-  .served-location-fields {
-    grid-template-columns: 1fr;
-  }
-
   .server-list-heading,
   .table-header {
     flex-direction: column;

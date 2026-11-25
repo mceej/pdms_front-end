@@ -94,7 +94,7 @@
         </div>
         <div v-if="!comparisonRows.length" class="chart-state">No payout records found for the selected filters.</div>
         <div v-else class="stacked-bars">
-          <div v-for="row in comparisonRows" :key="row.id || row.name" class="stacked-row">
+          <div v-for="row in visibleComparisonRows" :key="row.id || row.name" class="stacked-row">
             <strong>{{ row.name }}</strong>
             <div class="stacked-track">
               <span class="stacked-paid" :style="{ width: `${row.progress || 0}%` }"></span>
@@ -103,6 +103,16 @@
             <small>{{ row.progress || 0 }}%<br>{{ formatNumber(row.paid) }}/{{ formatNumber(row.target) }}</small>
           </div>
         </div>
+        <Paginator
+          v-if="activeLevel === 'barangay' && comparisonRows.length > barangaysPerPage"
+          v-model:first="firstBarangay"
+          :rows="barangaysPerPage"
+          :total-records="comparisonRows.length"
+          template="PrevPageLink CurrentPageReport NextPageLink"
+          current-page-report-template="{first}–{last} of {totalRecords} barangays"
+          class="barangay-pagination"
+          aria-label="Barangay progress pages"
+        />
       </section>
     </div>
   </section>
@@ -110,6 +120,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
+import Paginator from 'primevue/paginator';
 
 const props = defineProps({
   comparisonRows: { type: Array, default: () => [] },
@@ -126,6 +137,22 @@ const props = defineProps({
   extraStat: { type: Object, default: null },
 });
 const emit = defineEmits(['update:dateFrom', 'update:dateTo', 'apply', 'clear']);
+
+const barangaysPerPage = 10;
+const firstBarangay = ref(0);
+const visibleComparisonRows = computed(() => (
+  props.activeLevel === 'barangay'
+    ? props.comparisonRows.slice(firstBarangay.value, firstBarangay.value + barangaysPerPage)
+    : props.comparisonRows
+));
+
+watch([
+  () => props.comparisonRows,
+  () => props.activeLevel,
+  () => props.scopeName,
+], () => {
+  firstBarangay.value = 0;
+});
 
 /* ---------- Quick filter (Last 7 / 30 Days) ---------- */
 // Nothing is filtered when the page opens, so no quick range is active.
@@ -465,6 +492,7 @@ const formatPercent = (value) => `${Number(Number(value).toFixed(2))}%`;
 .stacked-legend span { display: inline-flex; align-items: center; gap: 5px; }
 
 .stacked-bars { display: grid; gap: 14px; margin-top: 24px; }
+.barangay-pagination { margin-top: 20px; }
 
 .stacked-row {
   display: grid;

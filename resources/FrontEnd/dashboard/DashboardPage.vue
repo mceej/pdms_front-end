@@ -1,4 +1,4 @@
-﻿﻿<template>
+﻿<template>
     <div class="dashboard-page">
         <div class="dashboard-shell">
             <p v-if="loadError" class="dashboard-error" role="alert">
@@ -23,7 +23,7 @@
                             <span class="region-tag">{{ regionName }}</span>
                         </div>
 
-                        <div class="progress-box">
+                        <div v-if="apiLoaded && !showEmptyState" class="progress-box">
                             <div class="header-progress-meta">
                                 <span class="header-progress-value">{{ dashboardProgress }}%</span>
                             </div>
@@ -59,7 +59,7 @@
 
             <DashboardEmptyState v-if="showEmptyState" :program="activeTab" />
 
-            <template v-else>
+            <template v-if="apiLoaded && !showEmptyState">
                 <DashboardOverview
                     :total-target="totalTarget"
                     :total-paid-count="totalPaidCount"
@@ -122,13 +122,13 @@
 
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
-import ComparisonCharts from './ComparisonCharts.vue';
-import DashboardOverview from './DashboardOverview.vue';
-import DashboardTable from './DashboardTable.vue';
-import DashboardEmptyState from './DashboardEmptyState.vue';
-import DashboardProgramFilters from './DashboardProgramFilters.vue';
+import { loadDashboardLocations } from '../data/dashboardLocations.js';
 import { fetchDashboardMetrics, subscribeToChanges } from '../data/metrics.js';
-import { subscribeServedListAvailability } from '../data/servedLists.js';
+import ComparisonCharts from './ComparisonCharts.vue';
+import DashboardEmptyState from './DashboardEmptyState.vue';
+import DashboardOverview from './DashboardOverview.vue';
+import DashboardProgramFilters from './DashboardProgramFilters.vue';
+import DashboardTable from './DashboardTable.vue';
 
 const activeTab = ref('AICS');
 const selectedProgramType = ref('');
@@ -170,6 +170,8 @@ const emptyKpi = () => ({
 });
 
 const apiRows = ref([]);
+const locationRows = ref([]);
+let dashboardRequest = 0;
 // The Total row the server worked out for exactly the rows it sent.
 const apiTotal = ref(null);
 const apiKpi = ref(emptyKpi());
@@ -193,27 +195,16 @@ const disasterOptions = computed(() => [
     ]),
 ]);
 const apiPayoutSites = ref([]);
-const programAvailability = ref({ AICS: null, ECT: null });
+const hasPayoutData = ref(false);
 
 const regionName = ref('REGION XI');
 const selectedProvince = ref(null);
 const selectedMunicipality = ref(null);
 const selectedBarangay = ref(null);
-const metricsAreEmpty = computed(() => (
-    apiRows.value.length === 0
-    && Number(apiTotal.value?.target || 0) === 0
-    && Number(apiTotal.value?.paid || 0) === 0
-    && Number(apiKpi.value.targetBeneficiaries || 0) === 0
-    && Number(apiKpi.value.totalPaid || 0) === 0
-    && Number(apiKpi.value.totalDisbursed || 0) === 0
-));
 const showEmptyState = computed(() => (
     apiLoaded.value
     && loadError.value === ''
-    && (
-        programAvailability.value[activeTab.value] === false
-        || metricsAreEmpty.value
-    )
+    && !hasPayoutData.value
 ));
 
 /* ---------- The six cards at the top ----------
@@ -248,8 +239,8 @@ const currentTableRows = computed(() => {
     const search = municipalityFilter.value;
 
     return search === ''
-        ? apiRows.value
-        : apiRows.value.filter((row) => row.name.toLowerCase().includes(search));
+        ? locationRows.value
+        : locationRows.value.filter((row) => row.name.toLowerCase().includes(search));
 });
 
 const rowsWithProgress = computed(() =>
@@ -355,6 +346,10 @@ const fetchDashboard = async () => {
        Uplift are paid under AICS, so they go as program_type and leave the
        programme alone — sending them as the programme is what the server
        refused with "program must be aics or ect". */
+    const request = ++dashboardRequest;
+    apiLoaded.value = false;
+    const level = activeLevel.value;
+    const parent = selectedMunicipality.value || selectedProvince.value;
     const filters = { program: activeTab.value === 'AICS' ? 'AICS' : 'ECT' };
 
     if (activeTab.value === 'AICS' && selectedProgramType.value) {
@@ -362,19 +357,52 @@ const fetchDashboard = async () => {
     }
     if (selectedDisasterType.value) filters.disasterType = selectedDisasterType.value;
     if (selectedAssistanceType.value) filters.assistanceType = selectedAssistanceType.value;
-    if (selectedProvince.value?.id) filters.provinceId = selectedProvince.value.id;
+    if (selectedProvince.value?.id && !selectedProvince.value.isCity) filters.provinceId = selectedProvince.value.id;
     if (selectedMunicipality.value?.id) filters.municipalityId = selectedMunicipality.value.id;
     if (selectedBarangay.value?.id) filters.barangayId = selectedBarangay.value.id;
     if (payoutSiteFilter.value) filters.payoutSite = payoutSiteFilter.value;
     if (appliedFrom.value) filters.from = appliedFrom.value;
     if (appliedTo.value) filters.to = appliedTo.value;
 
-    const result = await fetchDashboardMetrics(filters);
+    let locations;
+    try {
+        locations = level === 'detail' ? [selectedBarangay.value] : await loadDashboardLocations(level, parent);
+    } catch {
+        if (request !== dashboardRequest) return;
+        loadError.value = 'Could not load PSGC locations. Check your connection and try again.';
+        locationRows.value = [];
+        return;
+    }
+    // PSGC includes places not yet stored in Firebase. They cannot have
+    // records joined to an internal geography id; keep their reference rows
+    // visible without sending an unknown id to the metrics endpoint.
+    const referenceOnly = [selectedProvince.value, selectedMunicipality.value, selectedBarangay.value]
+        .some((place) => place?.id?.startsWith('psgc-'));
+    const metricsFilters = { ...filters };
+    if (referenceOnly) {
+        delete metricsFilters.provinceId;
+        delete metricsFilters.municipalityId;
+        delete metricsFilters.barangayId;
+    }
+    const response = await fetchDashboardMetrics(metricsFilters);
+    const result = referenceOnly && response.ok ? {
+        ok: true,
+        hasPayoutData: response.hasPayoutData,
+        rows: [],
+        total: null,
+        kpi: emptyKpi(),
+        disasterTypes: [],
+        payoutSites: [],
+        lastUpdated: null,
+        warnings: [],
+    } : response;
+    if (request !== dashboardRequest) return;
 
     if (! result.ok) {
         loadError.value = result.message;
         loadWarnings.value = [];
         apiRows.value = [];
+        locationRows.value = [];
         apiTotal.value = null;
         apiKpi.value = emptyKpi();
         apiLoaded.value = true;
@@ -383,6 +411,9 @@ const fetchDashboard = async () => {
     }
 
     apiRows.value = result.rows;
+    hasPayoutData.value = result.hasPayoutData;
+    const metrics = new Map(result.rows.map((row) => [row.id, row]));
+    locationRows.value = locations.map((place) => ({ ...place, ...metrics.get(place.id) }));
     apiTotal.value = result.total;
     apiKpi.value = result.kpi;
     apiDisasterTypes.value = result.disasterTypes;
@@ -397,8 +428,8 @@ const handleRowClick = async (row) => {
     const scrollPosition = window.scrollY;
 
   if (activeLevel.value === 'province') {
-    selectedProvince.value = row;
-    selectedMunicipality.value = null;
+    selectedProvince.value = row.isCity ? null : row;
+    selectedMunicipality.value = row.isCity ? row : null;
     selectedBarangay.value = null;
     payoutSiteFilter.value = '';
     municipalitySearch.value = '';
@@ -523,18 +554,13 @@ onMounted(() => fetchDashboard());
    an import arriving or leaving, and a target being edited — and asks again.
    Neither watch downloads the payout records. */
 let stopWatching = () => {};
-let stopWatchingAvailability = () => {};
 
 onMounted(() => {
     stopWatching = subscribeToChanges(() => fetchDashboard());
-    stopWatchingAvailability = subscribeServedListAvailability((availability) => {
-        programAvailability.value = availability;
-    });
 });
 
 onUnmounted(() => {
     stopWatching();
-    stopWatchingAvailability();
 });
 </script>
 

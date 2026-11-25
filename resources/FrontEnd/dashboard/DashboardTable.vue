@@ -51,7 +51,13 @@
       class="dashboard-table"
       :class="{ 'clickable-rows': activeLevel !== 'detail' }"
     >
-      <Column field="name" header="Name" sortable />
+      <Column field="name" header="Name" sortable>
+        <template #body="{ data }">
+          <div class="location-cell">
+            <span>{{ data.name }}</span>
+          </div>
+        </template>
+      </Column>
       <Column field="target" header="Total Target" sortable>
         <template #body="{ data }">
           {{ data.target ? data.target.toLocaleString() : '-----' }}
@@ -338,6 +344,12 @@ const emit = defineEmits([
 :deep(.p-datatable-tfoot .total-target),
 :deep(.p-datatable-tfoot .total-paid) {
   color: #000000;
+}
+
+.location-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .paid-cell {

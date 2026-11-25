@@ -19,9 +19,6 @@
                     :current-time="currentTime"
                     payout-type="ECT"
                     :served-list-form="servedListForm"
-                    :served-province-options="provinceOptions"
-                    :served-municipality-options="municipalityOptions"
-                    :served-barangay-options="barangayOptions"
                     :served-list-rows="importedLists"
                     :is-uploading="isUploading"
                     :served-list-message="importMessage"
@@ -58,13 +55,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import AppSidebar from '../../components/AppSidebar.vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import AppFooter from '../../components/AppFooter.vue';
+import AppSidebar from '../../components/AppSidebar.vue';
 import LogoutConfirmDialog from '../../components/LogoutConfirmDialog.vue';
-import DashboardPage from '../../dashboard/DashboardPage.vue';
 import ServerListPage from '../../components/ServerListPage.vue';
-import { loadGeographies, placeNames } from '../../data/geographies.js';
+import DashboardPage from '../../dashboard/DashboardPage.vue';
 import { deleteServedList, importServedList, subscribeServedLists } from '../../data/servedLists.js';
 import RdvTargetPage from './DbrmTargetPage.vue';
 
@@ -84,20 +80,11 @@ const servedListForm = ref({
     barangay: '',
     file: null,
 });
-const places = ref([]);
 const importedLists = ref([]);
 const isUploading = ref(false);
 const importMessage = ref('');
 const importFailed = ref(false);
 let unsubscribeServedLists = () => {};
-
-const provinceOptions = computed(() => placeNames(places.value, 'province'));
-const municipalityOptions = computed(
-    () => placeNames(places.value, 'municipality', servedListForm.value.province || null)
-);
-const barangayOptions = computed(
-    () => placeNames(places.value, 'barangay', servedListForm.value.municipality || null)
-);
 
 const onFileChosen = (event) => {
     servedListForm.value.file = event?.target?.files?.[0] || null;
@@ -164,8 +151,7 @@ const confirmDeleteImport = async () => {
 const currentTime = ref(new Date().toLocaleString());
 let clockTimer;
 
-onMounted(async () => {
-    places.value = await loadGeographies();
+onMounted(() => {
     unsubscribeServedLists = subscribeServedLists((lists) => {
         importedLists.value = lists.map((list) => ({
             id: list.id,
